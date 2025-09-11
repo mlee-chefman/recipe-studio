@@ -6,7 +6,7 @@ A mobile app for creating and publishing recipes to the CHEF iQ platform.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/mlee-chefman/ChefIQStudio.git
+   git clone https://github.com/mlee-chefman/recipe-studio.git
    ```
 
 2. Install dependencies:
