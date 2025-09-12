@@ -14,8 +14,8 @@ const Tab = createBottomTabNavigator({
     One: {
       screen: One,
       options: ({ navigation }) => ({
-        title: 'Tab One',
-        tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+        title: 'Recipes',
+        tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
         headerRight: () => <HeaderButton onPress={() => navigation.navigate('Modal')} />,
       }),
     },
