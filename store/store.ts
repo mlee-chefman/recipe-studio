@@ -29,6 +29,7 @@ export interface RecipeState {
   setSelectedCategory: (category: string) => void;
   setSelectedDifficulty: (difficulty: string) => void;
   filterRecipes: () => void;
+  addRecipe: (recipe: Omit<Recipe, 'id'>) => void;
 }
 
 export const useStore = create<BearState>((set) => ({
@@ -124,5 +125,14 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     }
 
     set({ filteredRecipes: filtered });
+  },
+  addRecipe: (recipe: Omit<Recipe, 'id'>) => {
+    const newRecipe: Recipe = {
+      ...recipe,
+      id: Date.now().toString(),
+    };
+    const updatedRecipes = [...get().recipes, newRecipe];
+    set({ recipes: updatedRecipes });
+    get().filterRecipes();
   }
 }));
