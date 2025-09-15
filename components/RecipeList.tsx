@@ -1,4 +1,4 @@
-import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
 import { useRecipeStore, Recipe } from '../store/store';
 import { RecipeDetailModal } from './RecipeDetailModal';
@@ -73,13 +73,20 @@ export const RecipeList = () => {
     setSearchQuery,
     setSelectedCategory,
     setSelectedDifficulty,
-    recipes
+    recipes,
+    filterRecipes
   } = useRecipeStore();
 
   // Modal state
-  const [selectedRecipe, setSelectedRecipe] = React.useState<Recipe | null>(null);
-  const [modalVisible, setModalVisible] = React.useState(false);
-  const [filterModalVisible, setFilterModalVisible] = React.useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+
+  // Ensure recipes are filtered on mount
+  useEffect(() => {
+    filterRecipes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get unique categories and difficulties for filter options
   const categories = Array.from(new Set(recipes.map(recipe => recipe.category)));

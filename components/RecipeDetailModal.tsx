@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { Recipe } from '../store/store';
+import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { Recipe, useRecipeStore } from '../store/store';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
@@ -9,7 +9,30 @@ interface RecipeDetailModalProps {
 }
 
 export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModalProps) => {
+  const { deleteRecipe } = useRecipeStore();
+
   if (!recipe) return null;
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Recipe',
+      `Are you sure you want to delete "${recipe.title}"?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteRecipe(recipe.id);
+            onClose();
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <Modal
@@ -22,12 +45,20 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
         {/* Header */}
         <View className="flex-row justify-between items-center p-4 border-b border-gray-200 bg-white">
           <Text className="text-xl font-bold text-gray-800 flex-1 mr-4">{recipe.title}</Text>
-          <TouchableOpacity
-            onPress={onClose}
-            className="bg-gray-100 rounded-full w-8 h-8 items-center justify-center"
-          >
-            <Text className="text-gray-600 font-bold text-lg">×</Text>
-          </TouchableOpacity>
+          <View className="flex-row gap-2">
+            <TouchableOpacity
+              onPress={handleDelete}
+              className="bg-red-500 rounded-lg px-3 py-1.5 items-center justify-center"
+            >
+              <Text className="text-white font-semibold">Delete</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onClose}
+              className="bg-gray-100 rounded-full w-8 h-8 items-center justify-center"
+            >
+              <Text className="text-gray-600 font-bold text-lg">×</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Content */}

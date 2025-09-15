@@ -24,7 +24,7 @@ const Tab = createBottomTabNavigator({
       screen: RecipeCreator,
       options: {
         title: 'Create',
-        tabBarIcon: ({ color }) => <TabBarIcon name="add-circle" color={color} />,
+        tabBarIcon: ({ color }) => <TabBarIcon name="plus-circle" color={color} />,
       },
     },
     Two: {

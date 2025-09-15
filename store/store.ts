@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Recipe {
   id: string;
@@ -30,6 +32,9 @@ export interface RecipeState {
   setSelectedDifficulty: (difficulty: string) => void;
   filterRecipes: () => void;
   addRecipe: (recipe: Omit<Recipe, 'id'>) => void;
+  deleteRecipe: (id: string) => void;
+  updateRecipe: (id: string, recipe: Partial<Omit<Recipe, 'id'>>) => void;
+  clearAllRecipes: () => void;
 }
 
 export const useStore = create<BearState>((set) => ({
@@ -87,52 +92,84 @@ const sampleRecipes: Recipe[] = [
   }
 ];
 
-export const useRecipeStore = create<RecipeState>((set, get) => ({
-  recipes: sampleRecipes,
-  filteredRecipes: sampleRecipes,
-  searchQuery: '',
-  selectedCategory: '',
-  selectedDifficulty: '',
-  setSearchQuery: (query: string) => {
-    set({ searchQuery: query });
-    get().filterRecipes();
-  },
-  setSelectedCategory: (category: string) => {
-    set({ selectedCategory: category });
-    get().filterRecipes();
-  },
-  setSelectedDifficulty: (difficulty: string) => {
-    set({ selectedDifficulty: difficulty });
-    get().filterRecipes();
-  },
-  filterRecipes: () => {
-    const { recipes, searchQuery, selectedCategory, selectedDifficulty } = get();
-    let filtered = recipes;
+export const useRecipeStore = create<RecipeState>()(
+  persist(
+    (set, get) => ({
+      recipes: [],
+      filteredRecipes: [],
+      searchQuery: '',
+      selectedCategory: '',
+      selectedDifficulty: '',
+      setSearchQuery: (query: string) => {
+        set({ searchQuery: query });
+        get().filterRecipes();
+      },
+      setSelectedCategory: (category: string) => {
+        set({ selectedCategory: category });
+        get().filterRecipes();
+      },
+      setSelectedDifficulty: (difficulty: string) => {
+        set({ selectedDifficulty: difficulty });
+        get().filterRecipes();
+      },
+      filterRecipes: () => {
+        const { recipes, searchQuery, selectedCategory, selectedDifficulty } = get();
+        let filtered = recipes;
 
-    if (searchQuery) {
-      filtered = filtered.filter(recipe =>
-        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        recipe.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+        if (searchQuery) {
+          filtered = filtered.filter(recipe =>
+            recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            recipe.description.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        }
+
+        if (selectedCategory) {
+          filtered = filtered.filter(recipe => recipe.category === selectedCategory);
+        }
+
+        if (selectedDifficulty) {
+          filtered = filtered.filter(recipe => recipe.difficulty === selectedDifficulty);
+        }
+
+        set({ filteredRecipes: filtered });
+      },
+      addRecipe: (recipe: Omit<Recipe, 'id'>) => {
+        const newRecipe: Recipe = {
+          ...recipe,
+          id: Date.now().toString(),
+        };
+        const updatedRecipes = [...get().recipes, newRecipe];
+        set({ recipes: updatedRecipes });
+        get().filterRecipes();
+      },
+      deleteRecipe: (id: string) => {
+        const updatedRecipes = get().recipes.filter(recipe => recipe.id !== id);
+        set({ recipes: updatedRecipes });
+        get().filterRecipes();
+      },
+      updateRecipe: (id: string, recipeUpdate: Partial<Omit<Recipe, 'id'>>) => {
+        const updatedRecipes = get().recipes.map(recipe =>
+          recipe.id === id ? { ...recipe, ...recipeUpdate } : recipe
+        );
+        set({ recipes: updatedRecipes });
+        get().filterRecipes();
+      },
+      clearAllRecipes: () => {
+        set({ recipes: [], filteredRecipes: [] });
+      }
+    }),
+    {
+      name: 'recipe-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        recipes: state.recipes
+      }),
+      onRehydrateStorage: () => (state) => {
+        // After loading from storage, update filtered recipes
+        if (state) {
+          state.filterRecipes();
+        }
+      },
     }
-
-    if (selectedCategory) {
-      filtered = filtered.filter(recipe => recipe.category === selectedCategory);
-    }
-
-    if (selectedDifficulty) {
-      filtered = filtered.filter(recipe => recipe.difficulty === selectedDifficulty);
-    }
-
-    set({ filteredRecipes: filtered });
-  },
-  addRecipe: (recipe: Omit<Recipe, 'id'>) => {
-    const newRecipe: Recipe = {
-      ...recipe,
-      id: Date.now().toString(),
-    };
-    const updatedRecipes = [...get().recipes, newRecipe];
-    set({ recipes: updatedRecipes });
-    get().filterRecipes();
-  }
-}));
+  )
+);
