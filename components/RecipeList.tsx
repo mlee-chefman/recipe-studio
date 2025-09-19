@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { Image } from 'expo-image';
 import { useRecipeStore, Recipe } from '../store/store';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { FilterModal } from './FilterModal';
@@ -7,31 +8,48 @@ import { FilterModal } from './FilterModal';
 const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <View className="bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-200">
-        <Text className="text-lg font-bold text-gray-800 mb-2">{recipe.title}</Text>
-        <Text className="text-gray-600 mb-2">{recipe.description}</Text>
-        
-        <View className="flex-row justify-between items-center mb-2">
-          <View className="flex-row items-center">
-            <Text className="text-sm text-gray-500 mr-4">⏱️ {recipe.cookTime} min</Text>
-            <Text className="text-sm text-gray-500 mr-4">👥 {recipe.servings} servings</Text>
+      <View className="bg-white rounded-lg mb-3 shadow-sm border border-gray-200 overflow-hidden">
+        {/* Recipe Image */}
+        {recipe.image ? (
+          <Image
+            source={{ uri: recipe.image }}
+            style={{ width: '100%', height: 160 }}
+            contentFit="cover"
+          />
+        ) : (
+          <View className="w-full h-40 bg-gray-100 items-center justify-center">
+            <Text className="text-4xl text-gray-400">🍽️</Text>
+            <Text className="text-gray-500 text-sm mt-1">No Image</Text>
           </View>
-          <View className={`px-2 py-1 rounded-full ${
-            recipe.difficulty === 'Easy' ? 'bg-green-100' :
-            recipe.difficulty === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
-          }`}>
-            <Text className={`text-xs font-medium ${
-              recipe.difficulty === 'Easy' ? 'text-green-800' :
-              recipe.difficulty === 'Medium' ? 'text-yellow-800' : 'text-red-800'
+        )}
+
+        {/* Recipe Content */}
+        <View className="p-4">
+          <Text className="text-lg font-bold text-gray-800 mb-2">{recipe.title}</Text>
+          <Text className="text-gray-600 mb-3 line-clamp-2">{recipe.description}</Text>
+
+          <View className="flex-row justify-between items-center mb-2">
+            <View className="flex-row items-center">
+              <Text className="text-sm text-gray-500 mr-4">⏱️ {recipe.cookTime} min</Text>
+              <Text className="text-sm text-gray-500 mr-4">👥 {recipe.servings} servings</Text>
+            </View>
+            <View className={`px-2 py-1 rounded-full ${
+              recipe.difficulty === 'Easy' ? 'bg-green-100' :
+              recipe.difficulty === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
             }`}>
-              {recipe.difficulty}
-            </Text>
+              <Text className={`text-xs font-medium ${
+                recipe.difficulty === 'Easy' ? 'text-green-800' :
+                recipe.difficulty === 'Medium' ? 'text-yellow-800' : 'text-red-800'
+              }`}>
+                {recipe.difficulty}
+              </Text>
+            </View>
           </View>
-        </View>
-        
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-blue-600 font-medium">{recipe.category}</Text>
-          <Text className="text-xs text-gray-400">Tap for details →</Text>
+
+          <View className="flex-row items-center justify-between">
+            <Text className="text-sm text-blue-600 font-medium">{recipe.category}</Text>
+            <Text className="text-xs text-gray-400">Tap for details →</Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>

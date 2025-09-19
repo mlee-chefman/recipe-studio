@@ -12,6 +12,7 @@ export interface Recipe {
   servings: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   category: string;
+  image?: string;
 }
 
 export interface BearState {

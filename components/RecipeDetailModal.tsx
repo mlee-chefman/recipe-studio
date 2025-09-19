@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
+import { Image } from 'expo-image';
 import { Recipe, useRecipeStore } from '../store/store';
 
 interface RecipeDetailModalProps {
@@ -62,11 +63,21 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
         </View>
 
         {/* Content */}
-        <ScrollView className="flex-1 p-4">
-          {/* Description */}
-          <View className="mb-6">
-            <Text className="text-base text-gray-700 leading-6">{recipe.description}</Text>
-          </View>
+        <ScrollView className="flex-1">
+          {/* Recipe Image */}
+          {recipe.image && (
+            <Image
+              source={{ uri: recipe.image }}
+              style={{ width: '100%', height: 250 }}
+              contentFit="cover"
+            />
+          )}
+
+          <View className="p-4">
+            {/* Description */}
+            <View className="mb-6">
+              <Text className="text-base text-gray-700 leading-6">{recipe.description}</Text>
+            </View>
 
           {/* Recipe Info */}
           <View className="flex-row justify-between mb-6 bg-gray-50 p-4 rounded-lg">
@@ -128,6 +139,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
                 </View>
               ))}
             </View>
+          </View>
           </View>
         </ScrollView>
       </View>

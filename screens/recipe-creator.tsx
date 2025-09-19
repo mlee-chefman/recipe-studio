@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { ScrollView, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore } from '../store/store';
 import { useNavigation } from '@react-navigation/native';
+import { scrapeRecipe, isValidUrl } from '../utils/recipeScraper';
 
 export default function RecipeCreatorScreen() {
   const [recipeName, setRecipeName] = useState('');
@@ -13,9 +16,83 @@ export default function RecipeCreatorScreen() {
   const [servings, setServings] = useState('');
   const [category, setCategory] = useState('');
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
+  const [imageUrl, setImageUrl] = useState('');
+  const [importUrl, setImportUrl] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const [showImportSection, setShowImportSection] = useState(false);
 
   const { addRecipe } = useRecipeStore();
   const navigation = useNavigation();
+
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Sorry, we need camera roll permissions to select images.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImageUrl(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Sorry, we need camera permissions to take photos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setImageUrl(result.assets[0].uri);
+    }
+  };
+
+  const enterImageUrl = () => {
+    Alert.prompt(
+      'Enter Image URL',
+      'Paste the URL of an image from the web',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Add',
+          onPress: (url) => {
+            if (url && url.trim()) {
+              setImageUrl(url.trim());
+            }
+          }
+        }
+      ],
+      'plain-text',
+      imageUrl
+    );
+  };
+
+  const showImagePicker = () => {
+    Alert.alert(
+      'Select Image',
+      'Choose how you want to add an image',
+      [
+        { text: 'Camera', onPress: takePhoto },
+        { text: 'Photo Library', onPress: pickImage },
+        { text: 'Enter URL', onPress: enterImageUrl },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
 
   const addIngredient = () => {
     setIngredients([...ingredients, '']);
@@ -45,6 +122,56 @@ export default function RecipeCreatorScreen() {
   const removeInstruction = (index: number) => {
     const newInstructions = instructions.filter((_, i) => i !== index);
     setInstructions(newInstructions.length > 0 ? newInstructions : ['']);
+  };
+
+  const handleImportFromUrl = async () => {
+    if (!importUrl.trim()) {
+      Alert.alert('Error', 'Please enter a URL');
+      return;
+    }
+
+    if (!isValidUrl(importUrl)) {
+      Alert.alert('Error', 'Please enter a valid URL');
+      return;
+    }
+
+    setIsImporting(true);
+
+    try {
+      const scrapedRecipe = await scrapeRecipe(importUrl);
+
+      // Populate form fields with scraped data
+      setRecipeName(scrapedRecipe.title);
+      setDescription(scrapedRecipe.description);
+      setIngredients(scrapedRecipe.ingredients.length > 0 ? scrapedRecipe.ingredients : ['']);
+      setInstructions(scrapedRecipe.instructions.length > 0 ? scrapedRecipe.instructions : ['']);
+      setCookTime(scrapedRecipe.cookTime.toString());
+      setPrepTime(scrapedRecipe.prepTime.toString());
+      setServings(scrapedRecipe.servings.toString());
+      setCategory(scrapedRecipe.category || '');
+      setImageUrl(scrapedRecipe.image || '');
+
+      // Estimate difficulty based on cook time and number of steps
+      const totalTime = scrapedRecipe.cookTime + scrapedRecipe.prepTime;
+      const numSteps = scrapedRecipe.instructions.length;
+
+      if (totalTime < 30 && numSteps < 5) {
+        setDifficulty('Easy');
+      } else if (totalTime > 60 || numSteps > 10) {
+        setDifficulty('Hard');
+      } else {
+        setDifficulty('Medium');
+      }
+
+      Alert.alert('Success', 'Recipe imported successfully! You can now review and edit the details before saving.');
+      setShowImportSection(false);
+      setImportUrl('');
+
+    } catch (error) {
+      Alert.alert('Import Failed', 'Could not import recipe from this URL. Please try a different URL or enter the recipe manually.');
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   const handleSubmit = () => {
@@ -80,6 +207,7 @@ export default function RecipeCreatorScreen() {
       servings: parseInt(servings) || 4,
       difficulty,
       category: category.trim(),
+      image: imageUrl.trim() || undefined,
     };
 
     addRecipe(recipe);
@@ -100,6 +228,7 @@ export default function RecipeCreatorScreen() {
             setCookTime('');
             setServings('');
             setCategory('');
+            setImageUrl('');
             setDifficulty('Medium');
 
             // Navigate to recipes tab
@@ -117,7 +246,85 @@ export default function RecipeCreatorScreen() {
     >
       <ScrollView className="flex-1 bg-white">
         <View className="px-4 py-4">
-            <Text className="text-2xl font-bold mb-6">Create New Recipe</Text>
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-2xl font-bold">Create New Recipe</Text>
+
+            {/* Recipe Image Display */}
+            <View className="mb-6">
+              {imageUrl ? (
+                <View>
+                  <Image
+                    source={{ uri: imageUrl }}
+                    style={{ width: '100%', height: 200, borderRadius: 12 }}
+                    contentFit="cover"
+                  />
+                  <View className="flex-row justify-center mt-2 gap-2">
+                    <TouchableOpacity
+                      onPress={showImagePicker}
+                      className="bg-blue-500 rounded-lg px-4 py-2"
+                    >
+                      <Text className="text-white font-semibold">Change Image</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setImageUrl('')}
+                      className="bg-red-500 rounded-lg px-4 py-2"
+                    >
+                      <Text className="text-white font-semibold">Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={showImagePicker}
+                  className="border-2 border-dashed border-gray-300 rounded-lg h-48 justify-center items-center bg-gray-50"
+                >
+                  <Text className="text-6xl text-gray-400 mb-2">📷</Text>
+                  <Text className="text-lg font-semibold text-gray-600">Add Recipe Photo</Text>
+                  <Text className="text-sm text-gray-500 text-center px-4">Take a photo or choose from library</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+              <TouchableOpacity
+                onPress={() => setShowImportSection(!showImportSection)}
+                className="bg-blue-500 rounded-lg px-3 py-2"
+              >
+                <Text className="text-white font-semibold text-sm">Import from URL</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Import from URL Section */}
+            {showImportSection && (
+              <View className="mb-6 p-4 bg-blue-50 rounded-lg">
+                <Text className="text-lg font-semibold mb-2">Import Recipe from Website</Text>
+                <Text className="text-sm text-gray-600 mb-3">
+                  Enter a URL from popular recipe sites like AllRecipes, Food Network, Serious Eats, etc.
+                </Text>
+                <View className="flex-row gap-2">
+                  <TextInput
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base bg-white"
+                    placeholder="https://www.example.com/recipe"
+                    value={importUrl}
+                    onChangeText={setImportUrl}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="url"
+                  />
+                  <TouchableOpacity
+                    onPress={handleImportFromUrl}
+                    disabled={isImporting}
+                    className={`rounded-lg px-4 py-2 justify-center ${
+                      isImporting ? 'bg-gray-400' : 'bg-green-600'
+                    }`}
+                  >
+                    {isImporting ? (
+                      <ActivityIndicator color="white" size="small" />
+                    ) : (
+                      <Text className="text-white font-semibold">Import</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
             {/* Recipe Name */}
             <View className="mb-4">
@@ -142,6 +349,7 @@ export default function RecipeCreatorScreen() {
                 numberOfLines={3}
               />
             </View>
+
 
             {/* Category and Difficulty */}
             <View className="mb-4">
