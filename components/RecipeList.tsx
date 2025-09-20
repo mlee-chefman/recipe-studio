@@ -1,37 +1,74 @@
-import * as React from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Modal } from 'react-native';
+import { Image } from 'expo-image';
 import { useRecipeStore, Recipe } from '../store/store';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { FilterModal } from './FilterModal';
+import { getApplianceById } from '../types/chefiq';
+import RecipeCreatorScreen from '../screens/recipe-creator';
 
 const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <View className="bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-200">
-        <Text className="text-lg font-bold text-gray-800 mb-2">{recipe.title}</Text>
-        <Text className="text-gray-600 mb-2">{recipe.description}</Text>
-        
-        <View className="flex-row justify-between items-center mb-2">
-          <View className="flex-row items-center">
-            <Text className="text-sm text-gray-500 mr-4">⏱️ {recipe.cookTime} min</Text>
-            <Text className="text-sm text-gray-500 mr-4">👥 {recipe.servings} servings</Text>
+      <View className="bg-white rounded-lg mb-3 shadow-sm border border-gray-200 overflow-hidden">
+        {/* Recipe Image */}
+        {recipe.image ? (
+          <Image
+            source={{ uri: recipe.image }}
+            style={{ width: '100%', height: 160 }}
+            contentFit="cover"
+          />
+        ) : (
+          <View className="w-full h-40 bg-gray-100 items-center justify-center">
+            <Text className="text-4xl text-gray-400">🍽️</Text>
+            <Text className="text-gray-500 text-sm mt-1">No Image</Text>
           </View>
-          <View className={`px-2 py-1 rounded-full ${
-            recipe.difficulty === 'Easy' ? 'bg-green-100' :
-            recipe.difficulty === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
-          }`}>
-            <Text className={`text-xs font-medium ${
-              recipe.difficulty === 'Easy' ? 'text-green-800' :
-              recipe.difficulty === 'Medium' ? 'text-yellow-800' : 'text-red-800'
+        )}
+
+        {/* Recipe Content */}
+        <View className="p-4">
+          <Text className="text-lg font-bold text-gray-800 mb-2">{recipe.title}</Text>
+          <Text className="text-gray-600 mb-3 line-clamp-2">{recipe.description}</Text>
+
+          <View className="flex-row justify-between items-center mb-2">
+            <View className="flex-row items-center">
+              <Text className="text-sm text-gray-500 mr-4">⏱️ {recipe.cookTime} min</Text>
+              <Text className="text-sm text-gray-500 mr-4">👥 {recipe.servings} servings</Text>
+            </View>
+            <View className={`px-2 py-1 rounded-full ${
+              recipe.difficulty === 'Easy' ? 'bg-green-100' :
+              recipe.difficulty === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
             }`}>
-              {recipe.difficulty}
-            </Text>
+              <Text className={`text-xs font-medium ${
+                recipe.difficulty === 'Easy' ? 'text-green-800' :
+                recipe.difficulty === 'Medium' ? 'text-yellow-800' : 'text-red-800'
+              }`}>
+                {recipe.difficulty}
+              </Text>
+            </View>
           </View>
-        </View>
-        
-        <View className="flex-row items-center justify-between">
-          <Text className="text-sm text-blue-600 font-medium">{recipe.category}</Text>
-          <Text className="text-xs text-gray-400">Tap for details →</Text>
+
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center">
+              <Text className="text-sm text-blue-600 font-medium mr-2">{recipe.category}</Text>
+              {recipe.chefiqAppliance && (
+                <View className="flex-row items-center gap-1">
+                  <View className="bg-green-100 px-2 py-1 rounded-full flex-row items-center">
+                    <Text className="text-xs mr-1">🍳</Text>
+                    <Text className="text-xs font-medium text-green-800">
+                      {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
+                    </Text>
+                  </View>
+                  {recipe.useProbe && (
+                    <View className="bg-orange-100 px-1.5 py-0.5 rounded-full">
+                      <Text className="text-xs text-orange-800">🌡️</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+            <Text className="text-xs text-gray-400">Tap for details →</Text>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -73,13 +110,22 @@ export const RecipeList = () => {
     setSearchQuery,
     setSelectedCategory,
     setSelectedDifficulty,
-    recipes
+    recipes,
+    filterRecipes
   } = useRecipeStore();
 
   // Modal state
-  const [selectedRecipe, setSelectedRecipe] = React.useState<Recipe | null>(null);
-  const [modalVisible, setModalVisible] = React.useState(false);
-  const [filterModalVisible, setFilterModalVisible] = React.useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+
+  // Ensure recipes are filtered on mount
+  useEffect(() => {
+    filterRecipes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Get unique categories and difficulties for filter options
   const categories = Array.from(new Set(recipes.map(recipe => recipe.category)));
@@ -93,6 +139,21 @@ export const RecipeList = () => {
   const handleCloseModal = () => {
     setModalVisible(false);
     setSelectedRecipe(null);
+  };
+
+  const handleEditRecipe = () => {
+    if (selectedRecipe) {
+      setEditingRecipe(selectedRecipe);
+      setModalVisible(false);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleEditComplete = () => {
+    setShowEditModal(false);
+    setEditingRecipe(null);
+    // Refresh the filtered recipes to show updated data
+    filterRecipes();
   };
 
   const handleClearFilters = () => {
@@ -197,6 +258,7 @@ export const RecipeList = () => {
         recipe={selectedRecipe}
         visible={modalVisible}
         onClose={handleCloseModal}
+        onEdit={handleEditRecipe}
       />
 
       {/* Filter Modal */}
@@ -211,6 +273,19 @@ export const RecipeList = () => {
         onDifficultyChange={setSelectedDifficulty}
         onClearFilters={handleClearFilters}
       />
+
+      {/* Edit Recipe Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <RecipeCreatorScreen
+          editingRecipe={editingRecipe || undefined}
+          onEditComplete={handleEditComplete}
+        />
+      </Modal>
     </View>
   );
 };
