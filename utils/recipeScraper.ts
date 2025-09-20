@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { analyzeRecipeForChefIQ, RecipeAnalysisResult } from './recipeAnalyzer';
 
 export interface ScrapedRecipe {
   title: string;
@@ -10,6 +11,8 @@ export interface ScrapedRecipe {
   servings: number;
   category?: string;
   image?: string;
+  // ChefIQ suggestions
+  chefiqSuggestions?: RecipeAnalysisResult;
 }
 
 // Free CORS proxy services (rotate if one is down)
@@ -323,17 +326,38 @@ const parseRecipeFromJsonLd = (data: any, url: string = '', html: string = ''): 
     const title = data.name || 'Untitled Recipe';
     const category = extractCategory(data, title, url);
     const image = extractImage(data, html);
+    const cookTime = parseDuration(data.cookTime) || parseDuration(data.totalTime) || 30;
+    const description = data.description || data.about || '';
+
+    // Analyze recipe for ChefIQ suggestions
+    let chefiqSuggestions;
+    try {
+      chefiqSuggestions = analyzeRecipeForChefIQ(
+        title,
+        description,
+        instructions,
+        cookTime
+      );
+    } catch (error) {
+      console.error('ChefIQ analysis failed:', error);
+      chefiqSuggestions = {
+        suggestedActions: [],
+        confidence: 0,
+        reasoning: ['Analysis failed - manual setup required']
+      };
+    }
 
     return {
       title,
-      description: data.description || data.about || '',
+      description,
       ingredients,
       instructions,
-      cookTime: parseDuration(data.cookTime) || parseDuration(data.totalTime) || 30,
+      cookTime,
       prepTime: parseDuration(data.prepTime) || 15,
       servings: parseInt(data.recipeYield) || parseInt(data.yield) || 4,
       category,
       image,
+      chefiqSuggestions,
     };
   } catch (e) {
     return null;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import { ScrollView, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Switch } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore } from '../store/store';
@@ -28,9 +28,98 @@ export default function RecipeCreatorScreen() {
   const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
   const [showCookingSelector, setShowCookingSelector] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
+  const [useProbe, setUseProbe] = useState(false);
 
   const { addRecipe } = useRecipeStore();
   const navigation = useNavigation();
+
+  // Helper function to automatically assign cooking actions to appropriate steps
+  const autoAssignCookingActions = (instructions: string[], suggestedActions: CookingAction[]) => {
+    const assignedActions: CookingAction[] = [];
+
+    suggestedActions.forEach(action => {
+      // Find the best step to assign this cooking action to
+      let bestStepIndex = -1;
+      let bestScore = 0;
+
+      instructions.forEach((instruction, index) => {
+        const instructionLower = instruction.toLowerCase();
+        let score = 0;
+
+        // Score based on cooking method keywords
+        const methodKeywords = {
+          'pressure': ['pressure', 'instant pot', 'cook under pressure'],
+          'sauté': ['sauté', 'saute', 'brown', 'sear', 'fry', 'heat oil'],
+          'bake': ['bake', 'oven', 'preheat', 'degrees', '°f', 'baking'],
+          'air fry': ['air fry', 'crispy', 'golden', 'crunchy'],
+          'roast': ['roast', 'roasted', 'roasting'],
+          'broil': ['broil', 'broiled', 'grill', 'char', 'top rack'],
+          'steam': ['steam', 'steamer', 'steamed'],
+          'slow cook': ['slow cook', 'simmer', 'low heat', 'cover and cook'],
+          'toast': ['toast', 'toasted', 'golden brown'],
+          'sous vide': ['sous vide', 'water bath', 'vacuum']
+        };
+
+        const methodName = action.methodName.toLowerCase();
+
+        // Check if this instruction mentions the cooking method
+        Object.entries(methodKeywords).forEach(([method, keywords]) => {
+          if (methodName.includes(method)) {
+            keywords.forEach(keyword => {
+              if (instructionLower.includes(keyword)) {
+                score += 3; // Strong match
+              }
+            });
+          }
+        });
+
+        // Prefer steps that mention time or temperature
+        if (instructionLower.includes('minute') || instructionLower.includes('hour')) {
+          score += 2;
+        }
+        if (instructionLower.includes('temperature') || instructionLower.includes('degrees') || instructionLower.includes('°f')) {
+          score += 2;
+        }
+
+        // Prefer steps that mention cooking actions
+        if (instructionLower.includes('cook') || instructionLower.includes('heat')) {
+          score += 1;
+        }
+
+        // Avoid early prep steps
+        if (instructionLower.includes('chop') || instructionLower.includes('dice') ||
+            instructionLower.includes('wash') || instructionLower.includes('rinse') ||
+            instructionLower.includes('combine') || instructionLower.includes('mix') ||
+            index < 2) {
+          score -= 1;
+        }
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestStepIndex = index;
+        }
+      });
+
+      // If we found a good match, assign the action to that step
+      if (bestStepIndex >= 0 && bestScore > 0) {
+        assignedActions.push({
+          ...action,
+          stepIndex: bestStepIndex,
+          id: `auto_${Date.now()}_${bestStepIndex}`
+        });
+      } else {
+        // Default to assigning to the main cooking step (usually step 3-4)
+        const defaultStepIndex = Math.min(Math.max(2, Math.floor(instructions.length / 2)), instructions.length - 1);
+        assignedActions.push({
+          ...action,
+          stepIndex: defaultStepIndex,
+          id: `auto_${Date.now()}_${defaultStepIndex}`
+        });
+      }
+    });
+
+    return assignedActions;
+  };
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -200,9 +289,79 @@ export default function RecipeCreatorScreen() {
         setDifficulty('Medium');
       }
 
-      Alert.alert('Success', 'Recipe imported successfully! You can now review and edit the details before saving.');
-      setShowImportSection(false);
-      setImportUrl('');
+      // Handle ChefIQ suggestions
+      const suggestions = scrapedRecipe.chefiqSuggestions;
+      if (suggestions && suggestions.confidence > 0.3 && suggestions.suggestedActions.length > 0) {
+        // Auto-apply suggestions
+        if (suggestions.suggestedAppliance) {
+          setSelectedAppliance(suggestions.suggestedAppliance);
+        }
+        if (suggestions.useProbe) {
+          setUseProbe(true);
+        }
+
+        let autoAssignedActions: CookingAction[] = [];
+        if (suggestions.suggestedActions.length > 0) {
+          try {
+            // Automatically assign cooking actions to appropriate steps
+            autoAssignedActions = autoAssignCookingActions(
+              scrapedRecipe.instructions,
+              suggestions.suggestedActions
+            );
+            setCookingActions(autoAssignedActions);
+          } catch (error) {
+            console.error('Error in auto-assigning cooking actions:', error);
+            // Fallback: just use the suggested actions without step assignment
+            setCookingActions(suggestions.suggestedActions);
+            autoAssignedActions = suggestions.suggestedActions;
+          }
+        }
+
+        // Show suggestion summary to user
+        const applianceName = getApplianceById(suggestions.suggestedAppliance || '')?.name;
+        const methodNames = autoAssignedActions.map(action => action.methodName).join(', ');
+        const assignedSteps = autoAssignedActions.map(action =>
+          action.stepIndex !== undefined
+            ? `Step ${(action.stepIndex || 0) + 1}: ${action.methodName}`
+            : action.methodName
+        ).join('\n');
+
+        Alert.alert(
+          '🍳 ChefIQ Auto-Configuration Complete!',
+          `Recipe imported and automatically configured:\n\n` +
+          `• Appliance: ${applianceName || 'Not specified'}\n` +
+          `• Auto-assigned methods:\n${assignedSteps}\n` +
+          `${suggestions.useProbe ? '• Thermometer probe enabled\n' : ''}` +
+          `\nConfidence: ${Math.round(suggestions.confidence * 100)}%\n\n` +
+          `✅ Cooking actions have been automatically assigned to the most suitable recipe steps. ` +
+          `Please review and adjust before saving.`,
+          [
+            {
+              text: 'Review & Edit',
+              onPress: () => {
+                setShowImportSection(false);
+                setImportUrl('');
+              }
+            }
+          ]
+        );
+      } else {
+        // Show regular success message if no good suggestions or analysis failed
+        Alert.alert(
+          'Recipe Imported Successfully!',
+          'Recipe imported from website. You can now review and edit the details before saving.' +
+          (suggestions && suggestions.confidence > 0 ? '\n\nNote: ChefIQ suggestions were found but had low confidence. You can manually configure appliance settings if desired.' : ''),
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setShowImportSection(false);
+                setImportUrl('');
+              }
+            }
+          ]
+        );
+      }
 
     } catch (error) {
       Alert.alert('Import Failed', 'Could not import recipe from this URL. Please try a different URL or enter the recipe manually.');
@@ -248,6 +407,7 @@ export default function RecipeCreatorScreen() {
       chefiqAppliance: selectedAppliance || undefined,
       cookingActions: cookingActions.length > 0 ? cookingActions : undefined,
       instructionSections: instructionSections.length > 0 ? instructionSections : undefined,
+      useProbe: selectedAppliance && getApplianceById(selectedAppliance)?.thing_category_name === 'oven' ? useProbe : undefined,
     };
 
     addRecipe(recipe);
@@ -273,6 +433,7 @@ export default function RecipeCreatorScreen() {
             setSelectedAppliance('');
             setCookingActions([]);
             setInstructionSections([]);
+            setUseProbe(false);
 
             // Navigate to recipes tab
             navigation.navigate('One' as never);
@@ -291,6 +452,13 @@ export default function RecipeCreatorScreen() {
         <View className="px-4 py-4">
             <View className="flex-row justify-between items-center mb-6">
               <Text className="text-2xl font-bold">Create New Recipe</Text>
+              <TouchableOpacity
+                onPress={() => setShowImportSection(!showImportSection)}
+                className="bg-blue-500 rounded-lg px-3 py-2"
+              >
+                <Text className="text-white font-semibold text-sm">Import from URL</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* Recipe Image Display */}
             <View className="mb-6">
@@ -326,13 +494,6 @@ export default function RecipeCreatorScreen() {
                   <Text className="text-sm text-gray-500 text-center px-4">Take a photo or choose from library</Text>
                 </TouchableOpacity>
               )}
-            </View>
-              <TouchableOpacity
-                onPress={() => setShowImportSection(!showImportSection)}
-                className="bg-blue-500 rounded-lg px-3 py-2"
-              >
-                <Text className="text-white font-semibold text-sm">Import from URL</Text>
-              </TouchableOpacity>
             </View>
 
             {/* Import from URL Section */}
@@ -435,14 +596,31 @@ export default function RecipeCreatorScreen() {
               <Text className="text-lg font-semibold mb-2">ChefIQ Appliance (Optional)</Text>
               <ApplianceDropdown
                 selectedAppliance={selectedAppliance}
-                onSelect={setSelectedAppliance}
+                onSelect={(applianceId) => {
+                  setSelectedAppliance(applianceId);
+                  // Reset probe setting when changing appliances
+                  setUseProbe(false);
+                }}
                 placeholder="Select ChefIQ Appliance..."
               />
-              {selectedAppliance && (
-                <View className="mt-2 p-3 bg-blue-50 rounded-lg">
-                  <Text className="text-sm text-blue-700 font-medium">
-                    {getApplianceById(selectedAppliance)?.thing_category_name} - Advanced cooking methods available
-                  </Text>
+
+              {/* Thermometer Probe Toggle for iQ MiniOven */}
+              {selectedAppliance && getApplianceById(selectedAppliance)?.thing_category_name === 'oven' && (
+                <View className="mt-3 p-3 bg-orange-50 rounded-lg border border-orange-200">
+                  <View className="flex-row items-center justify-between">
+                    <View className="flex-1">
+                      <Text className="text-base font-medium text-orange-800">🌡️ Use Thermometer Probe</Text>
+                      <Text className="text-sm text-orange-600 mt-1">
+                        Cook to target temperature instead of time
+                      </Text>
+                    </View>
+                    <Switch
+                      value={useProbe}
+                      onValueChange={setUseProbe}
+                      trackColor={{ false: '#f3f4f6', true: '#fed7aa' }}
+                      thumbColor={useProbe ? '#ea580c' : '#9ca3af'}
+                    />
+                  </View>
                 </View>
               )}
             </View>
@@ -595,6 +773,7 @@ export default function RecipeCreatorScreen() {
                 }}
                 onSelect={handleCookingActionSelect}
                 applianceId={selectedAppliance}
+                useProbe={useProbe}
               />
             )}
 

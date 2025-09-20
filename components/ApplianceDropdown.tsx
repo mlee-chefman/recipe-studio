@@ -30,8 +30,8 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
       className="flex-row items-center p-3 border-b border-gray-100"
     >
       <Image
-        source={{ uri: item.icon }}
-        style={{ width: 32, height: 32 }}
+        source={{ uri: item.picture }}
+        style={{ width: 48, height: 32 }}
         resizeMode="contain"
       />
       <View className="ml-3 flex-1">
@@ -73,8 +73,8 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
           {selectedApplianceData ? (
             <>
               <Image
-                source={{ uri: selectedApplianceData.icon }}
-                style={{ width: 24, height: 24 }}
+                source={{ uri: selectedApplianceData.picture }}
+                style={{ width: 32, height: 20 }}
                 resizeMode="contain"
               />
               <Text className="ml-2 text-base text-gray-700">

@@ -51,11 +51,18 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
             <View className="flex-row items-center">
               <Text className="text-sm text-blue-600 font-medium mr-2">{recipe.category}</Text>
               {recipe.chefiqAppliance && (
-                <View className="bg-green-100 px-2 py-1 rounded-full flex-row items-center">
-                  <Text className="text-xs mr-1">🍳</Text>
-                  <Text className="text-xs font-medium text-green-800">
-                    {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
-                  </Text>
+                <View className="flex-row items-center gap-1">
+                  <View className="bg-green-100 px-2 py-1 rounded-full flex-row items-center">
+                    <Text className="text-xs mr-1">🍳</Text>
+                    <Text className="text-xs font-medium text-green-800">
+                      {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
+                    </Text>
+                  </View>
+                  {recipe.useProbe && (
+                    <View className="bg-orange-100 px-1.5 py-0.5 rounded-full">
+                      <Text className="text-xs text-orange-800">🌡️</Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>

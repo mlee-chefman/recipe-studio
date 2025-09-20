@@ -124,9 +124,15 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
                   <Text className="text-lg font-semibold text-green-800">
                     {getApplianceById(recipe.chefiqAppliance)?.name}
                   </Text>
+                  {recipe.useProbe && (
+                    <View className="ml-2 bg-orange-100 px-2 py-1 rounded-full">
+                      <Text className="text-xs font-medium text-orange-800">🌡️ Probe</Text>
+                    </View>
+                  )}
                 </View>
                 <Text className="text-sm text-green-600 capitalize">
                   {getApplianceById(recipe.chefiqAppliance)?.thing_category_name} - Smart cooking features available
+                  {recipe.useProbe && ' with thermometer probe'}
                 </Text>
               </View>
             </View>
