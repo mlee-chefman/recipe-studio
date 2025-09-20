@@ -17,6 +17,7 @@ interface ChefIQCookingSelectorProps {
   onClose: () => void;
   onSelect: (action: CookingAction) => void;
   applianceId: string;
+  useProbe?: boolean;
 }
 
 const formatTime = (seconds: number): string => {
@@ -59,6 +60,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
   onClose,
   onSelect,
   applianceId,
+  useProbe = false,
 }) => {
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [parameters, setParameters] = useState<any>({});
@@ -259,44 +261,83 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
 
     return (
       <View className="mt-4">
-        {/* Cooking Time */}
-        {settings.cooking_time && (
+        {/* Cooking Time or Target Temperature */}
+        {useProbe ? (
           <View className="mb-4">
-            <Text className="text-base font-semibold mb-2">Cooking Time</Text>
+            <Text className="text-base font-semibold mb-2">🌡️ Target Temperature (°F)</Text>
             <View className="flex-row items-center">
               <TextInput
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base"
-                value={formatTime(parameters.cooking_time || settings.cooking_time.default)}
-                editable={false}
+                className="flex-1 border border-orange-300 rounded-lg px-3 py-2 text-base bg-orange-50"
+                value={String(parameters.target_probe_temp || 160)}
+                keyboardType="numeric"
+                onChangeText={(text) => updateParameter('target_probe_temp', parseInt(text) || 160)}
               />
               <View className="flex-row ml-2">
                 <TouchableOpacity
                   onPress={() => {
-                    const current = parameters.cooking_time || settings.cooking_time.default;
-                    const min = settings.cooking_time.min;
-                    const granularity = settings.cooking_time.granularity;
-                    const newValue = Math.max(min, current - granularity);
-                    updateParameter('cooking_time', newValue);
+                    const current = parameters.target_probe_temp || 160;
+                    const newValue = Math.max(100, current - 5);
+                    updateParameter('target_probe_temp', newValue);
                   }}
-                  className="bg-gray-200 px-3 py-2 rounded-l-lg"
+                  className="bg-orange-200 px-3 py-2 rounded-l-lg"
                 >
-                  <Text className="font-bold">-</Text>
+                  <Text className="font-bold text-orange-800">-</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
-                    const current = parameters.cooking_time || settings.cooking_time.default;
-                    const max = settings.cooking_time.max;
-                    const granularity = settings.cooking_time.granularity;
-                    const newValue = Math.min(max, current + granularity);
-                    updateParameter('cooking_time', newValue);
+                    const current = parameters.target_probe_temp || 160;
+                    const newValue = Math.min(300, current + 5);
+                    updateParameter('target_probe_temp', newValue);
                   }}
-                  className="bg-gray-200 px-3 py-2 rounded-r-lg border-l border-gray-300"
+                  className="bg-orange-200 px-3 py-2 rounded-r-lg border-l border-orange-300"
                 >
-                  <Text className="font-bold">+</Text>
+                  <Text className="font-bold text-orange-800">+</Text>
                 </TouchableOpacity>
               </View>
             </View>
+            <Text className="text-xs text-orange-600 mt-1">
+              Probe will monitor internal temperature (100-300°F)
+            </Text>
           </View>
+        ) : (
+          settings.cooking_time && (
+            <View className="mb-4">
+              <Text className="text-base font-semibold mb-2">Cooking Time</Text>
+              <View className="flex-row items-center">
+                <TextInput
+                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base"
+                  value={formatTime(parameters.cooking_time || settings.cooking_time.default)}
+                  editable={false}
+                />
+                <View className="flex-row ml-2">
+                  <TouchableOpacity
+                    onPress={() => {
+                      const current = parameters.cooking_time || settings.cooking_time.default;
+                      const min = settings.cooking_time.min;
+                      const granularity = settings.cooking_time.granularity;
+                      const newValue = Math.max(min, current - granularity);
+                      updateParameter('cooking_time', newValue);
+                    }}
+                    className="bg-gray-200 px-3 py-2 rounded-l-lg"
+                  >
+                    <Text className="font-bold">-</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => {
+                      const current = parameters.cooking_time || settings.cooking_time.default;
+                      const max = settings.cooking_time.max;
+                      const granularity = settings.cooking_time.granularity;
+                      const newValue = Math.min(max, current + granularity);
+                      updateParameter('cooking_time', newValue);
+                    }}
+                    className="bg-gray-200 px-3 py-2 rounded-r-lg border-l border-gray-300"
+                  >
+                    <Text className="font-bold">+</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )
         )}
 
         {/* Temperature */}
@@ -407,9 +448,16 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
       <View className="flex-1 bg-white">
         {/* Header */}
         <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-          <Text className="text-xl font-bold">
-            {appliance?.name || 'ChefIQ'} Settings
-          </Text>
+          <View className="flex-1">
+            <Text className="text-xl font-bold">
+              {appliance?.name || 'ChefIQ'} Settings
+            </Text>
+            {useProbe && (
+              <Text className="text-sm text-orange-600 mt-1">
+                🌡️ Thermometer Probe Mode
+              </Text>
+            )}
+          </View>
           <TouchableOpacity onPress={onClose}>
             <Text className="text-lg text-gray-600 font-bold">×</Text>
           </TouchableOpacity>

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useRecipeStore, Recipe } from '../store/store';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { FilterModal } from './FilterModal';
 import { getApplianceById } from '../types/chefiq';
+import RecipeCreatorScreen from '../screens/recipe-creator';
 
 const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
   return (
@@ -51,11 +52,18 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
             <View className="flex-row items-center">
               <Text className="text-sm text-blue-600 font-medium mr-2">{recipe.category}</Text>
               {recipe.chefiqAppliance && (
-                <View className="bg-green-100 px-2 py-1 rounded-full flex-row items-center">
-                  <Text className="text-xs mr-1">🍳</Text>
-                  <Text className="text-xs font-medium text-green-800">
-                    {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
-                  </Text>
+                <View className="flex-row items-center gap-1">
+                  <View className="bg-green-100 px-2 py-1 rounded-full flex-row items-center">
+                    <Text className="text-xs mr-1">🍳</Text>
+                    <Text className="text-xs font-medium text-green-800">
+                      {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
+                    </Text>
+                  </View>
+                  {recipe.useProbe && (
+                    <View className="bg-orange-100 px-1.5 py-0.5 rounded-full">
+                      <Text className="text-xs text-orange-800">🌡️</Text>
+                    </View>
+                  )}
                 </View>
               )}
             </View>
@@ -110,6 +118,8 @@ export const RecipeList = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Ensure recipes are filtered on mount
   useEffect(() => {
@@ -129,6 +139,21 @@ export const RecipeList = () => {
   const handleCloseModal = () => {
     setModalVisible(false);
     setSelectedRecipe(null);
+  };
+
+  const handleEditRecipe = () => {
+    if (selectedRecipe) {
+      setEditingRecipe(selectedRecipe);
+      setModalVisible(false);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleEditComplete = () => {
+    setShowEditModal(false);
+    setEditingRecipe(null);
+    // Refresh the filtered recipes to show updated data
+    filterRecipes();
   };
 
   const handleClearFilters = () => {
@@ -233,6 +258,7 @@ export const RecipeList = () => {
         recipe={selectedRecipe}
         visible={modalVisible}
         onClose={handleCloseModal}
+        onEdit={handleEditRecipe}
       />
 
       {/* Filter Modal */}
@@ -247,6 +273,19 @@ export const RecipeList = () => {
         onDifficultyChange={setSelectedDifficulty}
         onClearFilters={handleClearFilters}
       />
+
+      {/* Edit Recipe Modal */}
+      <Modal
+        visible={showEditModal}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <RecipeCreatorScreen
+          editingRecipe={editingRecipe || undefined}
+          onEditComplete={handleEditComplete}
+        />
+      </Modal>
     </View>
   );
 };

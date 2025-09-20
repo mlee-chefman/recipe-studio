@@ -8,9 +8,10 @@ interface RecipeDetailModalProps {
   recipe: Recipe | null;
   visible: boolean;
   onClose: () => void;
+  onEdit?: () => void;
 }
 
-export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModalProps) => {
+export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDetailModalProps) => {
   const { deleteRecipe } = useRecipeStore();
 
   if (!recipe) return null;
@@ -48,6 +49,14 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
         <View className="flex-row justify-between items-center p-4 border-b border-gray-200 bg-white">
           <Text className="text-xl font-bold text-gray-800 flex-1 mr-4">{recipe.title}</Text>
           <View className="flex-row gap-2">
+            {onEdit && (
+              <TouchableOpacity
+                onPress={onEdit}
+                className="bg-blue-500 rounded-lg px-3 py-1.5 items-center justify-center"
+              >
+                <Text className="text-white font-semibold">Edit</Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={handleDelete}
               className="bg-red-500 rounded-lg px-3 py-1.5 items-center justify-center"
@@ -124,9 +133,15 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
                   <Text className="text-lg font-semibold text-green-800">
                     {getApplianceById(recipe.chefiqAppliance)?.name}
                   </Text>
+                  {recipe.useProbe && (
+                    <View className="ml-2 bg-orange-100 px-2 py-1 rounded-full">
+                      <Text className="text-xs font-medium text-orange-800">🌡️ Probe</Text>
+                    </View>
+                  )}
                 </View>
                 <Text className="text-sm text-green-600 capitalize">
                   {getApplianceById(recipe.chefiqAppliance)?.thing_category_name} - Smart cooking features available
+                  {recipe.useProbe && ' with thermometer probe'}
                 </Text>
               </View>
             </View>

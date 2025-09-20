@@ -15,9 +15,10 @@ export interface Recipe {
   category: string;
   image?: string;
   // ChefIQ Integration
-  chefiqAppliance?: string; // appliance ID (rj40, cq50)
+  chefiqAppliance?: string; // appliance category_id
   instructionSections?: InstructionSection[]; // grouped instructions with cooking actions
   cookingActions?: CookingAction[]; // step-level cooking actions
+  useProbe?: boolean; // whether to use thermometer probe (iQ MiniOven only)
 }
 
 export interface BearState {
