@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CookingAction, InstructionSection } from '../types/chefiq';
 
 export interface Recipe {
   id: string;
@@ -13,6 +14,10 @@ export interface Recipe {
   difficulty: 'Easy' | 'Medium' | 'Hard';
   category: string;
   image?: string;
+  // ChefIQ Integration
+  chefiqAppliance?: string; // appliance ID (rj40, cq50)
+  instructionSections?: InstructionSection[]; // grouped instructions with cooking actions
+  cookingActions?: CookingAction[]; // step-level cooking actions
 }
 
 export interface BearState {

@@ -5,6 +5,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore } from '../store/store';
 import { useNavigation } from '@react-navigation/native';
 import { scrapeRecipe, isValidUrl } from '../utils/recipeScraper';
+import { CookingAction, InstructionSection, getApplianceById } from '../types/chefiq';
+import ChefIQCookingSelector from '../components/ChefIQCookingSelector';
+import { ApplianceDropdown } from '../components/ApplianceDropdown';
 
 export default function RecipeCreatorScreen() {
   const [recipeName, setRecipeName] = useState('');
@@ -20,6 +23,11 @@ export default function RecipeCreatorScreen() {
   const [importUrl, setImportUrl] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [showImportSection, setShowImportSection] = useState(false);
+  const [selectedAppliance, setSelectedAppliance] = useState('');
+  const [cookingActions, setCookingActions] = useState<CookingAction[]>([]);
+  const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
+  const [showCookingSelector, setShowCookingSelector] = useState(false);
+  const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
 
   const { addRecipe } = useRecipeStore();
   const navigation = useNavigation();
@@ -124,6 +132,35 @@ export default function RecipeCreatorScreen() {
     setInstructions(newInstructions.length > 0 ? newInstructions : ['']);
   };
 
+  const handleCookingActionSelect = (action: CookingAction) => {
+    if (currentStepIndex !== null) {
+      // Add action to specific step
+      const newActions = [...cookingActions];
+      const existingActionIndex = newActions.findIndex(
+        a => a.stepIndex === currentStepIndex
+      );
+
+      if (existingActionIndex >= 0) {
+        newActions[existingActionIndex] = { ...action, stepIndex: currentStepIndex };
+      } else {
+        newActions.push({ ...action, stepIndex: currentStepIndex });
+      }
+
+      setCookingActions(newActions);
+    }
+
+    setShowCookingSelector(false);
+    setCurrentStepIndex(null);
+  };
+
+  const removeCookingAction = (stepIndex: number) => {
+    setCookingActions(cookingActions.filter(action => action.stepIndex !== stepIndex));
+  };
+
+  const getCookingActionForStep = (stepIndex: number) => {
+    return cookingActions.find(action => action.stepIndex === stepIndex);
+  };
+
   const handleImportFromUrl = async () => {
     if (!importUrl.trim()) {
       Alert.alert('Error', 'Please enter a URL');
@@ -208,6 +245,9 @@ export default function RecipeCreatorScreen() {
       difficulty,
       category: category.trim(),
       image: imageUrl.trim() || undefined,
+      chefiqAppliance: selectedAppliance || undefined,
+      cookingActions: cookingActions.length > 0 ? cookingActions : undefined,
+      instructionSections: instructionSections.length > 0 ? instructionSections : undefined,
     };
 
     addRecipe(recipe);
@@ -230,6 +270,9 @@ export default function RecipeCreatorScreen() {
             setCategory('');
             setImageUrl('');
             setDifficulty('Medium');
+            setSelectedAppliance('');
+            setCookingActions([]);
+            setInstructionSections([]);
 
             // Navigate to recipes tab
             navigation.navigate('One' as never);
@@ -387,6 +430,23 @@ export default function RecipeCreatorScreen() {
               </View>
             </View>
 
+            {/* ChefIQ Appliance Selection */}
+            <View className="mb-4">
+              <Text className="text-lg font-semibold mb-2">ChefIQ Appliance (Optional)</Text>
+              <ApplianceDropdown
+                selectedAppliance={selectedAppliance}
+                onSelect={setSelectedAppliance}
+                placeholder="Select ChefIQ Appliance..."
+              />
+              {selectedAppliance && (
+                <View className="mt-2 p-3 bg-blue-50 rounded-lg">
+                  <Text className="text-sm text-blue-700 font-medium">
+                    {getApplianceById(selectedAppliance)?.thing_category_name} - Advanced cooking methods available
+                  </Text>
+                </View>
+              )}
+            </View>
+
             {/* Recipe Details */}
             <View className="mb-4 flex-row justify-between">
               <View className="flex-1 mr-2">
@@ -453,29 +513,70 @@ export default function RecipeCreatorScreen() {
             {/* Instructions */}
             <View className="mb-6">
               <Text className="text-lg font-semibold mb-2">Instructions *</Text>
-              {instructions.map((instruction, index) => (
-                <View key={index} className="mb-2">
-                  <View className="flex-row items-start">
-                    <Text className="text-base font-semibold mr-2 mt-2">{index + 1}.</Text>
-                    <TextInput
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base mr-2"
-                      placeholder={`Step ${index + 1}`}
-                      value={instruction}
-                      onChangeText={(value) => updateInstruction(index, value)}
-                      multiline
-                      numberOfLines={2}
-                    />
-                    {instructions.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => removeInstruction(index)}
-                        className="bg-red-500 rounded-lg px-3 py-2 justify-center"
-                      >
-                        <Text className="text-white font-semibold">Remove</Text>
-                      </TouchableOpacity>
+              {instructions.map((instruction, index) => {
+                const cookingAction = getCookingActionForStep(index);
+                return (
+                  <View key={index} className="mb-4">
+                    <View className="flex-row items-start">
+                      <Text className="text-base font-semibold mr-2 mt-2">{index + 1}.</Text>
+                      <TextInput
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base mr-2"
+                        placeholder={`Step ${index + 1}`}
+                        value={instruction}
+                        onChangeText={(value) => updateInstruction(index, value)}
+                        multiline
+                        numberOfLines={2}
+                      />
+                      {instructions.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => removeInstruction(index)}
+                          className="bg-red-500 rounded-lg px-3 py-2 justify-center"
+                        >
+                          <Text className="text-white font-semibold">Remove</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {/* Cooking Action for this step */}
+                    {selectedAppliance && (
+                      <View className="ml-6 mt-2">
+                        {cookingAction ? (
+                          <View className="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <View className="flex-row justify-between items-center">
+                              <View>
+                                <Text className="text-sm font-medium text-green-800">
+                                  🍳 {cookingAction.methodName}
+                                </Text>
+                                <Text className="text-xs text-green-600 mt-1">
+                                  {Object.entries(cookingAction.parameters)
+                                    .map(([key, value]) => `${key}: ${value}`)
+                                    .join(', ')}
+                                </Text>
+                              </View>
+                              <TouchableOpacity
+                                onPress={() => removeCookingAction(index)}
+                                className="bg-red-500 rounded px-2 py-1"
+                              >
+                                <Text className="text-white text-xs">Remove</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => {
+                              setCurrentStepIndex(index);
+                              setShowCookingSelector(true);
+                            }}
+                            className="bg-blue-100 border border-blue-300 rounded-lg p-2 flex-row items-center justify-center"
+                          >
+                            <Text className="text-blue-700 text-sm font-medium">+ Add Cooking Action</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     )}
                   </View>
-                </View>
-              ))}
+                );
+              })}
               <TouchableOpacity
                 onPress={addInstruction}
                 className="bg-blue-500 rounded-lg px-4 py-2 mt-2"
@@ -483,6 +584,19 @@ export default function RecipeCreatorScreen() {
                 <Text className="text-white text-center font-semibold">Add Step</Text>
               </TouchableOpacity>
             </View>
+
+            {/* ChefIQ Cooking Selector Modal */}
+            {showCookingSelector && selectedAppliance && (
+              <ChefIQCookingSelector
+                visible={showCookingSelector}
+                onClose={() => {
+                  setShowCookingSelector(false);
+                  setCurrentStepIndex(null);
+                }}
+                onSelect={handleCookingActionSelect}
+                applianceId={selectedAppliance}
+              />
+            )}
 
             {/* Submit Button */}
             <TouchableOpacity

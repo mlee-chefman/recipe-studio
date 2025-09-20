@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useRecipeStore, Recipe } from '../store/store';
 import { RecipeDetailModal } from './RecipeDetailModal';
 import { FilterModal } from './FilterModal';
+import { getApplianceById } from '../types/chefiq';
 
 const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
   return (
@@ -47,7 +48,17 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
           </View>
 
           <View className="flex-row items-center justify-between">
-            <Text className="text-sm text-blue-600 font-medium">{recipe.category}</Text>
+            <View className="flex-row items-center">
+              <Text className="text-sm text-blue-600 font-medium mr-2">{recipe.category}</Text>
+              {recipe.chefiqAppliance && (
+                <View className="bg-green-100 px-2 py-1 rounded-full flex-row items-center">
+                  <Text className="text-xs mr-1">🍳</Text>
+                  <Text className="text-xs font-medium text-green-800">
+                    {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text className="text-xs text-gray-400">Tap for details →</Text>
           </View>
         </View>

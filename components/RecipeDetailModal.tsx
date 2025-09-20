@@ -2,6 +2,7 @@ import * as React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Recipe, useRecipeStore } from '../store/store';
+import { getApplianceById, formatCookingAction } from '../types/chefiq';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
@@ -113,6 +114,24 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
             </View>
           </View>
 
+          {/* ChefIQ Appliance Info */}
+          {recipe.chefiqAppliance && (
+            <View className="mb-6">
+              <Text className="text-lg font-semibold text-gray-800 mb-2">ChefIQ Appliance</Text>
+              <View className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <View className="flex-row items-center mb-2">
+                  <Text className="text-2xl mr-2">🍳</Text>
+                  <Text className="text-lg font-semibold text-green-800">
+                    {getApplianceById(recipe.chefiqAppliance)?.name}
+                  </Text>
+                </View>
+                <Text className="text-sm text-green-600 capitalize">
+                  {getApplianceById(recipe.chefiqAppliance)?.thing_category_name} - Smart cooking features available
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* Ingredients */}
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Ingredients</Text>
@@ -130,14 +149,36 @@ export const RecipeDetailModal = ({ recipe, visible, onClose }: RecipeDetailModa
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Instructions</Text>
             <View className="bg-gray-50 p-4 rounded-lg">
-              {recipe.instructions.map((instruction, index) => (
-                <View key={index} className="flex-row mb-3">
-                  <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5">
-                    <Text className="text-white text-sm font-bold">{index + 1}</Text>
+              {recipe.instructions.map((instruction, index) => {
+                const cookingAction = recipe.cookingActions?.find(action => action.stepIndex === index);
+                return (
+                  <View key={index} className="mb-4">
+                    <View className="flex-row mb-2">
+                      <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5">
+                        <Text className="text-white text-sm font-bold">{index + 1}</Text>
+                      </View>
+                      <Text className="text-base text-gray-700 flex-1 leading-6">{instruction}</Text>
+                    </View>
+
+                    {/* Cooking Action for this step */}
+                    {cookingAction && (
+                      <View className="ml-9 bg-green-50 border border-green-200 rounded-lg p-3">
+                        <View className="flex-row items-center">
+                          <Text className="text-lg mr-2">🍳</Text>
+                          <View className="flex-1">
+                            <Text className="text-sm font-medium text-green-800">
+                              {formatCookingAction(cookingAction)}
+                            </Text>
+                            <Text className="text-xs text-green-600 mt-1">
+                              {getApplianceById(cookingAction.applianceId)?.name}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    )}
                   </View>
-                  <Text className="text-base text-gray-700 flex-1 leading-6">{instruction}</Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
           </View>
