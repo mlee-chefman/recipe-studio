@@ -1,15 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Switch } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRecipeStore } from '../store/store';
+import { useRecipeStore, Recipe } from '../store/store';
 import { useNavigation } from '@react-navigation/native';
 import { scrapeRecipe, isValidUrl } from '../utils/recipeScraper';
 import { CookingAction, InstructionSection, getApplianceById } from '../types/chefiq';
 import ChefIQCookingSelector from '../components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '../components/ApplianceDropdown';
 
-export default function RecipeCreatorScreen() {
+interface RecipeCreatorScreenProps {
+  editingRecipe?: Recipe;
+  onEditComplete?: () => void;
+}
+
+export default function RecipeCreatorScreen({ editingRecipe, onEditComplete }: RecipeCreatorScreenProps = {}) {
   const [recipeName, setRecipeName] = useState('');
   const [description, setDescription] = useState('');
   const [ingredients, setIngredients] = useState(['']);
@@ -30,8 +35,89 @@ export default function RecipeCreatorScreen() {
   const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
   const [useProbe, setUseProbe] = useState(false);
 
-  const { addRecipe } = useRecipeStore();
+  const { addRecipe, updateRecipe } = useRecipeStore();
   const navigation = useNavigation();
+
+  // Populate form when editing a recipe
+  useEffect(() => {
+    if (editingRecipe) {
+      setRecipeName(editingRecipe.title);
+      setDescription(editingRecipe.description);
+      setIngredients(editingRecipe.ingredients.length > 0 ? editingRecipe.ingredients : ['']);
+      setInstructions(editingRecipe.instructions.length > 0 ? editingRecipe.instructions : ['']);
+      setCookTime(editingRecipe.cookTime.toString());
+      setServings(editingRecipe.servings.toString());
+      setCategory(editingRecipe.category);
+      setDifficulty(editingRecipe.difficulty);
+      setImageUrl(editingRecipe.image || '');
+      setSelectedAppliance(editingRecipe.chefiqAppliance || '');
+      setCookingActions(editingRecipe.cookingActions || []);
+      setInstructionSections(editingRecipe.instructionSections || []);
+      setUseProbe(editingRecipe.useProbe || false);
+    }
+  }, [editingRecipe]);
+
+  // Helper function to clear all form data
+  const clearAllFormData = () => {
+    setRecipeName('');
+    setDescription('');
+    setIngredients(['']);
+    setInstructions(['']);
+    setPrepTime('');
+    setCookTime('');
+    setServings('');
+    setCategory('');
+    setImageUrl('');
+    setDifficulty('Medium');
+    setSelectedAppliance('');
+    setCookingActions([]);
+    setInstructionSections([]);
+    setUseProbe(false);
+    setImportUrl('');
+    setShowImportSection(false);
+  };
+
+  // Handle clear button with confirmation
+  const handleClearForm = () => {
+    // Check if form has any data
+    const hasData = recipeName.trim() ||
+                   description.trim() ||
+                   ingredients.some(i => i.trim()) ||
+                   instructions.some(i => i.trim()) ||
+                   prepTime.trim() ||
+                   cookTime.trim() ||
+                   servings.trim() ||
+                   category.trim() ||
+                   imageUrl.trim() ||
+                   selectedAppliance ||
+                   cookingActions.length > 0;
+
+    if (!hasData) {
+      // Form is already empty
+      Alert.alert('Form is Empty', 'The recipe form is already clear.');
+      return;
+    }
+
+    // Confirm before clearing
+    Alert.alert(
+      'Clear Recipe Form',
+      'Are you sure you want to clear all recipe data? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: () => {
+            clearAllFormData();
+            Alert.alert('Form Cleared', 'Recipe form has been cleared. You can start fresh!');
+          }
+        }
+      ]
+    );
+  };
 
   // Helper function to automatically assign cooking actions to appropriate steps
   const autoAssignCookingActions = (instructions: string[], suggestedActions: CookingAction[]) => {
@@ -410,37 +496,48 @@ export default function RecipeCreatorScreen() {
       useProbe: selectedAppliance && getApplianceById(selectedAppliance)?.thing_category_name === 'oven' ? useProbe : undefined,
     };
 
-    addRecipe(recipe);
+    if (editingRecipe) {
+      // Update existing recipe
+      updateRecipe(editingRecipe.id, recipe);
 
-    Alert.alert(
-      'Success',
-      'Recipe created successfully!',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Reset form
-            setRecipeName('');
-            setDescription('');
-            setIngredients(['']);
-            setInstructions(['']);
-            setPrepTime('');
-            setCookTime('');
-            setServings('');
-            setCategory('');
-            setImageUrl('');
-            setDifficulty('Medium');
-            setSelectedAppliance('');
-            setCookingActions([]);
-            setInstructionSections([]);
-            setUseProbe(false);
-
-            // Navigate to recipes tab
-            navigation.navigate('One' as never);
+      Alert.alert(
+        'Success',
+        'Recipe updated successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              if (onEditComplete) {
+                onEditComplete();
+              } else {
+                // Navigate to recipes tab
+                navigation.navigate('One' as never);
+              }
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+    } else {
+      // Create new recipe
+      addRecipe(recipe);
+
+      Alert.alert(
+        'Success',
+        'Recipe created successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Reset form using the clear function
+              clearAllFormData();
+
+              // Navigate to recipes tab
+              navigation.navigate('One' as never);
+            }
+          }
+        ]
+      );
+    }
   };
 
   return (
@@ -450,14 +547,23 @@ export default function RecipeCreatorScreen() {
     >
       <ScrollView className="flex-1 bg-white">
         <View className="px-4 py-4">
-            <View className="flex-row justify-between items-center mb-6">
-              <Text className="text-2xl font-bold">Create New Recipe</Text>
-              <TouchableOpacity
-                onPress={() => setShowImportSection(!showImportSection)}
-                className="bg-blue-500 rounded-lg px-3 py-2"
-              >
-                <Text className="text-white font-semibold text-sm">Import from URL</Text>
-              </TouchableOpacity>
+            {/* Header */}
+            <View className="mb-6">
+              <Text className="text-2xl font-bold mb-3">{editingRecipe ? 'Edit Recipe' : 'Create New Recipe'}</Text>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={handleClearForm}
+                  className="bg-red-500 rounded-lg px-4 py-2 flex-1"
+                >
+                  <Text className="text-white font-semibold text-sm text-center">🗑️ Clear Form</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowImportSection(!showImportSection)}
+                  className="bg-blue-500 rounded-lg px-4 py-2 flex-1"
+                >
+                  <Text className="text-white font-semibold text-sm text-center">📥 Import from URL</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Recipe Image Display */}
@@ -720,20 +826,31 @@ export default function RecipeCreatorScreen() {
                       <View className="ml-6 mt-2">
                         {cookingAction ? (
                           <View className="bg-green-50 border border-green-200 rounded-lg p-3">
-                            <View className="flex-row justify-between items-center">
-                              <View>
-                                <Text className="text-sm font-medium text-green-800">
+                            <View className="flex-row justify-between items-start">
+                              <View className="flex-1 mr-3">
+                                <Text className="text-sm font-medium text-green-800 mb-1">
                                   🍳 {cookingAction.methodName}
                                 </Text>
-                                <Text className="text-xs text-green-600 mt-1">
+                                <View className="flex-row flex-wrap">
                                   {Object.entries(cookingAction.parameters)
-                                    .map(([key, value]) => `${key}: ${value}`)
-                                    .join(', ')}
-                                </Text>
+                                    .slice(0, 3) // Limit to first 3 parameters
+                                    .map(([key, value], paramIndex) => (
+                                      <View key={key} className="bg-green-100 rounded px-2 py-1 mr-1 mb-1">
+                                        <Text className="text-xs text-green-700">
+                                          {key}: {String(value).length > 10 ? String(value).substring(0, 10) + '...' : value}
+                                        </Text>
+                                      </View>
+                                    ))}
+                                  {Object.keys(cookingAction.parameters).length > 3 && (
+                                    <View className="bg-green-100 rounded px-2 py-1 mb-1">
+                                      <Text className="text-xs text-green-700">+{Object.keys(cookingAction.parameters).length - 3} more</Text>
+                                    </View>
+                                  )}
+                                </View>
                               </View>
                               <TouchableOpacity
                                 onPress={() => removeCookingAction(index)}
-                                className="bg-red-500 rounded px-2 py-1"
+                                className="bg-red-500 rounded px-2 py-1 self-start"
                               >
                                 <Text className="text-white text-xs">Remove</Text>
                               </TouchableOpacity>
@@ -745,9 +862,9 @@ export default function RecipeCreatorScreen() {
                               setCurrentStepIndex(index);
                               setShowCookingSelector(true);
                             }}
-                            className="bg-blue-100 border border-blue-300 rounded-lg p-2 flex-row items-center justify-center"
+                            className="bg-blue-100 border border-blue-300 rounded-lg p-3 flex-row items-center justify-center"
                           >
-                            <Text className="text-blue-700 text-sm font-medium">+ Add Cooking Action</Text>
+                            <Text className="text-blue-700 text-sm font-medium">🍳 Add Cooking Action</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -787,7 +904,7 @@ export default function RecipeCreatorScreen() {
               }`}
               disabled={!recipeName || !category || ingredients.filter(i => i.trim()).length === 0 || instructions.filter(i => i.trim()).length === 0}
             >
-              <Text className="text-white text-center text-lg font-bold">Create Recipe</Text>
+              <Text className="text-white text-center text-lg font-bold">{editingRecipe ? 'Update Recipe' : 'Create Recipe'}</Text>
             </TouchableOpacity>
         </View>
       </ScrollView>
