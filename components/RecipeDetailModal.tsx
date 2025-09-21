@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-na
 import { Image } from 'expo-image';
 import { Recipe, useRecipeStore } from '../store/store';
 import { getApplianceById, formatCookingAction } from '../types/chefiq';
+import { theme } from '../theme';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
@@ -52,7 +53,8 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
             {onEdit && (
               <TouchableOpacity
                 onPress={onEdit}
-                className="bg-blue-500 rounded-lg px-3 py-1.5 items-center justify-center"
+                className="rounded-lg px-3 py-1.5 items-center justify-center"
+                style={{ backgroundColor: theme.colors.primary[500] }}
               >
                 <Text className="text-white font-semibold">Edit</Text>
               </TouchableOpacity>
@@ -118,8 +120,8 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
           {/* Category */}
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-2">Category</Text>
-            <View className="bg-blue-50 px-3 py-2 rounded-lg self-start">
-              <Text className="text-blue-700 font-medium">{recipe.category}</Text>
+            <View className="px-3 py-2 rounded-lg self-start" style={{ backgroundColor: theme.colors.primary[100] }}>
+              <Text className="font-medium" style={{ color: theme.colors.primary[600] }}>{recipe.category}</Text>
             </View>
           </View>
 
@@ -153,7 +155,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
             <View className="bg-gray-50 p-4 rounded-lg">
               {recipe.ingredients.map((ingredient, index) => (
                 <View key={index} className="flex-row items-center mb-2">
-                  <View className="w-2 h-2 bg-blue-500 rounded-full mr-3" />
+                  <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: theme.colors.primary[500] }} />
                   <Text className="text-base text-gray-700 flex-1">{ingredient}</Text>
                 </View>
               ))}
@@ -169,7 +171,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
                 return (
                   <View key={index} className="mb-4">
                     <View className="flex-row mb-2">
-                      <View className="bg-blue-500 rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5">
+                      <View className="rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5" style={{ backgroundColor: theme.colors.primary[500] }}>
                         <Text className="text-white text-sm font-bold">{index + 1}</Text>
                       </View>
                       <Text className="text-base text-gray-700 flex-1 leading-6">{instruction}</Text>

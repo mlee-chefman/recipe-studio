@@ -11,6 +11,7 @@ import {
 import { cookingFunctions as rj40Functions, getSmartCookerDefaultState } from '../utils/rj40CookingFunctions';
 import { cookingFunctions as cq50Functions } from '../utils/cq50CookingFunctions';
 import { CookingAction, getApplianceById } from '../types/chefiq';
+import { theme } from '../theme';
 
 interface ChefIQCookingSelectorProps {
   visible: boolean;
@@ -193,9 +194,10 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             <View className="flex-row">
               <TouchableOpacity
                 onPress={() => updateParameter('pres_level', 1)}
-                className={`flex-1 py-2 px-4 rounded-l-lg ${
-                  parameters.pres_level === 1 ? 'bg-blue-500' : 'bg-gray-200'
-                }`}
+                className="flex-1 py-2 px-4 rounded-l-lg"
+                style={{
+                  backgroundColor: parameters.pres_level === 1 ? theme.colors.primary[500] : theme.colors.gray[200]
+                }}
               >
                 <Text className={`text-center font-semibold ${
                   parameters.pres_level === 1 ? 'text-white' : 'text-gray-700'
@@ -203,9 +205,10 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => updateParameter('pres_level', 0)}
-                className={`flex-1 py-2 px-4 rounded-r-lg border-l ${
-                  parameters.pres_level === 0 ? 'bg-blue-500' : 'bg-gray-200'
-                }`}
+                className="flex-1 py-2 px-4 rounded-r-lg border-l"
+                style={{
+                  backgroundColor: parameters.pres_level === 0 ? theme.colors.primary[500] : theme.colors.gray[200]
+                }}
               >
                 <Text className={`text-center font-semibold ${
                   parameters.pres_level === 0 ? 'text-white' : 'text-gray-700'
@@ -227,7 +230,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                   className={`flex-1 py-2 px-4 ${
                     index === 0 ? 'rounded-l-lg' : index === 2 ? 'rounded-r-lg' : ''
                   } ${
-                    parameters.pres_release === index ? 'bg-blue-500' : 'bg-gray-200'
+                    parameters.pres_release === index ? 'bg-green-500' : 'bg-gray-200'
                   } ${index > 0 ? 'border-l' : ''}`}
                 >
                   <Text className={`text-center font-semibold text-sm ${
@@ -363,7 +366,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
               <TouchableOpacity
                 onPress={() => updateParameter('temp_level', 0)}
                 className={`flex-1 py-2 px-4 rounded-l-lg ${
-                  parameters.temp_level === 0 ? 'bg-blue-500' : 'bg-gray-200'
+                  parameters.temp_level === 0 ? 'bg-green-500' : 'bg-gray-200'
                 }`}
               >
                 <Text className={`text-center font-semibold ${
@@ -373,7 +376,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
               <TouchableOpacity
                 onPress={() => updateParameter('temp_level', 1)}
                 className={`flex-1 py-2 px-4 rounded-r-lg border-l ${
-                  parameters.temp_level === 1 ? 'bg-blue-500' : 'bg-gray-200'
+                  parameters.temp_level === 1 ? 'bg-green-500' : 'bg-gray-200'
                 }`}
               >
                 <Text className={`text-center font-semibold ${
@@ -398,7 +401,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                     className={`flex-1 py-2 px-3 ${
                       index === 0 ? 'rounded-l-lg' : index === 3 ? 'rounded-r-lg' : ''
                     } ${
-                      parameters.fan_speed === index ? 'bg-blue-500' : 'bg-gray-200'
+                      parameters.fan_speed === index ? 'bg-green-500' : 'bg-gray-200'
                     } ${index > 0 ? 'border-l' : ''}`}
                   >
                     <Text className={`text-center font-semibold text-xs ${
@@ -473,7 +476,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                   key={method.id}
                   onPress={() => handleMethodChange(method.id)}
                   className={`mr-3 px-4 py-3 rounded-lg ${
-                    selectedMethod === method.id ? 'bg-blue-500' : 'bg-gray-100'
+                    selectedMethod === method.id ? 'bg-green-500' : 'bg-gray-100'
                   }`}
                 >
                   <Text className="text-2xl text-center mb-1">{method.icon}</Text>
@@ -493,7 +496,8 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         <View className="p-4 border-t border-gray-200">
           <TouchableOpacity
             onPress={handleSave}
-            className="bg-blue-500 rounded-lg py-3"
+            className="rounded-lg py-3"
+            style={{ backgroundColor: theme.colors.primary[500] }}
           >
             <Text className="text-white text-center text-lg font-bold">
               Save Cooking Action

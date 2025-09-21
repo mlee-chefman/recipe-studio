@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, Image } from 'react-native';
 import { CHEFIQ_APPLIANCES, ChefIQAppliance } from '../types/chefiq';
+import { theme } from '../theme';
 
 interface ApplianceDropdownProps {
   selectedAppliance: string;
@@ -39,7 +40,7 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
         <Text className="text-sm text-gray-500 capitalize">{item.thing_category_name}</Text>
       </View>
       {selectedAppliance === item.category_id && (
-        <Text className="text-blue-500 font-bold">✓</Text>
+        <Text style={{ color: theme.colors.primary[500] }} className="font-bold">✓</Text>
       )}
     </TouchableOpacity>
   );
@@ -57,7 +58,7 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
         <Text className="text-sm text-gray-500">No appliance selected</Text>
       </View>
       {!selectedAppliance && (
-        <Text className="text-blue-500 font-bold">✓</Text>
+        <Text style={{ color: theme.colors.primary[500] }} className="font-bold">✓</Text>
       )}
     </TouchableOpacity>
   );
@@ -121,7 +122,7 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
               onPress={() => setIsOpen(false)}
               className="p-3 border-t border-gray-200"
             >
-              <Text className="text-center text-blue-500 font-medium">Cancel</Text>
+              <Text className="text-center font-medium" style={{ color: theme.colors.primary[500] }}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>

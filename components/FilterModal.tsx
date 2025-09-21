@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { theme } from '../theme';
 
 interface FilterModalProps {
   visible: boolean;
@@ -68,13 +69,15 @@ const DropdownSection = ({
                   onSelect(option);
                   setIsOpen(false);
                 }}
-                className={`px-4 py-3 border-b border-gray-100 ${
-                  selectedValue === option ? 'bg-blue-50' : ''
-                }`}
+                className="px-4 py-3 border-b border-gray-100"
+                style={{
+                  backgroundColor: selectedValue === option ? theme.colors.primary[50] : 'transparent'
+                }}
               >
-                <Text className={`text-base ${
-                  selectedValue === option ? 'text-blue-700 font-medium' : 'text-gray-800'
-                }`}>
+                <Text className="text-base" style={{
+                  color: selectedValue === option ? theme.colors.primary[700] : theme.colors.text.primary,
+                  fontWeight: selectedValue === option ? '500' : '400'
+                }}>
                   {option}
                 </Text>
               </TouchableOpacity>
@@ -151,7 +154,8 @@ export const FilterModal = ({
         <View className="p-4 border-t border-gray-200 bg-white">
           <TouchableOpacity
             onPress={onClose}
-            className="bg-blue-500 rounded-lg px-6 py-3 items-center"
+            className="rounded-lg px-6 py-3 items-center"
+            style={{ backgroundColor: theme.colors.primary[500] }}
           >
             <Text className="text-white font-semibold text-base">Apply Filters</Text>
           </TouchableOpacity>
