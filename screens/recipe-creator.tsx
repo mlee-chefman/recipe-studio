@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore, Recipe } from '../store/store';
@@ -346,6 +346,47 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
     setInstructions(newInstructions);
   };
 
+  // Refs for managing focus
+  const ingredientRefs = useRef<(TextInput | null)[]>([]);
+  const instructionRefs = useRef<(TextInput | null)[]>([]);
+
+  // Helper functions for Enter key submission
+  const handleIngredientSubmit = (index: number) => {
+    const currentIngredient = ingredients[index];
+    if (currentIngredient && currentIngredient.trim() !== '') {
+      if (index === ingredients.length - 1) {
+        // If it's the last ingredient and has content, add a new one
+        addIngredient();
+        // Focus on the new ingredient field after a brief delay
+        setTimeout(() => {
+          const newIndex = ingredients.length;
+          ingredientRefs.current[newIndex]?.focus();
+        }, 100);
+      } else {
+        // Focus on the next ingredient field
+        ingredientRefs.current[index + 1]?.focus();
+      }
+    }
+  };
+
+  const handleInstructionSubmit = (index: number) => {
+    const currentInstruction = instructions[index];
+    if (currentInstruction && currentInstruction.trim() !== '') {
+      if (index === instructions.length - 1) {
+        // If it's the last instruction and has content, add a new one
+        addInstruction();
+        // Focus on the new instruction field after a brief delay
+        setTimeout(() => {
+          const newIndex = instructions.length;
+          instructionRefs.current[newIndex]?.focus();
+        }, 100);
+      } else {
+        // Focus on the next instruction field
+        instructionRefs.current[index + 1]?.focus();
+      }
+    }
+  };
+
   // Cooking action handlers
   const handleCookingActionSelect = (action: CookingAction) => {
     if (currentStepIndex !== null) {
@@ -458,7 +499,11 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={90}
+    >
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{
@@ -648,10 +693,14 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           {ingredients.map((ingredient, index) => (
             <View key={index} className="flex-row items-center mb-2">
               <TextInput
+                ref={(ref) => (ingredientRefs.current[index] = ref)}
                 className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
                 placeholder={`Ingredient ${index + 1}`}
                 value={ingredient}
                 onChangeText={(value) => updateIngredient(index, value)}
+                onSubmitEditing={() => handleIngredientSubmit(index)}
+                returnKeyType={index === ingredients.length - 1 ? "done" : "next"}
+                blurOnSubmit={false}
               />
               {ingredients.length > 1 && (
                 <TouchableOpacity
@@ -663,12 +712,6 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               )}
             </View>
           ))}
-          <TouchableOpacity
-            onPress={addIngredient}
-            className="border border-dashed border-gray-300 rounded-lg px-3 py-2 items-center justify-center"
-          >
-            <Text className="text-gray-500">+ Add Ingredient</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Instructions */}
@@ -680,72 +723,83 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               <View key={index} className="mb-3">
                 <View className="flex-row items-center mb-1">
                   <TextInput
+                    ref={(ref) => (instructionRefs.current[index] = ref)}
                     className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
                     placeholder={`Step ${index + 1}`}
                     value={instruction}
                     onChangeText={(value) => updateInstruction(index, value)}
+                    onSubmitEditing={() => handleInstructionSubmit(index)}
+                    returnKeyType={index === instructions.length - 1 ? "done" : "next"}
+                    blurOnSubmit={false}
+                    style={{ minHeight: 40 }}
                   />
-                  {instructions.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => removeInstruction(index)}
-                      className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
-                    >
-                      <Text className="text-red-600 font-bold">×</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-
-                {/* Cooking Action Section */}
-                {selectedAppliance && (
-                  <View className="ml-1">
-                    {cookingAction ? (
-                      <View className="bg-green-50 border border-green-200 rounded-lg p-3">
-                        <View className="flex-row items-center justify-between">
-                          <View className="flex-1">
-                            <Text className="text-sm font-medium text-green-800">
-                              🍳 {cookingAction.methodName}
-                            </Text>
-                            <Text className="text-xs text-green-600 mt-1">
-                              {getApplianceById(selectedAppliance)?.name}
-                              {cookingAction.temperature && ` • ${cookingAction.temperature}°F`}
-                              {cookingAction.duration && ` • ${cookingAction.duration} min`}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            onPress={() => removeCookingAction(index)}
-                            className="w-6 h-6 bg-red-100 rounded-full items-center justify-center ml-2"
-                          >
-                            <Text className="text-red-600 text-xs font-bold">×</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ) : (
+                  <View className="flex-row gap-1 items-center">
+                    {/* Add Cooking Method Button - Only show if appliance is selected */}
+                    {selectedAppliance && (
                       <TouchableOpacity
                         onPress={() => {
                           setCurrentStepIndex(index);
                           setShowCookingSelector(true);
                         }}
-                        className="rounded-lg p-3 flex-row items-center justify-center"
+                        className="w-8 h-8 rounded-full items-center justify-center"
                         style={{
-                          backgroundColor: theme.colors.primary[50],
-                          borderWidth: 1,
-                          borderColor: theme.colors.primary[200]
+                          backgroundColor: getCookingActionForStep(index) ? theme.colors.primary[500] : theme.colors.primary[100]
                         }}
                       >
-                        <Text className="text-sm font-medium" style={{ color: theme.colors.primary[700] }}>🍳 Add Cooking Method</Text>
+                        {getCookingActionForStep(index) ? (
+                          <Text className="text-sm">🍳</Text>
+                        ) : (
+                          <Image
+                            source={{ uri: getApplianceById(selectedAppliance)?.icon }}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              tintColor: theme.colors.primary[600]
+                            }}
+                            contentFit="contain"
+                          />
+                        )}
                       </TouchableOpacity>
                     )}
+
+                    {/* Remove Instruction Button */}
+                    {instructions.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => removeInstruction(index)}
+                        className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
+                      >
+                        <Text className="text-red-600 font-bold">×</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+
+                {/* Cooking Action Display */}
+                {cookingAction && (
+                  <View className="ml-9 bg-green-50 border border-green-200 rounded-lg p-3">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-1">
+                        <Text className="text-sm font-medium text-green-800">
+                          🍳 {cookingAction.methodName}
+                        </Text>
+                        <Text className="text-xs text-green-600 mt-1">
+                          {selectedAppliance && getApplianceById(selectedAppliance)?.name}
+                          {cookingAction.temperature && ` • ${cookingAction.temperature}°F`}
+                          {cookingAction.duration && ` • ${cookingAction.duration} min`}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => removeCookingAction(index)}
+                        className="w-6 h-6 bg-red-100 rounded-full items-center justify-center ml-2"
+                      >
+                        <Text className="text-red-600 text-xs font-bold">×</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
               </View>
             );
           })}
-          <TouchableOpacity
-            onPress={addInstruction}
-            className="border border-dashed border-gray-300 rounded-lg px-3 py-2 items-center justify-center"
-          >
-            <Text className="text-gray-500">+ Add Instruction</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Notes */}
@@ -775,6 +829,6 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           useProbe={useProbe}
         />
       )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
