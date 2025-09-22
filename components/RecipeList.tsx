@@ -6,6 +6,7 @@ import { RecipeDetailModal } from './RecipeDetailModal';
 import { FilterModal } from './FilterModal';
 import { getApplianceById } from '../types/chefiq';
 import RecipeCreatorScreen from '../screens/recipe-creator';
+import { theme } from '../theme';
 
 const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
   return (
@@ -50,12 +51,12 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
 
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <Text className="text-sm text-blue-600 font-medium mr-2">{recipe.category}</Text>
+              <Text className="text-sm font-medium mr-2" style={{ color: theme.colors.primary[500] }}>{recipe.category}</Text>
               {recipe.chefiqAppliance && (
                 <View className="flex-row items-center gap-1">
-                  <View className="bg-green-100 px-2 py-1 rounded-full flex-row items-center">
+                  <View className="px-2 py-1 rounded-full flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
                     <Text className="text-xs mr-1">🍳</Text>
-                    <Text className="text-xs font-medium text-green-800">
+                    <Text className="text-xs font-medium" style={{ color: theme.colors.primary[500] }}>
                       {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
                     </Text>
                   </View>
@@ -88,7 +89,7 @@ const FilterButton = ({
     <TouchableOpacity
       onPress={onPress}
       className={`px-3 py-2 rounded-full mr-2 ${
-        isSelected ? 'bg-blue-500' : 'bg-gray-200'
+        isSelected ? 'bg-green-500' : 'bg-gray-200'
       }`}
       style={{ height: 36, minWidth: 60, justifyContent: 'center', alignItems: 'center' }}
     >
@@ -182,13 +183,14 @@ export const RecipeList = () => {
           />
           <TouchableOpacity
             onPress={() => setFilterModalVisible(true)}
-            className="bg-blue-500 rounded-lg px-4 py-3 items-center justify-center min-w-[80px]"
+            className="rounded-lg px-4 py-3 items-center justify-center min-w-[80px]"
+            style={{ backgroundColor: theme.colors.primary[500] }}
           >
             <View className="flex-row items-center">
               <Text className="text-white font-medium text-sm mr-1">Filter</Text>
               {getActiveFiltersCount() > 0 && (
                 <View className="bg-white rounded-full w-5 h-5 items-center justify-center">
-                  <Text className="text-blue-500 text-xs font-bold">{getActiveFiltersCount()}</Text>
+                  <Text className="text-xs font-bold" style={{ color: theme.colors.primary[500] }}>{getActiveFiltersCount()}</Text>
                 </View>
               )}
             </View>
@@ -201,18 +203,18 @@ export const RecipeList = () => {
             <Text className="text-sm font-medium text-gray-700 mb-2">Active Filters:</Text>
             <View className="flex-row flex-wrap">
               {selectedCategory && (
-                <View className="bg-blue-100 px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center">
-                  <Text className="text-blue-800 text-sm mr-1">Category: {selectedCategory}</Text>
+                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Category: {selectedCategory}</Text>
                   <TouchableOpacity onPress={() => setSelectedCategory('')}>
-                    <Text className="text-blue-600 font-bold">×</Text>
+                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
                   </TouchableOpacity>
                 </View>
               )}
               {selectedDifficulty && (
-                <View className="bg-blue-100 px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center">
-                  <Text className="text-blue-800 text-sm mr-1">Difficulty: {selectedDifficulty}</Text>
+                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Difficulty: {selectedDifficulty}</Text>
                   <TouchableOpacity onPress={() => setSelectedDifficulty('')}>
-                    <Text className="text-blue-600 font-bold">×</Text>
+                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
                   </TouchableOpacity>
                 </View>
               )}

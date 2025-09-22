@@ -24,14 +24,13 @@ A mobile app for creating and publishing recipes to the CHEF iQ platform.
 ## Features
 
 ### ✅ Implemented
-- [x] **Recipe Creation & Editing**: Complete recipe authoring with dynamic form management
-- [x] **Photo Support**: Take photos, choose from library, or enter image URLs
-- [x] **ChefIQ Appliance Integration**: RJ40 Smart Cooker & CQ50 Smart Mini Oven support
-- [x] **Recipe Scraping**: Import recipes from websites with AI-powered ChefIQ analysis
+- [x] **Clean Recipe Creation**: ReciMe-inspired single-screen interface with streamlined form
+- [x] **Photo Support**: Take photos or choose from library with elegant interface
+- [x] **Essential Recipe Fields**: Title, category, cook time, servings, difficulty, ingredients, instructions
 - [x] **Recipe Management**: View, edit, delete, and organize recipes locally
 - [x] **Search & Filtering**: Find recipes by title, category, and difficulty
-- [x] **Cooking Method Assignment**: Assign ChefIQ cooking actions to recipe steps
-- [x] **Thermometer Probe Support**: Temperature-based cooking for Mini Oven
+- [x] **Mobile-Optimized Design**: Clean, minimal interface that fits on one screen
+- [x] **Text-Based Input**: Simple multiline inputs for ingredients and instructions
 
 ### 🔄 In Progress
 - [ ] **Recipe Publishing**: Firebase cloud storage integration
@@ -69,10 +68,9 @@ yarn run android
 
 ### Key Files
 - `store/store.ts` - Recipe state management with Zustand
-- `screens/recipe-creator.tsx` - Main recipe creation screen
+- `screens/recipe-creator.tsx` - Clean, single-screen recipe creation interface
+- `screens/recipe-creator-complex.tsx` - Original complex recipe creator (backup)
 - `components/RecipeList.tsx` - Recipe browsing and management
-- `utils/recipeScraper.ts` - Website recipe import functionality
-- `utils/recipeAnalyzer.ts` - ChefIQ appliance analysis
 - `types/chefiq.ts` - ChefIQ type definitions
 
 ### Documentation
