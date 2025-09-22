@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore, Recipe } from '../store/store';
@@ -19,8 +20,10 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
   const [title, setTitle] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [category, setCategory] = useState('');
-  const [cookTime, setCookTime] = useState('');
-  const [servings, setServings] = useState('');
+  const [cookTime, setCookTime] = useState(0);
+  const [cookTimeHours, setCookTimeHours] = useState(0);
+  const [cookTimeMinutes, setCookTimeMinutes] = useState(0);
+  const [servings, setServings] = useState(4);
   const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Easy');
   const [ingredients, setIngredients] = useState(['']);
   const [instructions, setInstructions] = useState(['']);
@@ -34,6 +37,8 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
   const [cookingActions, setCookingActions] = useState<CookingAction[]>([]);
   const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
   const [showCookingSelector, setShowCookingSelector] = useState(false);
+  const [showServingsPicker, setShowServingsPicker] = useState(false);
+  const [showCookTimePicker, setShowCookTimePicker] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
   const [useProbe, setUseProbe] = useState(false);
 
@@ -46,8 +51,8 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
       setTitle(editingRecipe.title);
       setImageUrl(editingRecipe.image || '');
       setCategory(editingRecipe.category);
-      setCookTime(editingRecipe.cookTime.toString());
-      setServings(editingRecipe.servings.toString());
+      setCookTimeFromMinutes(editingRecipe.cookTime);
+      setServings(editingRecipe.servings);
       setDifficulty(editingRecipe.difficulty);
       setIngredients(editingRecipe.ingredients.length > 0 ? editingRecipe.ingredients : ['']);
       setInstructions(editingRecipe.instructions.length > 0 ? editingRecipe.instructions : ['']);
@@ -610,26 +615,24 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           <Text className="text-lg text-gray-800 mb-3">Info</Text>
           <View className="space-y-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-base text-gray-600">Cook Time (min)</Text>
-              <TextInput
-                className="text-base text-gray-800 text-right w-20 border-b border-gray-200"
-                placeholder="30"
-                value={cookTime}
-                onChangeText={setCookTime}
-                keyboardType="numeric"
-                textAlign="right"
-              />
+              <Text className="text-base text-gray-600">Cook Time</Text>
+              <TouchableOpacity
+                onPress={() => setShowCookTimePicker(true)}
+                className="border-b border-gray-200 py-1 px-2 min-w-[100px]"
+              >
+                <Text className="text-base text-gray-800 text-right">
+                  {cookTimeHours > 0 ? `${cookTimeHours}h ${cookTimeMinutes}m` : `${cookTimeMinutes}m`}
+                </Text>
+              </TouchableOpacity>
             </View>
             <View className="flex-row items-center justify-between">
               <Text className="text-base text-gray-600">Servings</Text>
-              <TextInput
-                className="text-base text-gray-800 text-right w-20 border-b border-gray-200"
-                placeholder="4"
-                value={servings}
-                onChangeText={setServings}
-                keyboardType="numeric"
-                textAlign="right"
-              />
+              <TouchableOpacity
+                onPress={() => setShowServingsPicker(true)}
+                className="border-b border-gray-200 py-1 px-2 min-w-[60px]"
+              >
+                <Text className="text-base text-gray-800 text-right">{servings}</Text>
+              </TouchableOpacity>
             </View>
             <View className="flex-row items-center justify-between">
               <Text className="text-base text-gray-600">Difficulty</Text>
@@ -829,6 +832,139 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           useProbe={useProbe}
         />
       )}
+
+      {/* Servings Picker Modal */}
+      <Modal
+        visible={showServingsPicker}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowServingsPicker(false)}
+      >
+        <View style={{ flex: 1 }}>
+          {/* Backdrop */}
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.3)'
+            }}
+            activeOpacity={1}
+            onPress={() => setShowServingsPicker(false)}
+          />
+          {/* Bottom Sheet */}
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingBottom: 20,
+              maxHeight: 350,
+            }}
+          >
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <TouchableOpacity onPress={() => setShowServingsPicker(false)}>
+                <Text className="text-base" style={{ color: theme.colors.primary[500] }}>Cancel</Text>
+              </TouchableOpacity>
+              <Text className="text-lg font-semibold">Servings</Text>
+              <TouchableOpacity onPress={() => setShowServingsPicker(false)}>
+                <Text className="text-base font-semibold" style={{ color: theme.colors.primary[500] }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <Picker
+              selectedValue={servings}
+              onValueChange={(value) => setServings(value)}
+              style={{ height: 200 }}
+            >
+              {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+                <Picker.Item key={num} label={`${num} serving${num > 1 ? 's' : ''}`} value={num} />
+              ))}
+            </Picker>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cook Time Picker Modal */}
+      <Modal
+        visible={showCookTimePicker}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowCookTimePicker(false)}
+      >
+        <View style={{ flex: 1 }}>
+          {/* Backdrop */}
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.3)'
+            }}
+            activeOpacity={1}
+            onPress={() => setShowCookTimePicker(false)}
+          />
+          {/* Bottom Sheet */}
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingBottom: 20,
+              maxHeight: 400,
+            }}
+          >
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <TouchableOpacity onPress={() => setShowCookTimePicker(false)}>
+                <Text className="text-base" style={{ color: theme.colors.primary[500] }}>Cancel</Text>
+              </TouchableOpacity>
+              <Text className="text-lg font-semibold">Cook Time</Text>
+              <TouchableOpacity onPress={() => setShowCookTimePicker(false)}>
+                <Text className="text-base font-semibold" style={{ color: theme.colors.primary[500] }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <View className="flex-row" style={{ height: 250 }}>
+              {/* Hours Picker */}
+              <View className="flex-1">
+                <Text className="text-center p-3 font-medium text-gray-600">Hours</Text>
+                <Picker
+                  selectedValue={cookTimeHours}
+                  onValueChange={(value) => setCookTimeHours(value)}
+                  style={{ height: 180 }}
+                >
+                  {Array.from({ length: 13 }, (_, i) => i).map((num) => (
+                    <Picker.Item key={num} label={`${num}`} value={num} />
+                  ))}
+                </Picker>
+              </View>
+              {/* Minutes Picker */}
+              <View className="flex-1">
+                <Text className="text-center p-3 font-medium text-gray-600">Minutes</Text>
+                <Picker
+                  selectedValue={cookTimeMinutes}
+                  onValueChange={(value) => setCookTimeMinutes(value)}
+                  style={{ height: 180 }}
+                >
+                  {Array.from({ length: 12 }, (_, i) => i * 5).map((num) => (
+                    <Picker.Item key={num} label={`${num}`} value={num} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
