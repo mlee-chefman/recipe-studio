@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import {
+  RECIPE_DEFAULTS,
+  RECIPE_OPTIONS,
+  hasFormData,
+  RecipeFormState,
+  RecipeModalState,
+  getInitialFormState,
+  getInitialModalState
+} from '../constants/recipeDefaults';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore, Recipe } from '../store/store';
@@ -17,50 +26,135 @@ interface SimpleRecipeCreatorProps {
 }
 
 export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: SimpleRecipeCreatorProps = {}) {
-  const [title, setTitle] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [category, setCategory] = useState('');
-  const [cookTime, setCookTime] = useState(0);
-  const [cookTimeHours, setCookTimeHours] = useState(0);
-  const [cookTimeMinutes, setCookTimeMinutes] = useState(0);
-  const [servings, setServings] = useState(4);
-  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Easy');
-  const [ingredients, setIngredients] = useState(['']);
-  const [instructions, setInstructions] = useState(['']);
-  const [notes, setNotes] = useState('');
-  const [importUrl, setImportUrl] = useState('');
-  const [isImporting, setIsImporting] = useState(false);
-  const [showImportSection, setShowImportSection] = useState(false);
-
-  // ChefIQ features
-  const [selectedAppliance, setSelectedAppliance] = useState('');
-  const [cookingActions, setCookingActions] = useState<CookingAction[]>([]);
+  // Form state
+  const [formData, setFormData] = useState<RecipeFormState>(getInitialFormState());
+  const [modalStates, setModalStates] = useState<RecipeModalState>(getInitialModalState());
   const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
-  const [showCookingSelector, setShowCookingSelector] = useState(false);
-  const [showServingsPicker, setShowServingsPicker] = useState(false);
-  const [showCookTimePicker, setShowCookTimePicker] = useState(false);
-  const [currentStepIndex, setCurrentStepIndex] = useState<number | null>(null);
-  const [useProbe, setUseProbe] = useState(false);
+
+  // Helper functions for state updates
+  const updateFormData = (updates: Partial<RecipeFormState>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
+  const updateModalStates = (updates: Partial<RecipeModalState>) => {
+    setModalStates(prev => ({ ...prev, ...updates }));
+  };
+
+  const setCookTimeFromMinutes = (totalMinutes: number) => {
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    updateFormData({
+      cookTime: totalMinutes,
+      cookTimeHours: hours,
+      cookTimeMinutes: minutes
+    });
+  };
 
   const { addRecipe, updateRecipe } = useRecipeStore();
   const navigation = useNavigation();
 
+  const handleSave = () => {
+    if (!formData.title.trim()) {
+      Alert.alert('Error', 'Recipe title is required');
+      return;
+    }
+
+    const validIngredients = formData.ingredients.filter(i => i.trim() !== '');
+    if (validIngredients.length === 0) {
+      Alert.alert('Error', 'At least one ingredient is required');
+      return;
+    }
+
+    const validInstructions = formData.instructions.filter(i => i.trim() !== '');
+    if (validInstructions.length === 0) {
+      Alert.alert('Error', 'At least one instruction is required');
+      return;
+    }
+
+    const recipe = {
+      title: formData.title.trim(),
+      description: formData.notes.trim() || 'No description provided',
+      ingredients: validIngredients,
+      instructions: validInstructions,
+      cookTime: formData.cookTime,
+      servings: formData.servings,
+      difficulty: formData.difficulty,
+      category: formData.category.trim() || 'Uncategorized',
+      image: formData.imageUrl.trim() || undefined,
+      chefiqAppliance: formData.selectedAppliance || undefined,
+      cookingActions: formData.cookingActions.length > 0 ? formData.cookingActions : undefined,
+      instructionSections: instructionSections.length > 0 ? instructionSections : undefined,
+      useProbe: formData.useProbe || undefined,
+    };
+
+    if (editingRecipe) {
+      updateRecipe(editingRecipe.id, recipe);
+      Alert.alert('Success', 'Recipe updated!', [
+        { text: 'OK', onPress: onEditComplete }
+      ]);
+    } else {
+      addRecipe(recipe);
+      Alert.alert('Success', 'Recipe created!', [
+        { text: 'OK', onPress: () => navigation.navigate('One' as never) }
+      ]);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData(getInitialFormState());
+    setModalStates(getInitialModalState());
+    setInstructionSections([]);
+  };
+
+  const handleCancel = () => {
+    // Check if user has entered any data using the helper function
+    const hasData = hasFormData(formData);
+
+    if (hasData && !editingRecipe) {
+      // Show confirmation modal if user has entered data and it's not edit mode
+      updateModalStates({ showCancelConfirmation: true });
+    } else {
+      // Proceed with cancel - still reset form even if no data
+      if (!editingRecipe) {
+        resetForm();
+      }
+      if (onEditComplete) {
+        onEditComplete();
+      } else {
+        navigation.goBack();
+      }
+    }
+  };
+
+  const confirmCancel = () => {
+    updateModalStates({ showCancelConfirmation: false });
+    // Clear all form data
+    resetForm();
+    if (onEditComplete) {
+      onEditComplete();
+    } else {
+      navigation.goBack();
+    }
+  };
+
   // Populate form when editing
   useEffect(() => {
     if (editingRecipe) {
-      setTitle(editingRecipe.title);
-      setImageUrl(editingRecipe.image || '');
-      setCategory(editingRecipe.category);
       setCookTimeFromMinutes(editingRecipe.cookTime);
-      setServings(editingRecipe.servings);
-      setDifficulty(editingRecipe.difficulty);
-      setIngredients(editingRecipe.ingredients.length > 0 ? editingRecipe.ingredients : ['']);
-      setInstructions(editingRecipe.instructions.length > 0 ? editingRecipe.instructions : ['']);
-      setNotes(editingRecipe.description);
-      setSelectedAppliance(editingRecipe.chefiqAppliance || '');
-      setCookingActions(editingRecipe.cookingActions || []);
+      updateFormData({
+        title: editingRecipe.title,
+        imageUrl: editingRecipe.image || '',
+        category: editingRecipe.category,
+        servings: editingRecipe.servings || RECIPE_DEFAULTS.SERVINGS,
+        difficulty: editingRecipe.difficulty,
+        ingredients: editingRecipe.ingredients.length > 0 ? editingRecipe.ingredients : [''],
+        instructions: editingRecipe.instructions.length > 0 ? editingRecipe.instructions : [''],
+        notes: editingRecipe.description,
+        selectedAppliance: editingRecipe.chefiqAppliance || '',
+        cookingActions: editingRecipe.cookingActions || [],
+        useProbe: editingRecipe.useProbe || false
+      });
       setInstructionSections(editingRecipe.instructionSections || []);
-      setUseProbe(editingRecipe.useProbe || false);
     }
   }, [editingRecipe]);
 
@@ -90,9 +184,9 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
-            onPress={() => setShowImportSection(!showImportSection)}
+            onPress={() => updateFormData({ showImportSection: !formData.showImportSection })}
             style={{
-              backgroundColor: showImportSection ? theme.colors.primary[500] : theme.colors.gray[100],
+              backgroundColor: formData.showImportSection ? theme.colors.primary[500] : theme.colors.gray[100],
               borderRadius: theme.borderRadius.lg,
               paddingHorizontal: theme.spacing.md,
               paddingVertical: theme.spacing.xs,
@@ -100,7 +194,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
             }}
           >
             <Text style={{
-              color: showImportSection ? theme.colors.text.inverse : theme.colors.text.secondary,
+              color: formData.showImportSection ? theme.colors.text.inverse : theme.colors.text.secondary,
               fontSize: theme.typography.fontSize.sm,
               fontWeight: theme.typography.fontWeight.medium
             }}>
@@ -120,7 +214,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
         </View>
       ),
     });
-  }, [navigation, editingRecipe, showImportSection, handleSave, handleCancel]);
+  }, [navigation, editingRecipe, formData.showImportSection, handleSave, handleCancel]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -137,7 +231,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
     });
 
     if (!result.canceled) {
-      setImageUrl(result.assets[0].uri);
+      updateFormData({ imageUrl: result.assets[0].uri });
     }
   };
 
@@ -155,7 +249,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
     });
 
     if (!result.canceled) {
-      setImageUrl(result.assets[0].uri);
+      updateFormData({ imageUrl: result.assets[0].uri });
     }
   };
 
@@ -172,53 +266,52 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
   };
 
   const handleImportFromUrl = async () => {
-    if (!importUrl.trim()) {
+    if (!formData.importUrl.trim()) {
       Alert.alert('Error', 'Please enter a URL');
       return;
     }
 
-    if (!isValidUrl(importUrl)) {
+    if (!isValidUrl(formData.importUrl)) {
       Alert.alert('Error', 'Please enter a valid URL');
       return;
     }
 
-    setIsImporting(true);
+    updateFormData({ isImporting: true });
 
     try {
-      const scrapedRecipe = await scrapeRecipe(importUrl);
-
-      // Populate form fields with scraped data
-      setTitle(scrapedRecipe.title);
-      setNotes(scrapedRecipe.description);
-      setIngredients(scrapedRecipe.ingredients.length > 0 ? scrapedRecipe.ingredients : ['']);
-      setInstructions(scrapedRecipe.instructions.length > 0 ? scrapedRecipe.instructions : ['']);
-      setCookTime(scrapedRecipe.cookTime.toString());
-      setServings(scrapedRecipe.servings.toString());
-      setCategory(scrapedRecipe.category || '');
-      setImageUrl(scrapedRecipe.image || '');
+      const scrapedRecipe = await scrapeRecipe(formData.importUrl);
 
       // Estimate difficulty based on cook time and number of steps
       const totalTime = scrapedRecipe.cookTime;
       const numSteps = scrapedRecipe.instructions.length;
-
+      let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
       if (totalTime < 30 && numSteps < 5) {
-        setDifficulty('Easy');
+        difficulty = 'Easy';
       } else if (totalTime > 60 || numSteps > 10) {
-        setDifficulty('Hard');
-      } else {
-        setDifficulty('Medium');
+        difficulty = 'Hard';
       }
+
+      // Populate form fields with scraped data
+      setCookTimeFromMinutes(scrapedRecipe.cookTime);
+      updateFormData({
+        title: scrapedRecipe.title,
+        notes: scrapedRecipe.description,
+        ingredients: scrapedRecipe.ingredients.length > 0 ? scrapedRecipe.ingredients : [''],
+        instructions: scrapedRecipe.instructions.length > 0 ? scrapedRecipe.instructions : [''],
+        servings: scrapedRecipe.servings,
+        category: scrapedRecipe.category || '',
+        imageUrl: scrapedRecipe.image || '',
+        difficulty
+      });
 
       // Handle ChefIQ suggestions
       const suggestions = scrapedRecipe.chefiqSuggestions;
       if (suggestions && suggestions.confidence > 0.3 && suggestions.suggestedActions.length > 0) {
         // Auto-apply suggestions
-        if (suggestions.suggestedAppliance) {
-          setSelectedAppliance(suggestions.suggestedAppliance);
-        }
-        if (suggestions.useProbe) {
-          setUseProbe(true);
-        }
+        updateFormData({
+          selectedAppliance: suggestions.suggestedAppliance || formData.selectedAppliance,
+          useProbe: suggestions.useProbe || formData.useProbe
+        });
 
         // Automatically assign cooking actions to appropriate steps
         try {
@@ -226,11 +319,11 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
             scrapedRecipe.instructions,
             suggestions.suggestedActions
           );
-          setCookingActions(autoAssignedActions);
+          updateFormData({ cookingActions: autoAssignedActions });
         } catch (error) {
           console.error('Error in auto-assigning cooking actions:', error);
           // Fallback: just use the suggested actions without step assignment
-          setCookingActions(suggestions.suggestedActions);
+          updateFormData({ cookingActions: suggestions.suggestedActions });
         }
       }
 
@@ -241,8 +334,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           {
             text: 'OK',
             onPress: () => {
-              setShowImportSection(false);
-              setImportUrl('');
+              updateFormData({ showImportSection: false, importUrl: '' });
             }
           }
         ]
@@ -251,104 +343,50 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
     } catch (error) {
       Alert.alert('Import Failed', 'Could not import recipe from this URL. Please try a different URL or enter the recipe manually.');
     } finally {
-      setIsImporting(false);
+      updateFormData({ isImporting: false });
     }
   };
 
-  const handleSave = () => {
-    if (!title.trim()) {
-      Alert.alert('Error', 'Recipe title is required');
-      return;
-    }
-
-    const validIngredients = ingredients.filter(i => i.trim() !== '');
-    if (validIngredients.length === 0) {
-      Alert.alert('Error', 'At least one ingredient is required');
-      return;
-    }
-
-    const validInstructions = instructions.filter(i => i.trim() !== '');
-    if (validInstructions.length === 0) {
-      Alert.alert('Error', 'At least one instruction is required');
-      return;
-    }
-
-    const recipe = {
-      title: title.trim(),
-      description: notes.trim() || 'No description provided',
-      ingredients: validIngredients,
-      instructions: validInstructions,
-      cookTime: parseInt(cookTime) || 30,
-      servings: parseInt(servings) || 4,
-      difficulty,
-      category: category.trim() || 'Uncategorized',
-      image: imageUrl.trim() || undefined,
-      chefiqAppliance: selectedAppliance || undefined,
-      cookingActions: cookingActions.length > 0 ? cookingActions : undefined,
-      instructionSections: instructionSections.length > 0 ? instructionSections : undefined,
-      useProbe: useProbe || undefined,
-    };
-
-    if (editingRecipe) {
-      updateRecipe(editingRecipe.id, recipe);
-      Alert.alert('Success', 'Recipe updated!', [
-        { text: 'OK', onPress: onEditComplete }
-      ]);
-    } else {
-      addRecipe(recipe);
-      Alert.alert('Success', 'Recipe created!', [
-        { text: 'OK', onPress: () => navigation.navigate('One' as never) }
-      ]);
-    }
-  };
-
-  const handleCancel = () => {
-    if (onEditComplete) {
-      onEditComplete();
-    } else {
-      navigation.goBack();
-    }
-  };
 
   // Helper functions for ingredients and instructions
   const addIngredient = () => {
-    const lastIngredient = ingredients[ingredients.length - 1];
+    const lastIngredient = formData.ingredients[formData.ingredients.length - 1];
     if (lastIngredient && lastIngredient.trim() === '') {
       Alert.alert('Validation Error', 'Please fill in the current ingredient before adding a new one.');
       return;
     }
-    setIngredients([...ingredients, '']);
+    updateFormData({ ingredients: [...formData.ingredients, ''] });
   };
 
   const removeIngredient = (index: number) => {
-    const newIngredients = ingredients.filter((_, i) => i !== index);
-    setIngredients(newIngredients.length > 0 ? newIngredients : ['']);
+    const newIngredients = formData.ingredients.filter((_, i) => i !== index);
+    updateFormData({ ingredients: newIngredients.length > 0 ? newIngredients : [''] });
   };
 
   const addInstruction = () => {
-    const lastInstruction = instructions[instructions.length - 1];
+    const lastInstruction = formData.instructions[formData.instructions.length - 1];
     if (lastInstruction && lastInstruction.trim() === '') {
       Alert.alert('Validation Error', 'Please fill in the current instruction before adding a new one.');
       return;
     }
-    setInstructions([...instructions, '']);
+    updateFormData({ instructions: [...formData.instructions, ''] });
   };
 
   const removeInstruction = (index: number) => {
-    const newInstructions = instructions.filter((_, i) => i !== index);
-    setInstructions(newInstructions.length > 0 ? newInstructions : ['']);
+    const newInstructions = formData.instructions.filter((_, i) => i !== index);
+    updateFormData({ instructions: newInstructions.length > 0 ? newInstructions : [''] });
   };
 
   const updateIngredient = (index: number, value: string) => {
-    const newIngredients = [...ingredients];
+    const newIngredients = [...formData.ingredients];
     newIngredients[index] = value;
-    setIngredients(newIngredients);
+    updateFormData({ ingredients: newIngredients });
   };
 
   const updateInstruction = (index: number, value: string) => {
-    const newInstructions = [...instructions];
+    const newInstructions = [...formData.instructions];
     newInstructions[index] = value;
-    setInstructions(newInstructions);
+    updateFormData({ instructions: newInstructions });
   };
 
   // Refs for managing focus
@@ -357,14 +395,14 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
 
   // Helper functions for Enter key submission
   const handleIngredientSubmit = (index: number) => {
-    const currentIngredient = ingredients[index];
+    const currentIngredient = formData.ingredients[index];
     if (currentIngredient && currentIngredient.trim() !== '') {
-      if (index === ingredients.length - 1) {
+      if (index === formData.ingredients.length - 1) {
         // If it's the last ingredient and has content, add a new one
         addIngredient();
         // Focus on the new ingredient field after a brief delay
         setTimeout(() => {
-          const newIndex = ingredients.length;
+          const newIndex = formData.ingredients.length;
           ingredientRefs.current[newIndex]?.focus();
         }, 100);
       } else {
@@ -375,14 +413,14 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
   };
 
   const handleInstructionSubmit = (index: number) => {
-    const currentInstruction = instructions[index];
+    const currentInstruction = formData.instructions[index];
     if (currentInstruction && currentInstruction.trim() !== '') {
-      if (index === instructions.length - 1) {
+      if (index === formData.instructions.length - 1) {
         // If it's the last instruction and has content, add a new one
         addInstruction();
         // Focus on the new instruction field after a brief delay
         setTimeout(() => {
-          const newIndex = instructions.length;
+          const newIndex = formData.instructions.length;
           instructionRefs.current[newIndex]?.focus();
         }, 100);
       } else {
@@ -394,27 +432,27 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
 
   // Cooking action handlers
   const handleCookingActionSelect = (action: CookingAction) => {
-    if (currentStepIndex !== null) {
+    if (formData.currentStepIndex !== null) {
       // Remove any existing action for this step
-      const newActions = cookingActions.filter(a => a.stepIndex !== currentStepIndex);
+      const newActions = formData.cookingActions.filter(a => a.stepIndex !== formData.currentStepIndex);
       // Add the new action
       newActions.push({
         ...action,
-        stepIndex: currentStepIndex,
-        id: `step_${currentStepIndex}_${Date.now()}`
+        stepIndex: formData.currentStepIndex,
+        id: `step_${formData.currentStepIndex}_${Date.now()}`
       });
-      setCookingActions(newActions);
+      updateFormData({ cookingActions: newActions });
     }
-    setShowCookingSelector(false);
-    setCurrentStepIndex(null);
+    updateModalStates({ showCookingSelector: false });
+    updateFormData({ currentStepIndex: null });
   };
 
   const removeCookingAction = (stepIndex: number) => {
-    setCookingActions(cookingActions.filter(action => action.stepIndex !== stepIndex));
+    updateFormData({ cookingActions: formData.cookingActions.filter(action => action.stepIndex !== stepIndex) });
   };
 
   const getCookingActionForStep = (stepIndex: number) => {
-    return cookingActions.find(action => action.stepIndex === stepIndex);
+    return formData.cookingActions.find(action => action.stepIndex === stepIndex);
   };
 
   // Auto-assign cooking actions to recipe steps
@@ -518,7 +556,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
         showsVerticalScrollIndicator={false}
       >
         {/* Import from URL Section */}
-        {showImportSection && (
+        {formData.showImportSection && (
           <View
             className="mb-6 p-4 rounded-lg"
             style={{ backgroundColor: theme.colors.secondary[50] }}
@@ -534,19 +572,19 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               <TextInput
                 className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base bg-white"
                 placeholder="https://www.example.com/recipe"
-                value={importUrl}
-                onChangeText={setImportUrl}
+                value={formData.importUrl}
+                onChangeText={(value) => updateFormData({ importUrl: value })}
                 autoCapitalize="none"
                 autoCorrect={false}
                 keyboardType="url"
               />
               <TouchableOpacity
                 onPress={handleImportFromUrl}
-                disabled={isImporting}
+                disabled={formData.isImporting}
                 className="rounded-lg px-4 py-2 justify-center"
-                style={{ backgroundColor: isImporting ? theme.colors.gray[400] : theme.colors.primary[500] }}
+                style={{ backgroundColor: formData.isImporting ? theme.colors.gray[400] : theme.colors.primary[500] }}
               >
-                {isImporting ? (
+                {formData.isImporting ? (
                   <ActivityIndicator color="white" size="small" />
                 ) : (
                   <Text className="text-white font-semibold">Import</Text>
@@ -561,8 +599,8 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           <TextInput
             className="text-xl font-medium text-gray-800 border-b border-gray-200 pb-2"
             placeholder="Title"
-            value={title}
-            onChangeText={setTitle}
+            value={formData.title}
+            onChangeText={(value) => updateFormData({ title: value })}
             style={{ fontSize: 20 }}
           />
         </View>
@@ -579,15 +617,15 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               <Text className="text-xl" style={{ color: theme.colors.primary[500] }}>📷</Text>
             </TouchableOpacity>
           </View>
-          {imageUrl && (
+          {formData.imageUrl && (
             <View className="relative mb-2">
               <Image
-                source={{ uri: imageUrl }}
+                source={{ uri: formData.imageUrl }}
                 style={{ width: '100%', height: 120, borderRadius: 8 }}
                 contentFit="cover"
               />
               <TouchableOpacity
-                onPress={() => setImageUrl('')}
+                onPress={() => updateFormData({ imageUrl: '' })}
                 className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full items-center justify-center"
               >
                 <Text className="text-white text-sm font-bold">×</Text>
@@ -603,8 +641,8 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
             <TextInput
               className="text-lg text-gray-500 text-right flex-1 ml-4"
               placeholder="Uncategorized"
-              value={category}
-              onChangeText={setCategory}
+              value={formData.category}
+              onChangeText={(value) => updateFormData({ category: value })}
               textAlign="right"
             />
           </View>
@@ -617,39 +655,39 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
             <View className="flex-row items-center justify-between">
               <Text className="text-base text-gray-600">Cook Time</Text>
               <TouchableOpacity
-                onPress={() => setShowCookTimePicker(true)}
+                onPress={() => updateModalStates({ showCookTimePicker: true })}
                 className="border-b border-gray-200 py-1 px-2 min-w-[100px]"
               >
                 <Text className="text-base text-gray-800 text-right">
-                  {cookTimeHours > 0 ? `${cookTimeHours}h ${cookTimeMinutes}m` : `${cookTimeMinutes}m`}
+                  {formData.cookTimeHours > 0 ? `${formData.cookTimeHours}h ${formData.cookTimeMinutes}m` : `${formData.cookTimeMinutes}m`}
                 </Text>
               </TouchableOpacity>
             </View>
             <View className="flex-row items-center justify-between">
               <Text className="text-base text-gray-600">Servings</Text>
               <TouchableOpacity
-                onPress={() => setShowServingsPicker(true)}
+                onPress={() => updateModalStates({ showServingsPicker: true })}
                 className="border-b border-gray-200 py-1 px-2 min-w-[60px]"
               >
-                <Text className="text-base text-gray-800 text-right">{servings}</Text>
+                <Text className="text-base text-gray-800 text-right">{formData.servings}</Text>
               </TouchableOpacity>
             </View>
             <View className="flex-row items-center justify-between">
               <Text className="text-base text-gray-600">Difficulty</Text>
               <View className="flex-row space-x-2">
-                {(['Easy', 'Medium', 'Hard'] as const).map((level) => (
+                {RECIPE_OPTIONS.DIFFICULTIES.map((level) => (
                   <TouchableOpacity
                     key={level}
-                    onPress={() => setDifficulty(level)}
+                    onPress={() => updateFormData({ difficulty: level })}
                     className="px-3 py-1 rounded-full"
                     style={{
-                      backgroundColor: difficulty === level ? theme.colors.primary[100] : theme.colors.gray[100]
+                      backgroundColor: formData.difficulty === level ? theme.colors.primary[100] : theme.colors.gray[100]
                     }}
                   >
                     <Text
                       className="text-sm"
                       style={{
-                        color: difficulty === level ? theme.colors.primary[600] : theme.colors.text.secondary
+                        color: formData.difficulty === level ? theme.colors.primary[600] : theme.colors.text.secondary
                       }}
                     >
                       {level}
@@ -668,21 +706,21 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           {/* Appliance Selection */}
           <View className="mb-3">
             <ApplianceDropdown
-              selectedAppliance={selectedAppliance}
-              onSelect={setSelectedAppliance}
+              selectedAppliance={formData.selectedAppliance}
+              onSelect={(appliance) => updateFormData({ selectedAppliance: appliance })}
             />
           </View>
 
           {/* Probe Toggle */}
-          {selectedAppliance && getApplianceById(selectedAppliance)?.supports_probe && (
+          {formData.selectedAppliance && getApplianceById(formData.selectedAppliance)?.supports_probe && (
             <View className="flex-row items-center justify-between mb-3 bg-gray-50 p-3 rounded-lg">
               <View className="flex-1">
                 <Text className="text-base font-medium text-gray-800">Use Thermometer Probe</Text>
                 <Text className="text-sm text-gray-600">Monitor internal temperature during cooking</Text>
               </View>
               <Switch
-                value={useProbe}
-                onValueChange={setUseProbe}
+                value={formData.useProbe}
+                onValueChange={(value) => updateFormData({ useProbe: value })}
                 trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
                 thumbColor={theme.colors.background.primary}
               />
@@ -693,7 +731,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
         {/* Ingredients */}
         <View className="mb-4">
           <Text className="text-lg font-semibold text-gray-800 mb-2">INGREDIENTS</Text>
-          {ingredients.map((ingredient, index) => (
+          {formData.ingredients.map((ingredient, index) => (
             <View key={index} className="flex-row items-center mb-2">
               <TextInput
                 ref={(ref) => (ingredientRefs.current[index] = ref)}
@@ -702,10 +740,10 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
                 value={ingredient}
                 onChangeText={(value) => updateIngredient(index, value)}
                 onSubmitEditing={() => handleIngredientSubmit(index)}
-                returnKeyType={index === ingredients.length - 1 ? "done" : "next"}
+                returnKeyType={index === formData.ingredients.length - 1 ? "done" : "next"}
                 blurOnSubmit={false}
               />
-              {ingredients.length > 1 && (
+              {formData.ingredients.length > 1 && (
                 <TouchableOpacity
                   onPress={() => removeIngredient(index)}
                   className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
@@ -720,7 +758,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
         {/* Instructions */}
         <View className="mb-4">
           <Text className="text-lg font-semibold text-gray-800 mb-2">INSTRUCTIONS</Text>
-          {instructions.map((instruction, index) => {
+          {formData.instructions.map((instruction, index) => {
             const cookingAction = getCookingActionForStep(index);
             return (
               <View key={index} className="mb-3">
@@ -732,17 +770,17 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
                     value={instruction}
                     onChangeText={(value) => updateInstruction(index, value)}
                     onSubmitEditing={() => handleInstructionSubmit(index)}
-                    returnKeyType={index === instructions.length - 1 ? "done" : "next"}
+                    returnKeyType={index === formData.instructions.length - 1 ? "done" : "next"}
                     blurOnSubmit={false}
                     style={{ minHeight: 40 }}
                   />
                   <View className="flex-row gap-1 items-center">
                     {/* Add Cooking Method Button - Only show if appliance is selected */}
-                    {selectedAppliance && (
+                    {formData.selectedAppliance && (
                       <TouchableOpacity
                         onPress={() => {
-                          setCurrentStepIndex(index);
-                          setShowCookingSelector(true);
+                          updateFormData({ currentStepIndex: index });
+                          updateModalStates({ showCookingSelector: true });
                         }}
                         className="w-8 h-8 rounded-full items-center justify-center"
                         style={{
@@ -753,7 +791,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
                           <Text className="text-sm">🍳</Text>
                         ) : (
                           <Image
-                            source={{ uri: getApplianceById(selectedAppliance)?.icon }}
+                            source={{ uri: getApplianceById(formData.selectedAppliance)?.icon }}
                             style={{
                               width: 16,
                               height: 16,
@@ -766,7 +804,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
                     )}
 
                     {/* Remove Instruction Button */}
-                    {instructions.length > 1 && (
+                    {formData.instructions.length > 1 && (
                       <TouchableOpacity
                         onPress={() => removeInstruction(index)}
                         className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
@@ -786,7 +824,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
                           🍳 {cookingAction.methodName}
                         </Text>
                         <Text className="text-xs text-green-600 mt-1">
-                          {selectedAppliance && getApplianceById(selectedAppliance)?.name}
+                          {formData.selectedAppliance && getApplianceById(formData.selectedAppliance)?.name}
                           {cookingAction.temperature && ` • ${cookingAction.temperature}°F`}
                           {cookingAction.duration && ` • ${cookingAction.duration} min`}
                         </Text>
@@ -811,8 +849,8 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           <TextInput
             className="border border-gray-200 rounded-lg p-3 text-base min-h-[80px]"
             placeholder="Add your recipe notes"
-            value={notes}
-            onChangeText={setNotes}
+            value={formData.notes}
+            onChangeText={(value) => updateFormData({ notes: value })}
             multiline
             textAlignVertical="top"
           />
@@ -820,25 +858,25 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
       </ScrollView>
 
       {/* ChefIQ Cooking Selector Modal */}
-      {selectedAppliance && (
+      {formData.selectedAppliance && (
         <ChefIQCookingSelector
-          visible={showCookingSelector}
+          visible={modalStates.showCookingSelector}
           onClose={() => {
-            setShowCookingSelector(false);
-            setCurrentStepIndex(null);
+            updateModalStates({ showCookingSelector: false });
+            updateFormData({ currentStepIndex: null });
           }}
           onSelect={handleCookingActionSelect}
-          applianceId={selectedAppliance}
-          useProbe={useProbe}
+          applianceId={formData.selectedAppliance}
+          useProbe={formData.useProbe}
         />
       )}
 
       {/* Servings Picker Modal */}
       <Modal
-        visible={showServingsPicker}
+        visible={modalStates.showServingsPicker}
         animationType="fade"
         transparent={true}
-        onRequestClose={() => setShowServingsPicker(false)}
+        onRequestClose={() => updateModalStates({ showServingsPicker: false })}
       >
         <View style={{ flex: 1 }}>
           {/* Backdrop */}
@@ -852,7 +890,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               backgroundColor: 'rgba(0, 0, 0, 0.3)'
             }}
             activeOpacity={1}
-            onPress={() => setShowServingsPicker(false)}
+            onPress={() => updateModalStates({ showServingsPicker: false })}
           />
           {/* Bottom Sheet */}
           <View
@@ -869,20 +907,20 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
             }}
           >
             <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-              <TouchableOpacity onPress={() => setShowServingsPicker(false)}>
+              <TouchableOpacity onPress={() => updateModalStates({ showServingsPicker: false })}>
                 <Text className="text-base" style={{ color: theme.colors.primary[500] }}>Cancel</Text>
               </TouchableOpacity>
               <Text className="text-lg font-semibold">Servings</Text>
-              <TouchableOpacity onPress={() => setShowServingsPicker(false)}>
+              <TouchableOpacity onPress={() => updateModalStates({ showServingsPicker: false })}>
                 <Text className="text-base font-semibold" style={{ color: theme.colors.primary[500] }}>Done</Text>
               </TouchableOpacity>
             </View>
             <Picker
-              selectedValue={servings}
-              onValueChange={(value) => setServings(value)}
+              selectedValue={formData.servings}
+              onValueChange={(value) => updateFormData({ servings: value })}
               style={{ height: 200 }}
             >
-              {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+              {Array.from({ length: RECIPE_OPTIONS.MAX_SERVINGS }, (_, i) => i + 1).map((num) => (
                 <Picker.Item key={num} label={`${num} serving${num > 1 ? 's' : ''}`} value={num} />
               ))}
             </Picker>
@@ -892,10 +930,10 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
 
       {/* Cook Time Picker Modal */}
       <Modal
-        visible={showCookTimePicker}
+        visible={modalStates.showCookTimePicker}
         animationType="fade"
         transparent={true}
-        onRequestClose={() => setShowCookTimePicker(false)}
+        onRequestClose={() => updateModalStates({ showCookTimePicker: false })}
       >
         <View style={{ flex: 1 }}>
           {/* Backdrop */}
@@ -909,7 +947,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               backgroundColor: 'rgba(0, 0, 0, 0.3)'
             }}
             activeOpacity={1}
-            onPress={() => setShowCookTimePicker(false)}
+            onPress={() => updateModalStates({ showCookTimePicker: false })}
           />
           {/* Bottom Sheet */}
           <View
@@ -926,11 +964,11 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
             }}
           >
             <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
-              <TouchableOpacity onPress={() => setShowCookTimePicker(false)}>
+              <TouchableOpacity onPress={() => updateModalStates({ showCookTimePicker: false })}>
                 <Text className="text-base" style={{ color: theme.colors.primary[500] }}>Cancel</Text>
               </TouchableOpacity>
               <Text className="text-lg font-semibold">Cook Time</Text>
-              <TouchableOpacity onPress={() => setShowCookTimePicker(false)}>
+              <TouchableOpacity onPress={() => updateModalStates({ showCookTimePicker: false })}>
                 <Text className="text-base font-semibold" style={{ color: theme.colors.primary[500] }}>Done</Text>
               </TouchableOpacity>
             </View>
@@ -939,11 +977,11 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               <View className="flex-1">
                 <Text className="text-center p-3 font-medium text-gray-600">Hours</Text>
                 <Picker
-                  selectedValue={cookTimeHours}
-                  onValueChange={(value) => setCookTimeHours(value)}
+                  selectedValue={formData.cookTimeHours}
+                  onValueChange={(value) => updateFormData({ cookTimeHours: value })}
                   style={{ height: 180 }}
                 >
-                  {Array.from({ length: 13 }, (_, i) => i).map((num) => (
+                  {Array.from({ length: RECIPE_OPTIONS.MAX_HOURS + 1 }, (_, i) => i).map((num) => (
                     <Picker.Item key={num} label={`${num}`} value={num} />
                   ))}
                 </Picker>
@@ -952,15 +990,94 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
               <View className="flex-1">
                 <Text className="text-center p-3 font-medium text-gray-600">Minutes</Text>
                 <Picker
-                  selectedValue={cookTimeMinutes}
-                  onValueChange={(value) => setCookTimeMinutes(value)}
+                  selectedValue={formData.cookTimeMinutes}
+                  onValueChange={(value) => updateFormData({ cookTimeMinutes: value })}
                   style={{ height: 180 }}
                 >
-                  {Array.from({ length: 12 }, (_, i) => i * 5).map((num) => (
+                  {Array.from({ length: 12 }, (_, i) => i * RECIPE_OPTIONS.MINUTE_INTERVALS).map((num) => (
                     <Picker.Item key={num} label={`${num}`} value={num} />
                   ))}
                 </Picker>
               </View>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Cancel Confirmation Modal */}
+      <Modal
+        visible={modalStates.showCancelConfirmation}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => updateModalStates({ showCancelConfirmation: false })}
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)' }}>
+          <View style={{
+            backgroundColor: 'white',
+            borderRadius: 20,
+            padding: 20,
+            width: '85%',
+            maxWidth: 400,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.25,
+            shadowRadius: 4,
+            elevation: 5,
+          }}>
+            <Text style={{
+              fontSize: 18,
+              fontWeight: '600',
+              textAlign: 'center',
+              marginBottom: 12,
+              color: theme.colors.text.primary
+            }}>
+              Discard Changes?
+            </Text>
+            <Text style={{
+              fontSize: 15,
+              textAlign: 'center',
+              marginBottom: 20,
+              color: theme.colors.text.secondary
+            }}>
+              You have unsaved changes. Are you sure you want to discard them?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => updateModalStates({ showCancelConfirmation: false })}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  backgroundColor: theme.colors.gray[100],
+                  alignItems: 'center'
+                }}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: theme.colors.text.primary
+                }}>
+                  Keep Editing
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmCancel}
+                style={{
+                  flex: 1,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                  backgroundColor: theme.colors.error.main,
+                  alignItems: 'center'
+                }}
+              >
+                <Text style={{
+                  fontSize: 16,
+                  fontWeight: '600',
+                  color: 'white'
+                }}>
+                  Discard
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
