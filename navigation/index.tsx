@@ -1,7 +1,10 @@
 import { createStaticNavigation, StaticParamList } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import Modal from '../screens/modal';
-import TabNavigator from './tab-navigator';
+import RecipeDetail from '../screens/recipeDetail';
+import RecipeCreator from '../screens/recipeCreator';
+import RecipeEdit from '../screens/recipeEdit';
+import TabNavigator from './tabNavigator';
 
 const Stack = createStackNavigator({
   screens: {
@@ -9,6 +12,27 @@ const Stack = createStackNavigator({
       screen: TabNavigator,
       options: {
         headerShown: false,
+      },
+    },
+    RecipeDetail: {
+      screen: RecipeDetail,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
+    RecipeCreator: {
+      screen: RecipeCreator,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
+    RecipeEdit: {
+      screen: RecipeEdit,
+      options: {
+        headerShown: true,
+        presentation: 'card',
       },
     },
     Modal: {

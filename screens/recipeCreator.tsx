@@ -1,167 +1,43 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import {
-  RECIPE_DEFAULTS,
-  RECIPE_OPTIONS,
-  hasFormData,
-  RecipeFormState,
-  RecipeModalState,
-  getInitialFormState,
-  getInitialModalState
-} from '../constants/recipeDefaults';
+import { RECIPE_OPTIONS } from '../constants/recipeDefaults';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRecipeStore, Recipe } from '../store/store';
 import { useNavigation } from '@react-navigation/native';
 import { scrapeRecipe, isValidUrl } from '../utils/recipeScraper';
-import { CookingAction, InstructionSection, getApplianceById } from '../types/chefiq';
+import { CookingAction, getApplianceById } from '../types/chefiq';
 import ChefIQCookingSelector from '../components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '../components/ApplianceDropdown';
 import { theme } from '../theme';
+import { useRecipeForm } from '../hooks/useRecipeForm';
 
-interface SimpleRecipeCreatorProps {
-  editingRecipe?: Recipe;
-  onEditComplete?: () => void;
+interface RecipeCreatorProps {
+  onComplete?: () => void;
 }
 
-export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: SimpleRecipeCreatorProps = {}) {
-  // Form state
-  const [formData, setFormData] = useState<RecipeFormState>(getInitialFormState());
-  const [modalStates, setModalStates] = useState<RecipeModalState>(getInitialModalState());
-  const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
-
-  // Helper functions for state updates
-  const updateFormData = (updates: Partial<RecipeFormState>) => {
-    setFormData(prev => ({ ...prev, ...updates }));
-  };
-
-  const updateModalStates = (updates: Partial<RecipeModalState>) => {
-    setModalStates(prev => ({ ...prev, ...updates }));
-  };
-
-  const setCookTimeFromMinutes = (totalMinutes: number) => {
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    updateFormData({
-      cookTime: totalMinutes,
-      cookTimeHours: hours,
-      cookTimeMinutes: minutes
-    });
-  };
-
-  const { addRecipe, updateRecipe } = useRecipeStore();
+export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps = {}) {
   const navigation = useNavigation();
 
-  const handleSave = () => {
-    if (!formData.title.trim()) {
-      Alert.alert('Error', 'Recipe title is required');
-      return;
-    }
-
-    const validIngredients = formData.ingredients.filter(i => i.trim() !== '');
-    if (validIngredients.length === 0) {
-      Alert.alert('Error', 'At least one ingredient is required');
-      return;
-    }
-
-    const validInstructions = formData.instructions.filter(i => i.trim() !== '');
-    if (validInstructions.length === 0) {
-      Alert.alert('Error', 'At least one instruction is required');
-      return;
-    }
-
-    const recipe = {
-      title: formData.title.trim(),
-      description: formData.notes.trim() || 'No description provided',
-      ingredients: validIngredients,
-      instructions: validInstructions,
-      cookTime: formData.cookTime,
-      servings: formData.servings,
-      difficulty: formData.difficulty,
-      category: formData.category.trim() || 'Uncategorized',
-      image: formData.imageUrl.trim() || undefined,
-      chefiqAppliance: formData.selectedAppliance || undefined,
-      cookingActions: formData.cookingActions.length > 0 ? formData.cookingActions : undefined,
-      instructionSections: instructionSections.length > 0 ? instructionSections : undefined,
-      useProbe: formData.useProbe || undefined,
-    };
-
-    if (editingRecipe) {
-      updateRecipe(editingRecipe.id, recipe);
-      Alert.alert('Success', 'Recipe updated!', [
-        { text: 'OK', onPress: onEditComplete }
-      ]);
-    } else {
-      addRecipe(recipe);
-      Alert.alert('Success', 'Recipe created!', [
-        { text: 'OK', onPress: () => navigation.navigate('One' as never) }
-      ]);
-    }
-  };
-
-  const resetForm = () => {
-    setFormData(getInitialFormState());
-    setModalStates(getInitialModalState());
-    setInstructionSections([]);
-  };
-
-  const handleCancel = () => {
-    // Check if user has entered any data using the helper function
-    const hasData = hasFormData(formData);
-
-    if (hasData && !editingRecipe) {
-      // Show confirmation modal if user has entered data and it's not edit mode
-      updateModalStates({ showCancelConfirmation: true });
-    } else {
-      // Proceed with cancel - still reset form even if no data
-      if (!editingRecipe) {
-        resetForm();
-      }
-      if (onEditComplete) {
-        onEditComplete();
-      } else {
-        navigation.goBack();
-      }
-    }
-  };
-
-  const confirmCancel = () => {
-    updateModalStates({ showCancelConfirmation: false });
-    // Clear all form data
-    resetForm();
-    if (onEditComplete) {
-      onEditComplete();
-    } else {
-      navigation.goBack();
-    }
-  };
-
-  // Populate form when editing
-  useEffect(() => {
-    if (editingRecipe) {
-      setCookTimeFromMinutes(editingRecipe.cookTime);
-      updateFormData({
-        title: editingRecipe.title,
-        imageUrl: editingRecipe.image || '',
-        category: editingRecipe.category,
-        servings: editingRecipe.servings || RECIPE_DEFAULTS.SERVINGS,
-        difficulty: editingRecipe.difficulty,
-        ingredients: editingRecipe.ingredients.length > 0 ? editingRecipe.ingredients : [''],
-        instructions: editingRecipe.instructions.length > 0 ? editingRecipe.instructions : [''],
-        notes: editingRecipe.description,
-        selectedAppliance: editingRecipe.chefiqAppliance || '',
-        cookingActions: editingRecipe.cookingActions || [],
-        useProbe: editingRecipe.useProbe || false
-      });
-      setInstructionSections(editingRecipe.instructionSections || []);
-    }
-  }, [editingRecipe]);
+  const {
+    formData,
+    modalStates,
+    instructionSections,
+    setInstructionSections,
+    updateFormData,
+    updateModalStates,
+    setCookTimeFromMinutes,
+    handleSave,
+    handleCancel,
+    confirmCancel
+  } = useRecipeForm({
+    onComplete: onComplete || (() => navigation.navigate('One' as never))
+  });
 
   // Configure navigation header
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: editingRecipe ? 'Edit' : 'Create',
+      title: 'Create Recipe',
       headerStyle: {
         backgroundColor: theme.colors.background.primary,
       },
@@ -214,7 +90,7 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
         </View>
       ),
     });
-  }, [navigation, editingRecipe, formData.showImportSection, handleSave, handleCancel]);
+  }, [navigation, formData.showImportSection, handleSave, handleCancel]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -339,6 +215,10 @@ export default function SimpleRecipeCreator({ editingRecipe, onEditComplete }: S
           }
         ]
       );
+
+      if (scrapedRecipe.instructionSections) {
+        setInstructionSections(scrapedRecipe.instructionSections);
+      }
 
     } catch (error) {
       Alert.alert('Import Failed', 'Could not import recipe from this URL. Please try a different URL or enter the recipe manually.');

@@ -1,5 +1,11 @@
 # Claude Code Prompts for CHEF iQ Studio
 
+## Coding Conventions
+
+### File Naming
+- Use camelCase for screen file names (e.g., `recipeEdit.tsx`, `recipeCreator.tsx`, `recipeDetail.tsx`)
+- Follow consistent naming patterns across the project
+
 ## Setup and Configuration Prompts
 
 ### Initial Project Setup

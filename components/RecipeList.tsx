@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { Image } from 'expo-image';
+import { useNavigation } from '@react-navigation/native';
 import { useRecipeStore, Recipe } from '../store/store';
-import { RecipeDetailModal } from './RecipeDetailModal';
 import { FilterModal } from './FilterModal';
 import { getApplianceById } from '../types/chefiq';
-import RecipeCreatorScreen from '../screens/recipe-creator';
+import RecipeCreatorScreen from '../screens/recipeCreator';
 import { theme } from '../theme';
 
 const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
@@ -103,6 +103,7 @@ const FilterButton = ({
 };
 
 export const RecipeList = () => {
+  const navigation = useNavigation();
   const {
     filteredRecipes,
     searchQuery,
@@ -116,8 +117,6 @@ export const RecipeList = () => {
   } = useRecipeStore();
 
   // Modal state
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [modalVisible, setModalVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -133,21 +132,8 @@ export const RecipeList = () => {
   const difficulties = ['Easy', 'Medium', 'Hard'];
 
   const handleRecipePress = (recipe: Recipe) => {
-    setSelectedRecipe(recipe);
-    setModalVisible(true);
-  };
-
-  const handleCloseModal = () => {
-    setModalVisible(false);
-    setSelectedRecipe(null);
-  };
-
-  const handleEditRecipe = () => {
-    if (selectedRecipe) {
-      setEditingRecipe(selectedRecipe);
-      setModalVisible(false);
-      setShowEditModal(true);
-    }
+    // @ts-ignore - Navigation typing issue with static navigation
+    navigation.navigate('RecipeDetail', { recipe });
   };
 
   const handleEditComplete = () => {
@@ -254,14 +240,6 @@ export const RecipeList = () => {
           }
         />
       </View>
-
-      {/* Recipe Detail Modal */}
-      <RecipeDetailModal
-        recipe={selectedRecipe}
-        visible={modalVisible}
-        onClose={handleCloseModal}
-        onEdit={handleEditRecipe}
-      />
 
       {/* Filter Modal */}
       <FilterModal
