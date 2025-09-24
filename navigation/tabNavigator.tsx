@@ -3,7 +3,7 @@ import { HeaderButton } from '../components/HeaderButton';
 import { TabBarIcon } from '../components/TabBarIcon';
 import One from '../screens/one';
 import Two from '../screens/two';
-import RecipeCreator from '../screens/recipe-creator';
+import RecipeCreator from '../screens/recipeCreator';
 
 const Tab = createBottomTabNavigator({
   screenOptions: function ScreenOptions() {
