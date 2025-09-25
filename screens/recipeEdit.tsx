@@ -11,6 +11,8 @@ import { CookingAction, getApplianceById } from '../types/chefiq';
 import ChefIQCookingSelector from '../components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '../components/ApplianceDropdown';
 import { theme } from '../theme';
+import { SimpleDraggableList } from '../components/DraggableList';
+import { DraggableCookingAction } from '../components/DraggableCookingAction';
 
 type RootStackParamList = {
   RecipeEdit: { recipe: Recipe };
@@ -34,7 +36,19 @@ export default function RecipeEditScreen() {
     handleSave,
     handleCancel,
     confirmCancel,
-    handleDelete
+    handleDelete,
+    reorderIngredients,
+    reorderInstructions,
+    moveCookingAction,
+    isIngredientsReorderMode,
+    setIsIngredientsReorderMode,
+    isInstructionsReorderMode,
+    setIsInstructionsReorderMode,
+    isDraggingCookingAction,
+    draggingCookingAction,
+    handleCookingActionDragStart,
+    handleCookingActionDragEnd,
+    removeCookingAction
   } = useRecipeForm({
     editingRecipe: recipe,
     onComplete: () => navigation.goBack()
@@ -226,9 +240,6 @@ export default function RecipeEditScreen() {
     updateFormData({ currentStepIndex: null });
   };
 
-  const removeCookingAction = (stepIndex: number) => {
-    updateFormData({ cookingActions: formData.cookingActions.filter(action => action.stepIndex !== stepIndex) });
-  };
 
   const getCookingActionForStep = (stepIndex: number) => {
     return formData.cookingActions.find(action => action.stepIndex === stepIndex);
@@ -384,54 +395,120 @@ export default function RecipeEditScreen() {
 
         {/* Ingredients */}
         <View className="mb-4">
-          <Text className="text-lg font-semibold text-gray-800 mb-2">INGREDIENTS</Text>
-          {formData.ingredients.map((ingredient, index) => (
-            <View key={index} className="flex-row items-center mb-2">
-              <TextInput
-                ref={(ref) => (ingredientRefs.current[index] = ref)}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
-                placeholder={`Ingredient ${index + 1}`}
-                value={ingredient}
-                onChangeText={(value) => updateIngredient(index, value)}
-                onSubmitEditing={() => handleIngredientSubmit(index)}
-                returnKeyType={index === formData.ingredients.length - 1 ? "done" : "next"}
-                blurOnSubmit={false}
-              />
-              {formData.ingredients.length > 1 && (
-                <TouchableOpacity
-                  onPress={() => removeIngredient(index)}
-                  className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
-                >
-                  <Text className="text-red-600 font-bold">×</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
+          <View className="flex-row justify-between items-center mb-2">
+            <Text className="text-lg font-semibold text-gray-800">INGREDIENTS</Text>
+            {formData.ingredients.length >= 3 && (
+              <TouchableOpacity
+                onPress={() => setIsIngredientsReorderMode(!isIngredientsReorderMode)}
+                className="px-3 py-1 rounded-lg"
+                style={{
+                  backgroundColor: isIngredientsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
+                }}
+              >
+                <Text style={{
+                  color: isIngredientsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
+                  fontSize: theme.typography.fontSize.sm,
+                  fontWeight: theme.typography.fontWeight.medium
+                }}>
+                  {isIngredientsReorderMode ? 'Done' : 'Reorder'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <SimpleDraggableList
+            data={formData.ingredients}
+            onReorder={reorderIngredients}
+            keyExtractor={(item, index) => `ingredient-${index}-${item.substring(0, 10)}`}
+            isReorderMode={isIngredientsReorderMode}
+            renderItem={(ingredient, index, isReorderMode) => (
+              <View className="flex-row items-center">
+                {isReorderMode ? (
+                  <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2">
+                    <Text className="text-base">{ingredient || `Ingredient ${index + 1}`}</Text>
+                  </View>
+                ) : (
+                  <TextInput
+                    ref={(ref) => (ingredientRefs.current[index] = ref)}
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
+                    placeholder={`Ingredient ${index + 1}`}
+                    value={ingredient}
+                    onChangeText={(value) => updateIngredient(index, value)}
+                    onSubmitEditing={() => handleIngredientSubmit(index)}
+                    returnKeyType={index === formData.ingredients.length - 1 ? "done" : "next"}
+                    blurOnSubmit={false}
+                    scrollEnabled={false}
+                    keyboardShouldPersistTaps="handled"
+                  />
+                )}
+                {formData.ingredients.length > 1 && !isReorderMode && (
+                  <TouchableOpacity
+                    onPress={() => removeIngredient(index)}
+                    className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
+                  >
+                    <Text className="text-red-600 font-bold">×</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          />
         </View>
 
         {/* Instructions */}
         <View className="mb-4">
-          <Text className="text-lg font-semibold text-gray-800 mb-2">INSTRUCTIONS</Text>
-          {formData.instructions.map((instruction, index) => {
-            const cookingAction = getCookingActionForStep(index);
-            return (
-              <View key={index} className="mb-3">
+          <View className="flex-row justify-between items-center mb-2">
+            <Text className="text-lg font-semibold text-gray-800">INSTRUCTIONS</Text>
+            {formData.instructions.length >= 3 && (
+              <TouchableOpacity
+                onPress={() => setIsInstructionsReorderMode(!isInstructionsReorderMode)}
+                className="px-3 py-1 rounded-lg"
+                style={{
+                  backgroundColor: isInstructionsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
+                }}
+              >
+                <Text style={{
+                  color: isInstructionsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
+                  fontSize: theme.typography.fontSize.sm,
+                  fontWeight: theme.typography.fontWeight.medium
+                }}>
+                  {isInstructionsReorderMode ? 'Done' : 'Reorder'}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <SimpleDraggableList
+            data={formData.instructions}
+            onReorder={reorderInstructions}
+            keyExtractor={(item, index) => `instruction-${index}-${item.substring(0, 10)}`}
+            isReorderMode={isInstructionsReorderMode}
+            renderItem={(instruction, index, isReorderMode) => {
+              const cookingAction = getCookingActionForStep(index);
+              return (
+              <View>
                 <View className="flex-row items-center mb-1">
-                  <TextInput
-                    ref={(ref) => (instructionRefs.current[index] = ref)}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
-                    placeholder={`Step ${index + 1}`}
-                    value={instruction}
-                    onChangeText={(value) => updateInstruction(index, value)}
-                    onSubmitEditing={() => handleInstructionSubmit(index)}
-                    returnKeyType={index === formData.instructions.length - 1 ? "done" : "next"}
-                    blurOnSubmit={false}
-                    style={{ minHeight: 40 }}
-                  />
-                  <View className="flex-row gap-1 items-center">
-                    {/* Add Cooking Method Button - Only show if appliance is selected */}
-                    {formData.selectedAppliance && (
-                      <TouchableOpacity
+                  {isReorderMode ? (
+                    <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={{ minHeight: 40 }}>
+                      <Text className="text-base">{instruction || `Step ${index + 1}`}</Text>
+                    </View>
+                  ) : (
+                    <TextInput
+                      ref={(ref) => (instructionRefs.current[index] = ref)}
+                      className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
+                      placeholder={`Step ${index + 1}`}
+                      value={instruction}
+                      onChangeText={(value) => updateInstruction(index, value)}
+                      onSubmitEditing={() => handleInstructionSubmit(index)}
+                      returnKeyType={index === formData.instructions.length - 1 ? "done" : "next"}
+                      blurOnSubmit={false}
+                      style={{ minHeight: 40 }}
+                      scrollEnabled={false}
+                      keyboardShouldPersistTaps="handled"
+                    />
+                  )}
+                  {!isReorderMode && (
+                    <View className="flex-row gap-1 items-center">
+                      {/* Add Cooking Method Button - Only show if appliance is selected */}
+                      {formData.selectedAppliance && (
+                        <TouchableOpacity
                         onPress={() => {
                           updateFormData({ currentStepIndex: index });
                           updateModalStates({ showCookingSelector: true });
@@ -457,44 +534,37 @@ export default function RecipeEditScreen() {
                       </TouchableOpacity>
                     )}
 
-                    {/* Remove Instruction Button */}
-                    {formData.instructions.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => removeInstruction(index)}
-                        className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
-                      >
-                        <Text className="text-red-600 font-bold">×</Text>
-                      </TouchableOpacity>
-                    )}
-                  </View>
+                      {/* Remove Instruction Button */}
+                      {formData.instructions.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => removeInstruction(index)}
+                          className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
+                        >
+                          <Text className="text-red-600 font-bold">×</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
                 </View>
 
-                {/* Cooking Action Display */}
+                {/* Draggable Cooking Action */}
                 {cookingAction && (
-                  <View className="ml-9 bg-green-50 border border-green-200 rounded-lg p-3">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1">
-                        <Text className="text-sm font-medium text-green-800">
-                          🍳 {cookingAction.methodName}
-                        </Text>
-                        <Text className="text-xs text-green-600 mt-1">
-                          {formData.selectedAppliance && getApplianceById(formData.selectedAppliance)?.name}
-                          {cookingAction.temperature && ` • ${cookingAction.temperature}°F`}
-                          {cookingAction.duration && ` • ${cookingAction.duration} min`}
-                        </Text>
-                      </View>
-                      <TouchableOpacity
-                        onPress={() => removeCookingAction(index)}
-                        className="w-6 h-6 bg-red-100 rounded-full items-center justify-center ml-2"
-                      >
-                        <Text className="text-red-600 text-xs font-bold">×</Text>
-                      </TouchableOpacity>
-                    </View>
+                  <View className="ml-9">
+                    <DraggableCookingAction
+                      cookingAction={cookingAction}
+                      currentStepIndex={index}
+                      onDragStart={() => handleCookingActionDragStart(index)}
+                      onDragEnd={handleCookingActionDragEnd}
+                      onRemove={() => removeCookingAction(index)}
+                      selectedAppliance={formData.selectedAppliance}
+                      isReorderMode={isInstructionsReorderMode}
+                    />
                   </View>
                 )}
               </View>
-            );
-          })}
+              );
+            }}
+          />
         </View>
 
         {/* Notes */}

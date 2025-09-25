@@ -17,7 +17,11 @@ type RecipeDetailRouteProp = RouteProp<RootStackParamList, 'RecipeDetail'>;
 export default function RecipeDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<RecipeDetailRouteProp>();
-  const { recipe } = route.params;
+  const { recipe: routeRecipe } = route.params;
+  const { recipes } = useRecipeStore();
+
+  // Get the latest recipe data from store instead of route params
+  const recipe = recipes.find(r => r.id === routeRecipe.id) || routeRecipe;
 
   const handleEdit = () => {
     // @ts-ignore - Navigation typing issue with static navigation
