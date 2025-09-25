@@ -25,6 +25,10 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
   const [formData, setFormData] = useState<RecipeFormState>(getInitialFormState());
   const [modalStates, setModalStates] = useState<RecipeModalState>(getInitialModalState());
   const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
+  const [isIngredientsReorderMode, setIsIngredientsReorderMode] = useState(false);
+  const [isInstructionsReorderMode, setIsInstructionsReorderMode] = useState(false);
+  const [isDraggingCookingAction, setIsDraggingCookingAction] = useState(false);
+  const [draggingCookingAction, setDraggingCookingAction] = useState<{ action: any; fromStepIndex: number } | null>(null);
 
   // Helper functions for state updates
   const updateFormData = (updates: Partial<RecipeFormState>) => {
@@ -42,6 +46,95 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
       cookTime: totalMinutes,
       cookTimeHours: hours,
       cookTimeMinutes: minutes
+    });
+  };
+
+  // Reorder handlers for drag and drop
+  const reorderIngredients = (newIngredients: string[]) => {
+    updateFormData({ ingredients: newIngredients });
+  };
+
+  const reorderInstructions = (newInstructions: string[]) => {
+    // Also need to update cooking action indices
+    const oldToNewIndexMap: { [key: number]: number } = {};
+    formData.instructions.forEach((instruction, oldIndex) => {
+      const newIndex = newInstructions.findIndex(inst => inst === instruction);
+      if (newIndex !== -1) {
+        oldToNewIndexMap[oldIndex] = newIndex;
+      }
+    });
+
+    // Update cooking actions with new step indices
+    const updatedCookingActions = formData.cookingActions.map(action => ({
+      ...action,
+      stepIndex: oldToNewIndexMap[action.stepIndex] !== undefined ?
+        oldToNewIndexMap[action.stepIndex] : action.stepIndex
+    }));
+
+    updateFormData({
+      instructions: newInstructions,
+      cookingActions: updatedCookingActions
+    });
+  };
+
+  const moveCookingAction = (fromStepIndex: number, toStepIndex: number) => {
+    const action = formData.cookingActions.find(a => a.stepIndex === fromStepIndex);
+    if (action) {
+      const updatedActions = formData.cookingActions.map(a => {
+        if (a.stepIndex === fromStepIndex) {
+          return { ...a, stepIndex: toStepIndex };
+        }
+        return a;
+      });
+      updateFormData({ cookingActions: updatedActions });
+    }
+  };
+
+  // Cooking Action Drag and Drop handlers
+  const handleCookingActionDragStart = (fromStepIndex: number) => {
+    const action = formData.cookingActions.find(a => a.stepIndex === fromStepIndex);
+    if (action) {
+      setDraggingCookingAction({ action, fromStepIndex });
+      setIsDraggingCookingAction(true);
+    }
+  };
+
+  const handleCookingActionDragEnd = (fromStepIndex: number, toStepIndex: number) => {
+    console.log('Drag end:', { fromStepIndex, toStepIndex, totalInstructions: formData.instructions.length });
+
+    // Ensure target step is valid
+    const maxStepIndex = Math.max(0, formData.instructions.length - 1);
+    const validToStepIndex = Math.min(Math.max(0, toStepIndex), maxStepIndex);
+
+    if (fromStepIndex !== validToStepIndex) {
+      const action = formData.cookingActions.find(a => a.stepIndex === fromStepIndex);
+
+      if (action) {
+        console.log('Moving action from step', fromStepIndex, 'to step', validToStepIndex);
+
+        // Create new actions array by updating the step index
+        const updatedActions = formData.cookingActions.map(a => {
+          if (a.stepIndex === fromStepIndex) {
+            return { ...a, stepIndex: validToStepIndex };
+          }
+          // Remove any existing action on target step (if different from source)
+          if (a.stepIndex === validToStepIndex && validToStepIndex !== fromStepIndex) {
+            return null;
+          }
+          return a;
+        }).filter(Boolean); // Remove nulls
+
+        updateFormData({ cookingActions: updatedActions });
+      }
+    }
+
+    setIsDraggingCookingAction(false);
+    setDraggingCookingAction(null);
+  };
+
+  const removeCookingAction = (stepIndex: number) => {
+    updateFormData({
+      cookingActions: formData.cookingActions.filter(action => action.stepIndex !== stepIndex)
     });
   };
 
@@ -186,6 +279,18 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
     handleCancel,
     confirmCancel,
     handleDelete,
-    isEditing: !!editingRecipe
+    isEditing: !!editingRecipe,
+    reorderIngredients,
+    reorderInstructions,
+    moveCookingAction,
+    isIngredientsReorderMode,
+    setIsIngredientsReorderMode,
+    isInstructionsReorderMode,
+    setIsInstructionsReorderMode,
+    isDraggingCookingAction,
+    draggingCookingAction,
+    handleCookingActionDragStart,
+    handleCookingActionDragEnd,
+    removeCookingAction
   };
 };
