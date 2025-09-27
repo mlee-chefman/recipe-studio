@@ -96,6 +96,36 @@ export const hasFormData = (formData: RecipeFormState) => {
   );
 };
 
+// Helper function to check if form has changes compared to original recipe
+export const hasFormChanges = (formData: RecipeFormState, originalRecipe: any) => {
+  if (!originalRecipe) return hasFormData(formData);
+
+  // Compare basic fields
+  if (formData.title !== originalRecipe.title) return true;
+  if (formData.imageUrl !== (originalRecipe.image || '')) return true;
+  if (formData.category !== originalRecipe.category) return true;
+  if (formData.notes !== originalRecipe.description) return true;
+  if (formData.cookTime !== originalRecipe.cookTime) return true;
+  if (formData.servings !== originalRecipe.servings) return true;
+  if (formData.difficulty !== originalRecipe.difficulty) return true;
+  if (formData.selectedAppliance !== (originalRecipe.chefiqAppliance || '')) return true;
+  if (formData.useProbe !== (originalRecipe.useProbe || false)) return true;
+
+  // Compare arrays
+  const originalIngredients = originalRecipe.ingredients || [];
+  const currentIngredients = formData.ingredients.filter(i => i.trim() !== '');
+  if (JSON.stringify(currentIngredients) !== JSON.stringify(originalIngredients)) return true;
+
+  const originalInstructions = originalRecipe.instructions || [];
+  const currentInstructions = formData.instructions.filter(i => i.trim() !== '');
+  if (JSON.stringify(currentInstructions) !== JSON.stringify(originalInstructions)) return true;
+
+  const originalActions = originalRecipe.cookingActions || [];
+  if (JSON.stringify(formData.cookingActions) !== JSON.stringify(originalActions)) return true;
+
+  return false;
+};
+
 // Type definitions for form state
 export interface RecipeFormState {
   // Basic Info
