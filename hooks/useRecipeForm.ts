@@ -8,7 +8,8 @@ import {
   RecipeModalState,
   getInitialFormState,
   getInitialModalState,
-  hasFormData
+  hasFormData,
+  hasFormChanges
 } from '../constants/recipeDefaults';
 import { CookingAction, InstructionSection } from '../types/chefiq';
 
@@ -213,9 +214,11 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
   };
 
   const handleCancel = () => {
-    const hasData = hasFormData(formData);
+    const hasChanges = editingRecipe
+      ? hasFormChanges(formData, editingRecipe)
+      : hasFormData(formData);
 
-    if (hasData && !editingRecipe) {
+    if (hasChanges) {
       updateModalStates({ showCancelConfirmation: true });
     } else {
       if (!editingRecipe) {
@@ -231,7 +234,9 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
 
   const confirmCancel = () => {
     updateModalStates({ showCancelConfirmation: false });
-    resetForm();
+    if (!editingRecipe) {
+      resetForm();
+    }
     if (onComplete) {
       onComplete();
     } else {

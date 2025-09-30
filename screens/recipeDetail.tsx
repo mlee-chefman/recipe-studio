@@ -4,7 +4,8 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Recipe, useRecipeStore } from '../store/store';
-import { getApplianceById, formatCookingAction } from '../types/chefiq';
+import { getApplianceById, formatCookingAction, CookingAction } from '../types/chefiq';
+import { getCookingMethodIcon, formatKeyParameters } from '../utils/cookingActionHelpers';
 import { theme } from '../theme';
 
 type RootStackParamList = {
@@ -115,8 +116,12 @@ export default function RecipeDetailScreen() {
             <View className="mb-6">
               <Text className="text-lg font-semibold text-gray-800 mb-2">ChefIQ Appliance</Text>
               <View className="bg-green-50 p-4 rounded-lg border border-green-200">
-                <View className="flex-row items-center mb-2">
-                  <Text className="text-2xl mr-2">🍳</Text>
+                <View className="flex-row items-center">
+                  <Image
+                    source={{ uri: getApplianceById(recipe.chefiqAppliance)?.picture }}
+                    style={{ width: 40, height: 40, marginRight: 12 }}
+                    contentFit="contain"
+                  />
                   <Text className="text-lg font-semibold text-green-800">
                     {getApplianceById(recipe.chefiqAppliance)?.name}
                   </Text>
@@ -126,10 +131,6 @@ export default function RecipeDetailScreen() {
                     </View>
                   )}
                 </View>
-                <Text className="text-sm text-green-600 capitalize">
-                  {getApplianceById(recipe.chefiqAppliance)?.thing_category_name} - Smart cooking features available
-                  {recipe.useProbe && ' with thermometer probe'}
-                </Text>
               </View>
             </View>
           )}
@@ -166,12 +167,20 @@ export default function RecipeDetailScreen() {
                     {cookingAction && (
                       <View className="ml-9 bg-green-50 border border-green-200 rounded-lg p-3">
                         <View className="flex-row items-center">
-                          <Text className="text-lg mr-2">🍳</Text>
+                          <Text className="text-lg mr-2">
+                            {getCookingMethodIcon(
+                              cookingAction.methodId,
+                              getApplianceById(cookingAction.applianceId)?.thing_category_name
+                            )}
+                          </Text>
                           <View className="flex-1">
                             <Text className="text-sm font-medium text-green-800">
-                              {formatCookingAction(cookingAction)}
+                              {cookingAction.methodName}
                             </Text>
                             <Text className="text-xs text-green-600 mt-1">
+                              {formatKeyParameters(cookingAction)}
+                            </Text>
+                            <Text className="text-xs text-green-500 mt-0.5">
                               {getApplianceById(cookingAction.applianceId)?.name}
                             </Text>
                           </View>

@@ -19,6 +19,7 @@ interface ChefIQCookingSelectorProps {
   onSelect: (action: CookingAction) => void;
   applianceId: string;
   useProbe?: boolean;
+  initialAction?: CookingAction;
 }
 
 const formatTime = (seconds: number): string => {
@@ -62,6 +63,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
   onSelect,
   applianceId,
   useProbe = false,
+  initialAction,
 }) => {
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [parameters, setParameters] = useState<any>({});
@@ -72,7 +74,11 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
   const methods = isRJ40 ? RJ40_METHODS : CQ50_METHODS;
 
   useEffect(() => {
-    if (isRJ40 && methods.length > 0) {
+    if (initialAction) {
+      // Load from initial action for editing
+      setSelectedMethod(initialAction.methodId);
+      setParameters(initialAction.parameters || {});
+    } else if (isRJ40 && methods.length > 0) {
       const defaultMethod = methods[0];
       setSelectedMethod(defaultMethod.id);
       setParameters(getSmartCookerDefaultState(defaultMethod.id));
@@ -88,7 +94,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         shade_level: methodSettings?.settings?.shade_level?.default,
       });
     }
-  }, [applianceId, isRJ40, isCQ50, methods]);
+  }, [applianceId, isRJ40, isCQ50, methods, initialAction]);
 
   const handleMethodChange = (methodId: any) => {
     setSelectedMethod(methodId);

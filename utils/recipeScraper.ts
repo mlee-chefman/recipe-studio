@@ -1,5 +1,12 @@
 import axios from 'axios';
+import { decode } from 'html-entities';
 import { analyzeRecipeForChefIQ, RecipeAnalysisResult } from './recipeAnalyzer';
+
+// Decode HTML entities using the html-entities library
+const decodeHtmlEntities = (text: string): string => {
+  if (!text) return text;
+  return decode(text);
+};
 
 export interface ScrapedRecipe {
   title: string;
@@ -94,15 +101,17 @@ const parseIngredients = (ingredients: any): string[] => {
 
   if (Array.isArray(ingredients)) {
     return ingredients.map(ing => {
-      if (typeof ing === 'string') return ing.trim();
-      if (ing.name) return ing.name.trim();
-      if (ing.text) return ing.text.trim();
-      return String(ing).trim();
+      let text = '';
+      if (typeof ing === 'string') text = ing.trim();
+      else if (ing.name) text = ing.name.trim();
+      else if (ing.text) text = ing.text.trim();
+      else text = String(ing).trim();
+      return decodeHtmlEntities(text);
     }).filter(Boolean);
   }
 
   if (typeof ingredients === 'string') {
-    return ingredients.split('\n').map(s => s.trim()).filter(Boolean);
+    return ingredients.split('\n').map(s => decodeHtmlEntities(s.trim())).filter(Boolean);
   }
 
   return [];
@@ -117,14 +126,14 @@ const parseInstructions = (instructions: any): string[] => {
 
     instructions.forEach(inst => {
       if (typeof inst === 'string') {
-        parsed.push(inst.trim());
+        parsed.push(decodeHtmlEntities(inst.trim()));
       } else if (inst.text) {
-        parsed.push(inst.text.trim());
+        parsed.push(decodeHtmlEntities(inst.text.trim()));
       } else if (inst.name) {
-        parsed.push(inst.name.trim());
+        parsed.push(decodeHtmlEntities(inst.name.trim()));
       } else if (inst['@type'] === 'HowToStep') {
-        if (inst.text) parsed.push(inst.text.trim());
-        else if (inst.name) parsed.push(inst.name.trim());
+        if (inst.text) parsed.push(decodeHtmlEntities(inst.text.trim()));
+        else if (inst.name) parsed.push(decodeHtmlEntities(inst.name.trim()));
       } else if (inst['@type'] === 'HowToSection' && inst.itemListElement) {
         const sectionSteps = parseInstructions(inst.itemListElement);
         parsed.push(...sectionSteps);
@@ -135,7 +144,7 @@ const parseInstructions = (instructions: any): string[] => {
   }
 
   if (typeof instructions === 'string') {
-    return instructions.split(/\n|\. /).map(s => s.trim()).filter(Boolean);
+    return instructions.split(/\n|\. /).map(s => decodeHtmlEntities(s.trim())).filter(Boolean);
   }
 
   if (instructions.itemListElement) {
@@ -323,11 +332,11 @@ const parseRecipeFromJsonLd = (data: any, url: string = '', html: string = ''): 
       return null;
     }
 
-    const title = data.name || 'Untitled Recipe';
+    const title = decodeHtmlEntities(data.name || 'Untitled Recipe');
     const category = extractCategory(data, title, url);
     const image = extractImage(data, html);
     const cookTime = parseDuration(data.cookTime) || parseDuration(data.totalTime) || 30;
-    const description = data.description || data.about || '';
+    const description = decodeHtmlEntities(data.description || data.about || '');
 
     // Analyze recipe for ChefIQ suggestions
     let chefiqSuggestions;
@@ -381,14 +390,14 @@ const parseRecipeFromHtml = (html: string, url: string): ScrapedRecipe | null =>
   const titleMatch = html.match(/<h1[^>]*>([^<]+)<\/h1>/i) ||
                      html.match(/<title[^>]*>([^<]+)<\/title>/i);
   if (titleMatch) {
-    recipe.title = titleMatch[1].trim().replace(/\s*\|.*$/, '').replace(/Recipe\s*-?\s*/i, '');
+    recipe.title = decodeHtmlEntities(titleMatch[1].trim().replace(/\s*\|.*$/, '').replace(/Recipe\s*-?\s*/i, ''));
   }
 
   // Extract description from meta tag
   const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i) ||
                     html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i);
   if (descMatch) {
-    recipe.description = descMatch[1].trim();
+    recipe.description = decodeHtmlEntities(descMatch[1].trim());
   }
 
   // Try to find ingredients using common patterns
@@ -401,7 +410,7 @@ const parseRecipeFromHtml = (html: string, url: string): ScrapedRecipe | null =>
   for (const pattern of ingredientPatterns) {
     const matches = html.matchAll(pattern);
     for (const match of matches) {
-      const ingredient = match[1].trim().replace(/<[^>]*>/g, '');
+      const ingredient = decodeHtmlEntities(match[1].trim().replace(/<[^>]*>/g, ''));
       if (ingredient && !ingredient.includes('<') && ingredient.length > 3) {
         recipe.ingredients.push(ingredient);
       }
@@ -419,7 +428,7 @@ const parseRecipeFromHtml = (html: string, url: string): ScrapedRecipe | null =>
   for (const pattern of instructionPatterns) {
     const matches = html.matchAll(pattern);
     for (const match of matches) {
-      const instruction = match[1].trim().replace(/<[^>]*>/g, '').replace(/\s+/g, ' ');
+      const instruction = decodeHtmlEntities(match[1].trim().replace(/<[^>]*>/g, '').replace(/\s+/g, ' '));
       if (instruction && instruction.length > 10) {
         recipe.instructions.push(instruction);
       }
