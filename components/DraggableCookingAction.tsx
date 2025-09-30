@@ -10,6 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
 import { CookingAction, getApplianceById } from '../types/chefiq';
+import { getCookingMethodIcon, formatKeyParameters } from '../utils/cookingActionHelpers';
 import { theme } from '../theme';
 
 interface DraggableCookingActionProps {
@@ -18,6 +19,7 @@ interface DraggableCookingActionProps {
   onDragStart: () => void;
   onDragEnd: (fromStepIndex: number, targetStepIndex: number) => void;
   onRemove: () => void;
+  onEdit: () => void;
   selectedAppliance?: string;
   isReorderMode?: boolean;
 }
@@ -28,6 +30,7 @@ export function DraggableCookingAction({
   onDragStart,
   onDragEnd,
   onRemove,
+  onEdit,
   selectedAppliance,
   isReorderMode = false,
 }: DraggableCookingActionProps) {
@@ -98,33 +101,44 @@ export function DraggableCookingAction({
       failOffsetX={[-15, 15]}
     >
       <Animated.View style={animatedStyle}>
-        <View className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
-          <View className="flex-row items-center justify-between">
-            {isReorderMode && (
-              <View className="mr-2">
-                <Feather name="move" size={16} color="#22c55e" />
+        <TouchableOpacity
+          onPress={!isReorderMode ? onEdit : undefined}
+          activeOpacity={isReorderMode ? 1 : 0.7}
+        >
+          <View className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
+            <View className="flex-row items-center justify-between">
+              {isReorderMode && (
+                <View className="mr-2">
+                  <Feather name="move" size={16} color="#22c55e" />
+                </View>
+              )}
+              <View className="flex-1">
+                <Text className="text-sm font-medium text-green-800">
+                  {getCookingMethodIcon(
+                    cookingAction.methodId,
+                    selectedAppliance ? getApplianceById(selectedAppliance)?.thing_category_name : undefined
+                  )} {cookingAction.methodName}
+                </Text>
+                <Text className="text-xs text-green-600 mt-1">
+                  {formatKeyParameters(cookingAction)}
+                </Text>
+                {selectedAppliance && (
+                  <Text className="text-xs text-green-500 mt-0.5">
+                    {getApplianceById(selectedAppliance)?.name}
+                  </Text>
+                )}
               </View>
-            )}
-            <View className="flex-1">
-              <Text className="text-sm font-medium text-green-800">
-                🍳 {cookingAction.methodName}
-              </Text>
-              <Text className="text-xs text-green-600 mt-1">
-                {selectedAppliance && getApplianceById(selectedAppliance)?.name}
-                {cookingAction.temperature && ` • ${cookingAction.temperature}°F`}
-                {cookingAction.duration && ` • ${cookingAction.duration} min`}
-              </Text>
+              {!isReorderMode && (
+                <TouchableOpacity
+                  onPress={onRemove}
+                  className="w-6 h-6 bg-red-100 rounded-full items-center justify-center ml-2"
+                >
+                  <Text className="text-red-600 text-xs font-bold">×</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {!isReorderMode && (
-              <TouchableOpacity
-                onPress={onRemove}
-                className="w-6 h-6 bg-red-100 rounded-full items-center justify-center ml-2"
-              >
-                <Text className="text-red-600 text-xs font-bold">×</Text>
-              </TouchableOpacity>
-            )}
           </View>
-        </View>
+        </TouchableOpacity>
       </Animated.View>
     </PanGestureHandler>
   );

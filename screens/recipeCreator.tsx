@@ -20,6 +20,7 @@ interface RecipeCreatorProps {
 
 export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps = {}) {
   const navigation = useNavigation();
+  const [editingCookingAction, setEditingCookingAction] = React.useState<{ action: CookingAction, stepIndex: number } | null>(null);
 
   const {
     formData,
@@ -326,7 +327,16 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
   // Cooking action handlers
   const handleCookingActionSelect = (action: CookingAction) => {
-    if (formData.currentStepIndex !== null) {
+    if (editingCookingAction) {
+      // Update existing action
+      const newActions = formData.cookingActions.map(a =>
+        a.stepIndex === editingCookingAction.stepIndex
+          ? { ...action, stepIndex: editingCookingAction.stepIndex, id: a.id }
+          : a
+      );
+      updateFormData({ cookingActions: newActions });
+      setEditingCookingAction(null);
+    } else if (formData.currentStepIndex !== null) {
       // Remove any existing action for this step
       const newActions = formData.cookingActions.filter(a => a.stepIndex !== formData.currentStepIndex);
       // Add the new action
@@ -339,6 +349,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     }
     updateModalStates({ showCookingSelector: false });
     updateFormData({ currentStepIndex: null });
+  };
+
+  const handleEditCookingAction = (stepIndex: number) => {
+    const action = getCookingActionForStep(stepIndex);
+    if (action) {
+      setEditingCookingAction({ action, stepIndex });
+      updateModalStates({ showCookingSelector: true });
+    }
   };
 
 
@@ -782,6 +800,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                         onDragStart={() => handleCookingActionDragStart(index)}
                         onDragEnd={handleCookingActionDragEnd}
                         onRemove={() => removeCookingAction(index)}
+                        onEdit={() => handleEditCookingAction(index)}
                         selectedAppliance={formData.selectedAppliance}
                         isReorderMode={isInstructionsReorderMode}
                       />
@@ -814,10 +833,12 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           onClose={() => {
             updateModalStates({ showCookingSelector: false });
             updateFormData({ currentStepIndex: null });
+            setEditingCookingAction(null);
           }}
           onSelect={handleCookingActionSelect}
           applianceId={formData.selectedAppliance}
           useProbe={formData.useProbe}
+          initialAction={editingCookingAction?.action}
         />
       )}
 
