@@ -4,6 +4,16 @@ import {
   extractTemperaturesWithContext,
   analyzeRecipeForChefIQ,
 } from '../utils/recipeAnalyzer';
+import {
+  FanSpeed,
+  TemperatureLevel,
+  PressureLevel,
+  PressureRelease,
+  KeepWarm,
+  ShadeLevel,
+  CookerMethod,
+  OvenMethod
+} from '../types/cookingEnums';
 
 describe('Recipe Analyzer', () => {
   describe('Temperature Extraction', () => {

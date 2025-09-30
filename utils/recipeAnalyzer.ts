@@ -1,4 +1,14 @@
 import { CHEFIQ_APPLIANCES, CookingAction } from '../types/chefiq';
+import {
+  FanSpeed,
+  TemperatureLevel,
+  PressureLevel,
+  PressureRelease,
+  KeepWarm,
+  ShadeLevel,
+  CookerMethod,
+  OvenMethod
+} from '../types/cookingEnums';
 
 interface CookingMethodKeywords {
   methodId: string | number;
@@ -12,59 +22,59 @@ interface CookingMethodKeywords {
 const COOKING_METHOD_PATTERNS: CookingMethodKeywords[] = [
   // iQ Cooker (RJ40) Methods
   {
-    methodId: 0,
+    methodId: CookerMethod.Pressure,
     applianceType: 'cooker',
     keywords: ['pressure cook', 'instant pot', 'pressure cooker', 'quick cook', 'high pressure'],
     defaultParams: {
-      cooking_method: 0,
-      pres_level: 1, // High pressure
-      pres_release: 0, // Quick release
-      keep_warm: 1,
+      cooking_method: CookerMethod.Pressure,
+      pres_level: PressureLevel.High,
+      pres_release: PressureRelease.Quick,
+      keep_warm: KeepWarm.On,
       delay_time: 0,
     },
     estimatedTime: 15
   },
   {
-    methodId: 1,
+    methodId: CookerMethod.SearSaute,
     applianceType: 'cooker',
     keywords: ['sauté', 'saute', 'brown', 'sear', 'fry', 'cook until golden'],
     defaultParams: {
-      cooking_method: 1,
-      temp_level: 1, // Medium-Low
-      keep_warm: 0,
+      cooking_method: CookerMethod.SearSaute,
+      temp_level: TemperatureLevel.MediumLow,
+      keep_warm: KeepWarm.Off,
       delay_time: 0,
     },
     estimatedTime: 10
   },
   {
-    methodId: 2,
+    methodId: CookerMethod.Steam,
     applianceType: 'cooker',
     keywords: ['steam', 'steamer', 'steam basket', 'steamed'],
     defaultParams: {
-      cooking_method: 2,
-      keep_warm: 0,
+      cooking_method: CookerMethod.Steam,
+      keep_warm: KeepWarm.Off,
       delay_time: 0,
     },
     estimatedTime: 15
   },
   {
-    methodId: 3,
+    methodId: CookerMethod.SlowCook,
     applianceType: 'cooker',
     keywords: ['slow cook', 'slow cooker', 'crock pot', 'low and slow', 'simmer'],
     defaultParams: {
-      cooking_method: 3,
-      temp_level: 1, // High
-      keep_warm: 1,
+      cooking_method: CookerMethod.SlowCook,
+      temp_level: TemperatureLevel.High,
+      keep_warm: KeepWarm.On,
       delay_time: 0,
     },
     estimatedTime: 240
   },
   {
-    methodId: 5,
+    methodId: CookerMethod.SousVide,
     applianceType: 'cooker',
     keywords: ['sous vide', 'water bath', 'vacuum seal'],
     defaultParams: {
-      cooking_method: 5,
+      cooking_method: CookerMethod.SousVide,
       delay_time: 0,
     },
     estimatedTime: 120
@@ -72,60 +82,60 @@ const COOKING_METHOD_PATTERNS: CookingMethodKeywords[] = [
 
   // iQ MiniOven (CQ50) Methods
   {
-    methodId: 'METHOD_BAKE',
+    methodId: OvenMethod.Bake,
     applianceType: 'oven',
     keywords: ['bake', 'baking', 'oven', 'baked', 'preheat'],
     defaultParams: {
       cooking_time: 1800, // 30 minutes
       target_cavity_temp: 350, // Will be overridden by extracted temp
-      fan_speed: 0,
+      fan_speed: FanSpeed.Low,
     },
     estimatedTime: 30
   },
   {
-    methodId: 'METHOD_AIR_FRY',
+    methodId: OvenMethod.AirFry,
     applianceType: 'oven',
     keywords: ['air fry', 'air fryer', 'crispy', 'crunchy', 'air-fry'],
     defaultParams: {
       cooking_time: 900, // 15 minutes
       target_cavity_temp: 375,
-      fan_speed: 3,
+      fan_speed: FanSpeed.High,
     },
     estimatedTime: 15
   },
   {
-    methodId: 'METHOD_ROAST',
+    methodId: OvenMethod.Roast,
     applianceType: 'oven',
     keywords: ['roast', 'roasted', 'roasting'],
     defaultParams: {
       cooking_time: 2700, // 45 minutes
       target_cavity_temp: 400,
-      fan_speed: 1,
+      fan_speed: FanSpeed.Low,
     },
     estimatedTime: 45
   },
   {
-    methodId: 'METHOD_BROIL',
+    methodId: OvenMethod.Broil,
     applianceType: 'oven',
     keywords: ['broil', 'broiled', 'broiling', 'grill', 'grilled', 'char', 'outdoor grill', 'preheated grill', 'barbecue', 'bbq'],
     defaultParams: {
       cooking_time: 600, // 10 minutes
-      temp_level: 1, // High
+      temp_level: TemperatureLevel.High,
     },
     estimatedTime: 10
   },
   {
-    methodId: 'METHOD_TOAST',
+    methodId: OvenMethod.Toast,
     applianceType: 'oven',
     keywords: ['toast', 'toasted', 'toasting', 'golden brown'],
     defaultParams: {
       cooking_time: 180, // 3 minutes
-      shade_level: 2, // Medium
+      shade_level: ShadeLevel.Medium,
     },
     estimatedTime: 3
   },
   {
-    methodId: 'METHOD_DEHYDRATE',
+    methodId: OvenMethod.Dehydrate,
     applianceType: 'oven',
     keywords: ['dehydrate', 'dry', 'dried', 'dehydrating', 'jerky'],
     defaultParams: {
@@ -212,7 +222,7 @@ export const analyzeRecipeForChefIQ = (
     // Special handling: if "increase temperature" is mentioned, it's likely baking, not dehydrating
     let matches = COOKING_METHOD_PATTERNS.filter(pattern => {
       // Skip dehydrate method if we see "increase temperature" or temperature changes
-      if (pattern.methodId === 'METHOD_DEHYDRATE' &&
+      if (pattern.methodId === OvenMethod.Dehydrate &&
           (instructionLower.includes('increase') || instructionLower.includes('raise')) &&
           instructionLower.includes('temperature')) {
         return false;
@@ -225,8 +235,8 @@ export const analyzeRecipeForChefIQ = (
     if ((instructionLower.includes('increase') || instructionLower.includes('raise')) &&
         instructionLower.includes('temperature')) {
       // Add baking method if not already present
-      const bakingMethod = COOKING_METHOD_PATTERNS.find(p => p.methodId === 'METHOD_BAKE');
-      if (bakingMethod && !matches.some(m => m.methodId === 'METHOD_BAKE')) {
+      const bakingMethod = COOKING_METHOD_PATTERNS.find(p => p.methodId === OvenMethod.Bake);
+      if (bakingMethod && !matches.some(m => m.methodId === OvenMethod.Bake)) {
         matches.push(bakingMethod);
       }
     }
@@ -248,16 +258,16 @@ export const analyzeRecipeForChefIQ = (
     reasoning.push('Detected grilling recipe with protein - suggesting oven as ChefIQ alternative.');
 
     // For grilled proteins, suggest oven methods (air fry, broil, or bake)
-    let suggestedOvenMethod = 'METHOD_AIR_FRY'; // Default for crispy results
+    let suggestedOvenMethod = OvenMethod.AirFry; // Default for crispy results
 
     if (allTextLower.includes('crispy') || allTextLower.includes('crunchy')) {
-      suggestedOvenMethod = 'METHOD_AIR_FRY';
+      suggestedOvenMethod = OvenMethod.AirFry;
       reasoning.push('Detected need for crispy texture - suggesting Air Fry.');
     } else if (allTextLower.includes('char') || allTextLower.includes('sear') || allTextLower.includes('brown')) {
-      suggestedOvenMethod = 'METHOD_BROIL';
+      suggestedOvenMethod = OvenMethod.Broil;
       reasoning.push('Detected need for browning/searing - suggesting Broil.');
     } else if (cookTime > 20) {
-      suggestedOvenMethod = 'METHOD_BAKE';
+      suggestedOvenMethod = OvenMethod.Bake;
       reasoning.push('Longer cooking time detected - suggesting Bake.');
     }
 
@@ -274,7 +284,7 @@ export const analyzeRecipeForChefIQ = (
           ).join(' '),
           parameters: {
             ...methodPattern.defaultParams,
-            ...(extractedTemp && suggestedOvenMethod === 'METHOD_BAKE' ? { target_cavity_temp: extractedTemp } : {}),
+            ...(extractedTemp && suggestedOvenMethod === OvenMethod.Bake ? { target_cavity_temp: extractedTemp } : {}),
             ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allTextLower) } : {}),
             cooking_time: cookTime * 60 || methodPattern.estimatedTime! * 60,
           },
@@ -315,14 +325,14 @@ export const analyzeRecipeForChefIQ = (
     }, 0);
 
     // Boost baking score if temperature increase is mentioned
-    if (method.methodId === 'METHOD_BAKE' &&
+    if (method.methodId === OvenMethod.Bake &&
         (allTextLower.includes('increase temperature') || allTextLower.includes('increase oven temperature'))) {
       matchCount += 5; // Strong indicator for baking
       reasoning.push('Detected temperature increase instructions - prioritizing bake method.');
     }
 
     // Reduce dehydrate score if high temperatures are mentioned
-    if (method.methodId === 'METHOD_DEHYDRATE' && extractedTemp && extractedTemp > 200) {
+    if (method.methodId === OvenMethod.Dehydrate && extractedTemp && extractedTemp > 200) {
       matchCount = Math.max(0, matchCount - 3); // Dehydrating typically uses low temps
     }
 
@@ -371,9 +381,9 @@ export const analyzeRecipeForChefIQ = (
 
   // Override temperature for baking methods if we extracted one
   if (bestMethod.method.applianceType === 'oven' && extractedTemp) {
-    if (bestMethod.method.methodId === 'METHOD_BAKE' ||
-        bestMethod.method.methodId === 'METHOD_ROAST' ||
-        bestMethod.method.methodId === 'METHOD_AIR_FRY') {
+    if (bestMethod.method.methodId === OvenMethod.Bake ||
+        bestMethod.method.methodId === OvenMethod.Roast ||
+        bestMethod.method.methodId === OvenMethod.AirFry) {
       primaryParams.target_cavity_temp = extractedTemp;
       reasoning.push(`Using extracted initial temperature of ${extractedTemp}°F for ${bestMethod.method.keywords[0]}.`);
     }
@@ -401,7 +411,7 @@ export const analyzeRecipeForChefIQ = (
 
   // Check if there's a temperature increase step for baking
   if (bestMethod.method.applianceType === 'oven' &&
-      bestMethod.method.methodId === 'METHOD_BAKE' &&
+      bestMethod.method.methodId === OvenMethod.Bake &&
       temperatureSteps.length > 1) {
 
     const increaseStep = temperatureSteps.find(t => t.isIncrease);

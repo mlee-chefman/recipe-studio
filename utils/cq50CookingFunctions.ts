@@ -1,3 +1,10 @@
+import {
+  FanSpeed,
+  TemperatureLevel,
+  ShadeLevel,
+  OvenMethod
+} from '../types/cookingEnums';
+
 const FtoC = (temp: number, roundBy = 1): number => {
   const convertedTemp = (temp - 32) / 1.8;
   if (roundBy === 0) return parseFloat(convertedTemp.toFixed(2));
@@ -35,29 +42,9 @@ enum RackPosition {
   Top = 'top',
 }
 
-enum FanSpeed {
-  Off,
-  Low,
-  Med,
-  High,
-}
-
 enum TempUnit {
   F,
   C,
-}
-
-enum TempLevel {
-  Low,
-  High,
-}
-
-enum ShadeLevel {
-  First,
-  Second,
-  Third,
-  Fourth,
-  Fifth,
 }
 enum ReheatPresets {
   CustomReheat = 'CUSTOM_REHEAT',
@@ -184,7 +171,7 @@ export const cookingFunctions = {
       },
       fan_speed: {
         default: FanSpeed.Low,
-        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Med, FanSpeed.High],
+        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Medium, FanSpeed.High],
       },
     },
   },
@@ -224,8 +211,8 @@ export const cookingFunctions = {
         granularity: 60,
       },
       fan_speed: {
-        default: FanSpeed.Med,
-        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Med, FanSpeed.High],
+        default: FanSpeed.Medium,
+        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Medium, FanSpeed.High],
       },
     },
   },
@@ -245,8 +232,8 @@ export const cookingFunctions = {
         default: true,
       },
       temp_level: {
-        default: TempLevel.High,
-        options: [TempLevel.Low, TempLevel.High],
+        default: TemperatureLevel.High,
+        options: [TemperatureLevel.Low, TemperatureLevel.High],
       },
       cooking_time: {
         default: 900,
@@ -272,8 +259,8 @@ export const cookingFunctions = {
         default: true,
       },
       temp_level: {
-        default: TempLevel.High,
-        options: [TempLevel.Low, TempLevel.High],
+        default: TemperatureLevel.High,
+        options: [TemperatureLevel.Low, TemperatureLevel.High],
       },
       cooking_time: {
         default: 900,
@@ -283,7 +270,7 @@ export const cookingFunctions = {
       },
       fan_speed: {
         default: FanSpeed.High,
-        options: [FanSpeed.Low, FanSpeed.Med, FanSpeed.High],
+        options: [FanSpeed.Low, FanSpeed.Medium, FanSpeed.High],
       },
     },
   },
@@ -299,13 +286,13 @@ export const cookingFunctions = {
         default: true,
       },
       shade_level: {
-        default: ShadeLevel.Third,
+        default: ShadeLevel.Medium,
         options: [
-          ShadeLevel.First,
-          ShadeLevel.Second,
-          ShadeLevel.Third,
-          ShadeLevel.Fourth,
-          ShadeLevel.Fifth,
+          ShadeLevel.Light,
+          ShadeLevel.MediumLight,
+          ShadeLevel.Medium,
+          ShadeLevel.MediumDark,
+          ShadeLevel.Dark,
         ],
       },
       is_frozen: {
@@ -349,7 +336,7 @@ export const cookingFunctions = {
       },
       fan_speed: {
         default: FanSpeed.Low,
-        options: [FanSpeed.Low, FanSpeed.Med],
+        options: [FanSpeed.Low, FanSpeed.Medium],
       },
     },
   },
@@ -419,7 +406,7 @@ export const cookingFunctions = {
       },
       fan_speed: {
         default: FanSpeed.Low,
-        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Med, FanSpeed.High],
+        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Medium, FanSpeed.High],
       },
       probe_settings: {
         ...probeSettings,
@@ -476,7 +463,7 @@ export const cookingFunctions = {
         cooking_preset: ReheatPresets.RoastedMeats,
         target_cavity_temp: 350,
         cooking_time: 2700,
-        fan_speed: FanSpeed.Med,
+        fan_speed: FanSpeed.Medium,
         rack_position: RackPosition.Bottom,
         rack_accessories: [RackAccessory.SheetTray],
         probe_target_temp: REHEAT_PROBE_TEMP,
@@ -487,7 +474,7 @@ export const cookingFunctions = {
         cooking_preset: ReheatPresets.RoastedVegetables,
         target_cavity_temp: 400,
         cooking_time: 720,
-        fan_speed: FanSpeed.Med,
+        fan_speed: FanSpeed.Medium,
         rack_position: RackPosition.Middle,
         rack_accessories: [RackAccessory.SheetTray],
         probe_target_temp: REHEAT_PROBE_TEMP,
@@ -509,7 +496,7 @@ export const cookingFunctions = {
         cooking_preset: ReheatPresets.Sandwiches,
         target_cavity_temp: 350,
         cooking_time: 300,
-        fan_speed: FanSpeed.Med,
+        fan_speed: FanSpeed.Medium,
         rack_position: RackPosition.Middle,
         rack_accessories: [RackAccessory.SheetTray],
         probe_target_temp: REHEAT_PROBE_TEMP,
@@ -548,7 +535,7 @@ export const cookingFunctions = {
       },
       fan_speed: {
         default: FanSpeed.Low,
-        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Med, FanSpeed.High],
+        options: [FanSpeed.Off, FanSpeed.Low, FanSpeed.Medium, FanSpeed.High],
       },
       probe_settings: {
         ...probeSettings,
@@ -581,8 +568,8 @@ export const cookingFunctions = {
         default: false,
       },
       temp_level: {
-        default: TempLevel.High,
-        options: [TempLevel.Low, TempLevel.High],
+        default: TemperatureLevel.High,
+        options: [TemperatureLevel.Low, TemperatureLevel.High],
       },
       cooking_time: {
         default: 43200,

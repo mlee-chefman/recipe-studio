@@ -1,56 +1,41 @@
-enum TWO_LEVEL {
-  HIGH = 1,
-  LOW = 0,
-}
-
-enum PRESSURE_RELEASE {
-  QUICK = 0,
-  PULSE = 1,
-  NATURAL = 2,
-}
-
-enum ON_OFF_LEVEL {
-  OFF = 0,
-  ON = 1,
-}
-
-enum FOUR_LEVEL {
-  LOW = 0,
-  MEDIUM_LOW = 1,
-  MEDIUM_HIGH = 2,
-  HIGH = 3,
-}
+import {
+  PressureLevel,
+  PressureRelease,
+  KeepWarm,
+  TemperatureLevel,
+  CookerMethod
+} from '../types/cookingEnums';
 
 export const getSmartCookerDefaultState = (cookingMethod: number) => {
   if (cookingMethod === COOKING_METHOD.PRESSURE) {
     return {
       cooking_method: COOKING_METHOD.PRESSURE,
-      pres_level: TWO_LEVEL.HIGH,
-      pres_release: PRESSURE_RELEASE.QUICK,
-      keep_warm: ON_OFF_LEVEL.ON,
+      pres_level: PressureLevel.High,
+      pres_release: PressureRelease.Quick,
+      keep_warm: KeepWarm.On,
       delay_time: 0,
     };
   }
   if (cookingMethod === COOKING_METHOD.SEAR_SAUTE) {
     return {
       cooking_method: COOKING_METHOD.SEAR_SAUTE,
-      temp_level: FOUR_LEVEL.MEDIUM_LOW,
-      keep_warm: ON_OFF_LEVEL.OFF,
+      temp_level: TemperatureLevel.MediumLow,
+      keep_warm: KeepWarm.Off,
       delay_time: 0,
     };
   }
   if (cookingMethod === COOKING_METHOD.STEAM) {
     return {
       cooking_method: COOKING_METHOD.STEAM,
-      keep_warm: ON_OFF_LEVEL.OFF,
+      keep_warm: KeepWarm.Off,
       delay_time: 0,
     };
   }
   if (cookingMethod === COOKING_METHOD.SLOW_COOK) {
     return {
       cooking_method: COOKING_METHOD.SLOW_COOK,
-      temp_level: TWO_LEVEL.HIGH,
-      keep_warm: ON_OFF_LEVEL.ON,
+      temp_level: TemperatureLevel.High,
+      keep_warm: KeepWarm.On,
       delay_time: 0,
     };
   }
@@ -75,9 +60,9 @@ export const getSmartCookerDefaultState = (cookingMethod: number) => {
   if (cookingMethod === COOKING_METHOD.STERILIZE) {
     return {
       cooking_method: COOKING_METHOD.STERILIZE,
-      pres_level: TWO_LEVEL.HIGH,
-      pres_release: PRESSURE_RELEASE.QUICK,
-      keep_warm: ON_OFF_LEVEL.OFF,
+      pres_level: PressureLevel.High,
+      pres_release: PressureRelease.Quick,
+      keep_warm: KeepWarm.Off,
       delay_time: 0,
     };
   }
@@ -85,12 +70,12 @@ export const getSmartCookerDefaultState = (cookingMethod: number) => {
 };
 
 const COOKING_METHOD = {
-  PRESSURE: 0,
-  SEAR_SAUTE: 1,
-  STEAM: 2,
-  SLOW_COOK: 3,
-  DEHYDRATE: 4,
-  SOUS_VIDE: 5,
+  PRESSURE: CookerMethod.Pressure,
+  SEAR_SAUTE: CookerMethod.SearSaute,
+  STEAM: CookerMethod.Steam,
+  SLOW_COOK: CookerMethod.SlowCook,
+  DEHYDRATE: CookerMethod.Dehydrate,
+  SOUS_VIDE: CookerMethod.SousVide,
   AIR_FRY: 6,
   TOAST: 7,
   BAGEL: 8,
