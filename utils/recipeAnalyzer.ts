@@ -74,10 +74,10 @@ const COOKING_METHOD_PATTERNS: CookingMethodKeywords[] = [
   {
     methodId: 'METHOD_BAKE',
     applianceType: 'oven',
-    keywords: ['bake', 'baking', 'oven', 'baked', '°f', 'degrees'],
+    keywords: ['bake', 'baking', 'oven', 'baked', 'preheat'],
     defaultParams: {
       cooking_time: 1800, // 30 minutes
-      target_cavity_temp: 350,
+      target_cavity_temp: 350, // Will be overridden by extracted temp
       fan_speed: 0,
     },
     estimatedTime: 30
@@ -180,17 +180,58 @@ export const analyzeRecipeForChefIQ = (
   cookTime: number
 ): RecipeAnalysisResult => {
   try {
-    const allText = [title, description, ...instructions].join(' ').toLowerCase();
+    const allText = [title, description, ...instructions].join(' ');
+    const allTextLower = allText.toLowerCase();
     const reasoning: string[] = [];
     const suggestedActions: CookingAction[] = [];
+
+  // Extract temperatures from the recipe text
+  const extractedTemp = extractTemperature(allText, true); // Prefer initial/preheat temperature
+  const temperatureSteps = extractTemperaturesWithContext(instructions);
+
+  // Extract cooking time from instructions
+  const extractedCookingTime = extractCookingTimeFromInstructions(instructions);
+
+  if (extractedTemp) {
+    reasoning.push(`Detected initial temperature: ${extractedTemp}°F`);
+  }
+
+  if (extractedCookingTime) {
+    reasoning.push(`Detected cooking time: ${extractedCookingTime} minutes from instructions`);
+  }
+
+  // Check if there are multiple temperature steps
+  if (temperatureSteps.length > 1) {
+    reasoning.push(`Detected ${temperatureSteps.length} temperature changes in recipe`);
+  }
 
   // Analyze individual instructions for cooking methods
   const instructionAnalysis = instructions.map((instruction, index) => {
     const instructionLower = instruction.toLowerCase();
-    const matches = COOKING_METHOD_PATTERNS.filter(pattern => {
+
+    // Special handling: if "increase temperature" is mentioned, it's likely baking, not dehydrating
+    let matches = COOKING_METHOD_PATTERNS.filter(pattern => {
+      // Skip dehydrate method if we see "increase temperature" or temperature changes
+      if (pattern.methodId === 'METHOD_DEHYDRATE' &&
+          (instructionLower.includes('increase') || instructionLower.includes('raise')) &&
+          instructionLower.includes('temperature')) {
+        return false;
+      }
+
       return pattern.keywords.some(keyword => instructionLower.includes(keyword));
     });
-    return { instruction, index, matches, text: instructionLower };
+
+    // If we detect temperature increase/change, prioritize baking methods
+    if ((instructionLower.includes('increase') || instructionLower.includes('raise')) &&
+        instructionLower.includes('temperature')) {
+      // Add baking method if not already present
+      const bakingMethod = COOKING_METHOD_PATTERNS.find(p => p.methodId === 'METHOD_BAKE');
+      if (bakingMethod && !matches.some(m => m.methodId === 'METHOD_BAKE')) {
+        matches.push(bakingMethod);
+      }
+    }
+
+    return { instruction, index, matches, text: instructionLower, originalText: instruction };
   });
 
   // Detect primary protein cooking vs auxiliary steps
@@ -199,9 +240,9 @@ export const analyzeRecipeForChefIQ = (
   const ovenKeywords = ['oven', 'bake', 'roast', 'broil', 'air fry'];
 
   // Check for grilling (should suggest oven as substitute)
-  const hasGrilling = grillKeywords.some(keyword => allText.includes(keyword));
-  const hasProtein = proteinKeywords.some(keyword => allText.includes(keyword));
-  const hasTemperatureCheck = allText.includes('degrees') || allText.includes('thermometer') || allText.includes('internal temperature');
+  const hasGrilling = grillKeywords.some(keyword => allTextLower.includes(keyword));
+  const hasProtein = proteinKeywords.some(keyword => allTextLower.includes(keyword));
+  const hasTemperatureCheck = allTextLower.includes('degrees') || allTextLower.includes('thermometer') || allTextLower.includes('internal temperature');
 
   if (hasGrilling && hasProtein) {
     reasoning.push('Detected grilling recipe with protein - suggesting oven as ChefIQ alternative.');
@@ -209,10 +250,10 @@ export const analyzeRecipeForChefIQ = (
     // For grilled proteins, suggest oven methods (air fry, broil, or bake)
     let suggestedOvenMethod = 'METHOD_AIR_FRY'; // Default for crispy results
 
-    if (allText.includes('crispy') || allText.includes('crunchy')) {
+    if (allTextLower.includes('crispy') || allTextLower.includes('crunchy')) {
       suggestedOvenMethod = 'METHOD_AIR_FRY';
       reasoning.push('Detected need for crispy texture - suggesting Air Fry.');
-    } else if (allText.includes('char') || allText.includes('sear') || allText.includes('brown')) {
+    } else if (allTextLower.includes('char') || allTextLower.includes('sear') || allTextLower.includes('brown')) {
       suggestedOvenMethod = 'METHOD_BROIL';
       reasoning.push('Detected need for browning/searing - suggesting Broil.');
     } else if (cookTime > 20) {
@@ -227,13 +268,14 @@ export const analyzeRecipeForChefIQ = (
         const action: CookingAction = {
           id: `auto_${Date.now()}`,
           applianceId: ovenAppliance.category_id,
-          methodId: suggestedOvenMethod,
+          methodId: String(suggestedOvenMethod),
           methodName: methodPattern.keywords[0].split(' ').map(word =>
             word.charAt(0).toUpperCase() + word.slice(1)
           ).join(' '),
           parameters: {
             ...methodPattern.defaultParams,
-            ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allText) } : {}),
+            ...(extractedTemp && suggestedOvenMethod === 'METHOD_BAKE' ? { target_cavity_temp: extractedTemp } : {}),
+            ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allTextLower) } : {}),
             cooking_time: cookTime * 60 || methodPattern.estimatedTime! * 60,
           },
         };
@@ -252,7 +294,7 @@ export const analyzeRecipeForChefIQ = (
 
   // Find matching cooking methods for non-grilling recipes
   const methodMatches = COOKING_METHOD_PATTERNS.filter(pattern => {
-    return pattern.keywords.some(keyword => allText.includes(keyword));
+    return pattern.keywords.some(keyword => allTextLower.includes(keyword));
   });
 
 
@@ -266,11 +308,23 @@ export const analyzeRecipeForChefIQ = (
 
   // Score each method by keyword frequency
   const scoredMethods = methodMatches.map(method => {
-    const matchCount = method.keywords.reduce((count, keyword) => {
+    let matchCount = method.keywords.reduce((count, keyword) => {
       const regex = new RegExp(keyword, 'gi');
-      const matches = allText.match(regex);
+      const matches = allTextLower.match(regex);
       return count + (matches ? matches.length : 0);
     }, 0);
+
+    // Boost baking score if temperature increase is mentioned
+    if (method.methodId === 'METHOD_BAKE' &&
+        (allTextLower.includes('increase temperature') || allTextLower.includes('increase oven temperature'))) {
+      matchCount += 5; // Strong indicator for baking
+      reasoning.push('Detected temperature increase instructions - prioritizing bake method.');
+    }
+
+    // Reduce dehydrate score if high temperatures are mentioned
+    if (method.methodId === 'METHOD_DEHYDRATE' && extractedTemp && extractedTemp > 200) {
+      matchCount = Math.max(0, matchCount - 3); // Dehydrating typically uses low temps
+    }
 
     return { method, score: matchCount };
   }).sort((a, b) => b.score - a.score);
@@ -295,7 +349,7 @@ export const analyzeRecipeForChefIQ = (
   let probeTemp = 160; // default
 
   if (bestMethod.method.applianceType === 'oven') {
-    const hasProbeKeywords = PROBE_KEYWORDS.some(keyword => allText.includes(keyword));
+    const hasProbeKeywords = PROBE_KEYWORDS.some(keyword => allTextLower.includes(keyword));
 
     if (hasProbeKeywords) {
       useProbe = true;
@@ -303,7 +357,7 @@ export const analyzeRecipeForChefIQ = (
 
       // Try to find specific protein and temperature
       for (const [protein, temp] of Object.entries(PROTEIN_TEMPERATURES)) {
-        if (allText.includes(protein)) {
+        if (allTextLower.includes(protein)) {
           probeTemp = temp;
           reasoning.push(`Found "${protein}" in recipe, suggesting ${temp}°F target temperature.`);
           break;
@@ -312,24 +366,68 @@ export const analyzeRecipeForChefIQ = (
     }
   }
 
-  // Create primary cooking action
+  // Create primary cooking action with extracted temperature
+  const primaryParams = { ...bestMethod.method.defaultParams };
+
+  // Override temperature for baking methods if we extracted one
+  if (bestMethod.method.applianceType === 'oven' && extractedTemp) {
+    if (bestMethod.method.methodId === 'METHOD_BAKE' ||
+        bestMethod.method.methodId === 'METHOD_ROAST' ||
+        bestMethod.method.methodId === 'METHOD_AIR_FRY') {
+      primaryParams.target_cavity_temp = extractedTemp;
+      reasoning.push(`Using extracted initial temperature of ${extractedTemp}°F for ${bestMethod.method.keywords[0]}.`);
+    }
+  }
+
   const primaryAction: CookingAction = {
     id: `auto_${Date.now()}`,
     applianceId: suggestedAppliance.category_id,
-    methodId: bestMethod.method.methodId,
+    methodId: String(bestMethod.method.methodId),
     methodName: bestMethod.method.keywords[0].split(' ').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' '),
     parameters: {
-      ...bestMethod.method.defaultParams,
+      ...primaryParams,
       ...(useProbe ? { target_probe_temp: probeTemp } : {}),
-      // Adjust cooking time based on recipe if available
-      cooking_time: bestMethod.method.defaultParams.cooking_time || (cookTime * 60),
+      // Use extracted cooking time from instructions, fall back to passed cookTime, then default
+      cooking_time: (extractedCookingTime ? extractedCookingTime * 60 : null) ||
+                   (cookTime * 60) ||
+                   primaryParams.cooking_time,
     },
   };
 
   suggestedActions.push(primaryAction);
   reasoning.push(`Suggested ${suggestedAppliance.name} with ${primaryAction.methodName} method.`);
+
+  // Check if there's a temperature increase step for baking
+  if (bestMethod.method.applianceType === 'oven' &&
+      bestMethod.method.methodId === 'METHOD_BAKE' &&
+      temperatureSteps.length > 1) {
+
+    const increaseStep = temperatureSteps.find(t => t.isIncrease);
+    if (increaseStep && increaseStep.temp > (extractedTemp || 0)) {
+      // Create a second baking action for the increased temperature
+      const totalCookingTime = (extractedCookingTime ? extractedCookingTime * 60 : null) ||
+                              (cookTime * 60) ||
+                              primaryParams.cooking_time;
+
+      const secondBakeAction: CookingAction = {
+        id: `auto_${Date.now()}_temp_increase`,
+        applianceId: suggestedAppliance.category_id,
+        methodId: String(bestMethod.method.methodId),
+        methodName: 'Bake (Increased Temp)',
+        parameters: {
+          ...primaryParams,
+          target_cavity_temp: increaseStep.temp,
+          cooking_time: Math.floor(totalCookingTime / 3), // Assume 1/3 of time at higher temp
+        },
+        stepIndex: increaseStep.step
+      };
+
+      suggestedActions.push(secondBakeAction);
+      reasoning.push(`Added second baking step at ${increaseStep.temp}°F for temperature increase.`);
+    }
+  }
 
   // Look for additional cooking methods in the recipe (e.g., sauté then pressure cook)
   const additionalMethods = scoredMethods.slice(1, 3).filter(method =>
@@ -342,7 +440,7 @@ export const analyzeRecipeForChefIQ = (
     const additionalAction: CookingAction = {
       id: `auto_${Date.now()}_${index + 1}`,
       applianceId: suggestedAppliance.category_id,
-      methodId: method.method.methodId,
+      methodId: String(method.method.methodId),
       methodName: method.method.keywords[0].split(' ').map(word =>
         word.charAt(0).toUpperCase() + word.slice(1)
       ).join(' '),
@@ -399,4 +497,155 @@ export const extractCookingTime = (text: string): number => {
   });
 
   return totalMinutes || 30;
+};
+
+// Helper function to extract baking/cooking times from recipe instructions
+export const extractCookingTimeFromInstructions = (instructions: string[]): number | null => {
+  // Look for baking/cooking time patterns in instructions
+  const timePatterns = [
+    /bake.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /cook.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /oven.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /roast.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?.*?(?:in\s+(?:the\s+)?oven|baking|cooking)/gi,
+    /(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?(?:\s*[,.]?\s*or\s+until)/gi,
+    /(?:for\s+an?\s+additional\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let totalTime = 0;
+  let foundTime = false;
+  const foundTimes: number[] = [];
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    // Skip pure prep steps, but allow steps that might have cooking time
+    if (instructionLower.startsWith('preheat') ||
+        instructionLower.includes('prepare') ||
+        instructionLower.includes('mix') ||
+        instructionLower.includes('combine')) {
+      continue;
+    }
+
+    for (const pattern of timePatterns) {
+      pattern.lastIndex = 0; // Reset regex
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        // Convert to minutes
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        // If there's a range (e.g., "20-25 minutes"), use the higher value for safety
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Accumulate cooking times (e.g., "2 hours" + "additional 30 minutes")
+        if (minutes > 0 && minutes <= 480) { // Max 8 hours
+          if (instructionLower.includes('additional')) {
+            // This is additional time, add to total
+            totalTime += minutes;
+          } else {
+            // This is a main cooking time
+            foundTimes.push(minutes);
+          }
+          foundTime = true;
+        }
+      }
+    }
+  }
+
+  if (foundTime) {
+    // If we have main cooking times, use the longest one and add any additional time
+    const mainTime = foundTimes.length > 0 ? Math.max(...foundTimes) : 0;
+    const result = mainTime + totalTime;
+    return result;
+  }
+
+  return null;
+};
+
+// Helper function to extract temperature from text
+export const extractTemperature = (text: string, preferInitial: boolean = true): number | null => {
+  // Look for temperature patterns like "350°F", "350 degrees F", "350 degrees", etc.
+  // Also handle "preheat oven to 350", "increase temperature to 350"
+  const tempPatterns = [
+    /(\d{2,3})\s*°\s*F/gi,
+    /(\d{2,3})\s*degrees\s*(?:F|Fahrenheit)?/gi,
+    /preheat\s+(?:oven\s+)?(?:to\s+)?(\d{2,3})/gi,
+    /temperature\s+(?:to\s+)?(\d{2,3})/gi,
+    /heat\s+(?:to\s+)?(\d{2,3})/gi,
+    /oven\s+(?:to\s+)?(\d{2,3})/gi,
+    /bake\s+(?:at\s+)?(\d{2,3})/gi,
+  ];
+
+  let temperatures: number[] = [];
+
+  for (const pattern of tempPatterns) {
+    let match;
+    pattern.lastIndex = 0; // Reset regex
+    while ((match = pattern.exec(text)) !== null) {
+      const temp = parseInt(match[1]);
+      // Valid oven temperature range
+      if (temp >= 150 && temp <= 550) {
+        temperatures.push(temp);
+      }
+    }
+  }
+
+  // If multiple temperatures found, prioritize based on context
+  if (temperatures.length > 0) {
+    const textLower = text.toLowerCase();
+
+    // For initial cooking (preheat), use the first temperature found
+    if (preferInitial && textLower.includes('preheat')) {
+      // Find the temperature associated with preheat
+      const preheatMatch = textLower.match(/preheat[^0-9]*(\d{2,3})/);
+      if (preheatMatch) {
+        const preheatTemp = parseInt(preheatMatch[1]);
+        if (preheatTemp >= 150 && preheatTemp <= 550) {
+          return preheatTemp;
+        }
+      }
+    }
+
+    // For "increase temperature" patterns, use the higher temp
+    if (textLower.includes('increase') && textLower.includes('temperature')) {
+      return Math.max(...temperatures);
+    }
+
+    // Otherwise return the first found temperature (usually the main cooking temp)
+    return temperatures[0];
+  }
+
+  return null;
+};
+
+// Helper function to extract multiple temperatures with their contexts
+export const extractTemperaturesWithContext = (instructions: string[]): { step: number; temp: number; isIncrease: boolean }[] => {
+  const temperatures: { step: number; temp: number; isIncrease: boolean }[] = [];
+
+  instructions.forEach((instruction, index) => {
+    const temp = extractTemperature(instruction, false);
+    if (temp) {
+      const isIncrease = instruction.toLowerCase().includes('increase');
+      temperatures.push({
+        step: index,
+        temp,
+        isIncrease
+      });
+    }
+  });
+
+  return temperatures;
 };
