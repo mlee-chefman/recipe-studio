@@ -376,16 +376,218 @@ export const analyzeRecipeForChefIQ = (
     }
   }
 
-  // Create primary cooking action with extracted temperature
+  // Create primary cooking action with extracted parameters
   const primaryParams = { ...bestMethod.method.defaultParams };
 
-  // Override temperature for baking methods if we extracted one
+  // Override temperature for oven methods if we extracted one
   if (bestMethod.method.applianceType === 'oven' && extractedTemp) {
     if (bestMethod.method.methodId === OvenMethod.Bake ||
         bestMethod.method.methodId === OvenMethod.Roast ||
         bestMethod.method.methodId === OvenMethod.AirFry) {
       primaryParams.target_cavity_temp = extractedTemp;
       reasoning.push(`Using extracted initial temperature of ${extractedTemp}°F for ${bestMethod.method.keywords[0]}.`);
+    }
+  }
+
+  // Extract specialized parameters for air frying
+  if (bestMethod.method.applianceType === 'oven' &&
+      bestMethod.method.methodId === OvenMethod.AirFry) {
+    const airFryParams = extractAirFryingParams(instructions);
+
+    if (airFryParams.temperature) {
+      primaryParams.target_cavity_temp = airFryParams.temperature;
+      reasoning.push(`Using extracted air fryer temperature: ${airFryParams.temperature}°F`);
+    }
+
+    if (airFryParams.fanSpeed !== undefined) {
+      primaryParams.fan_speed = airFryParams.fanSpeed;
+      reasoning.push(`Using air fryer fan speed: High`);
+    }
+
+    // Override cooking time with air fry-specific time if found
+    if (airFryParams.cookingTime) {
+      primaryParams.cooking_time = airFryParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted air frying time: ${airFryParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for roasting
+  if (bestMethod.method.applianceType === 'oven' &&
+      bestMethod.method.methodId === OvenMethod.Roast) {
+    const roastParams = extractRoastingParams(instructions);
+
+    if (roastParams.temperature) {
+      primaryParams.target_cavity_temp = roastParams.temperature;
+      reasoning.push(`Using extracted roasting temperature: ${roastParams.temperature}°F`);
+    }
+
+    if (roastParams.fanSpeed !== undefined) {
+      primaryParams.fan_speed = roastParams.fanSpeed;
+      reasoning.push(`Using roasting fan speed: Medium`);
+    }
+
+    // Override cooking time with roast-specific time if found
+    if (roastParams.cookingTime) {
+      primaryParams.cooking_time = roastParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted roasting time: ${roastParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for broiling
+  if (bestMethod.method.applianceType === 'oven' &&
+      bestMethod.method.methodId === OvenMethod.Broil) {
+    const broilParams = extractBroilingParams(instructions);
+
+    if (broilParams.tempLevel !== undefined) {
+      primaryParams.temp_level = broilParams.tempLevel;
+      const tempLevelName = broilParams.tempLevel === TemperatureLevel.Low ? 'Low' : 'High';
+      reasoning.push(`Using broiling temperature level: ${tempLevelName}`);
+    }
+
+    // Override cooking time with broil-specific time if found
+    if (broilParams.cookingTime) {
+      primaryParams.cooking_time = broilParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted broiling time: ${broilParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for steaming
+  if (bestMethod.method.applianceType === 'cooker' &&
+      bestMethod.method.methodId === CookerMethod.Steam) {
+    const steamParams = extractSteamingParams(instructions);
+
+    // Override cooking time with steam-specific time if found
+    if (steamParams.cookingTime) {
+      primaryParams.cooking_time = steamParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted steaming time: ${steamParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for searing/sautéing
+  if (bestMethod.method.applianceType === 'cooker' &&
+      bestMethod.method.methodId === CookerMethod.SearSaute) {
+    const searParams = extractSearingSauteParams(instructions);
+
+    if (searParams.tempLevel !== undefined) {
+      primaryParams.temp_level = searParams.tempLevel;
+      const tempLevelName = searParams.tempLevel === TemperatureLevel.MediumLow ? 'Medium-Low' :
+                           searParams.tempLevel === TemperatureLevel.MediumHigh ? 'Medium-High' : 'High';
+      reasoning.push(`Using searing/sautéing temperature level: ${tempLevelName}`);
+    }
+
+    // Override cooking time with sear/sauté-specific time if found
+    if (searParams.cookingTime) {
+      primaryParams.cooking_time = searParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted searing/sautéing time: ${searParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for sous vide
+  if (bestMethod.method.applianceType === 'cooker' &&
+      bestMethod.method.methodId === CookerMethod.SousVide) {
+    const sousVideParams = extractSousVideParams(instructions);
+
+    if (sousVideParams.temperature) {
+      primaryParams.cooking_temp = sousVideParams.temperature;
+      reasoning.push(`Using extracted sous vide temperature: ${sousVideParams.temperature}°F`);
+    }
+
+    // Override cooking time with sous vide-specific time if found
+    if (sousVideParams.cookingTime) {
+      primaryParams.cooking_time = sousVideParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted sous vide time: ${sousVideParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for toasting
+  if (bestMethod.method.applianceType === 'oven' &&
+      bestMethod.method.methodId === OvenMethod.Toast) {
+    const toastParams = extractToastingParams(instructions);
+
+    if (toastParams.shadeLevel !== undefined) {
+      primaryParams.shade_level = toastParams.shadeLevel;
+      const shadeName = Object.values(ShadeLevel)[toastParams.shadeLevel];
+      reasoning.push(`Using toasting shade level: ${shadeName}`);
+    }
+
+    if (toastParams.isFrozen) {
+      primaryParams.is_frozen = toastParams.isFrozen;
+      reasoning.push(`Detected frozen bread setting`);
+    }
+
+    if (toastParams.isBagel) {
+      primaryParams.is_bagel = toastParams.isBagel;
+      reasoning.push(`Detected bagel mode setting`);
+    }
+
+    // Override cooking time with toast-specific time if found
+    if (toastParams.cookingTime) {
+      primaryParams.cooking_time = toastParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted toasting time: ${toastParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for dehydrating
+  if (bestMethod.method.applianceType === 'oven' &&
+      bestMethod.method.methodId === OvenMethod.Dehydrate) {
+    const dehydrateParams = extractDehydratingParams(instructions);
+
+    if (dehydrateParams.temperature) {
+      primaryParams.target_cavity_temp = dehydrateParams.temperature;
+      reasoning.push(`Using extracted dehydrating temperature: ${dehydrateParams.temperature}°F`);
+    }
+
+    if (dehydrateParams.fanSpeed !== undefined) {
+      primaryParams.fan_speed = dehydrateParams.fanSpeed;
+      reasoning.push(`Using dehydrating fan speed: Low`);
+    }
+
+    // Override cooking time with dehydrate-specific time if found
+    if (dehydrateParams.cookingTime) {
+      primaryParams.cooking_time = dehydrateParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted dehydrating time: ${dehydrateParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for pressure cooking
+  if (bestMethod.method.applianceType === 'cooker' &&
+      bestMethod.method.methodId === CookerMethod.Pressure) {
+    const pressureParams = extractPressureCookingParams(instructions);
+
+    if (pressureParams.pressureLevel !== undefined) {
+      primaryParams.pres_level = pressureParams.pressureLevel;
+      reasoning.push(`Detected pressure level: ${pressureParams.pressureLevel === PressureLevel.High ? 'High' : 'Low'} pressure`);
+    }
+
+    if (pressureParams.pressureRelease !== undefined) {
+      primaryParams.pres_release = pressureParams.pressureRelease;
+      const releaseMethod = pressureParams.pressureRelease === PressureRelease.Natural ? 'Natural' :
+                           pressureParams.pressureRelease === PressureRelease.Pulse ? 'Pulse' : 'Quick';
+      reasoning.push(`Detected pressure release method: ${releaseMethod} release`);
+    }
+
+    // Override cooking time with pressure-specific time if found
+    if (pressureParams.cookingTime) {
+      primaryParams.cooking_time = pressureParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted pressure cooking time: ${pressureParams.cookingTime} minutes`);
+    }
+  }
+
+  // Extract specialized parameters for slow cooking
+  if (bestMethod.method.applianceType === 'cooker' &&
+      bestMethod.method.methodId === CookerMethod.SlowCook) {
+    const slowCookParams = extractSlowCookingParams(instructions);
+
+    if (slowCookParams.tempLevel !== undefined) {
+      primaryParams.temp_level = slowCookParams.tempLevel;
+      const tempLevelName = slowCookParams.tempLevel === TemperatureLevel.Low ? 'Low' : 'High';
+      reasoning.push(`Detected slow cooking temperature level: ${tempLevelName}`);
+    }
+
+    // Override cooking time with slow cook-specific time if found
+    if (slowCookParams.cookingTime) {
+      primaryParams.cooking_time = slowCookParams.cookingTime * 60; // Convert to seconds
+      reasoning.push(`Using extracted slow cooking time: ${slowCookParams.cookingTime} minutes`);
     }
   }
 
@@ -658,4 +860,734 @@ export const extractTemperaturesWithContext = (instructions: string[]): { step: 
   });
 
   return temperatures;
+};
+
+// Helper function to extract pressure cooking parameters
+export const extractPressureCookingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract pressure level
+  let pressureLevel = PressureLevel.High; // Default
+  if (allText.includes('low pressure') || allText.includes('gentle pressure')) {
+    pressureLevel = PressureLevel.Low;
+  }
+
+  // Extract pressure release method
+  let pressureRelease = PressureRelease.Quick; // Default
+  if (allText.includes('natural release') || allText.includes('naturally release') ||
+      allText.includes('let pressure release naturally')) {
+    pressureRelease = PressureRelease.Natural;
+  } else if (allText.includes('pulse release') || allText.includes('intermittent release')) {
+    pressureRelease = PressureRelease.Pulse;
+  }
+
+  // Extract pressure cooking time
+  const pressureTimePatterns = [
+    /pressure\s+cook.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /cook\s+(?:under\s+)?pressure.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:in\s+)?(?:the\s+)?(?:instant\s+pot|pressure\s+cooker).*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of pressureTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        if (minutes > 0 && minutes <= 240) { // Max 4 hours for pressure cooking
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  return {
+    pressureLevel,
+    pressureRelease,
+    cookingTime
+  };
+};
+
+// Helper function to extract slow cooking parameters
+export const extractSlowCookingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract temperature level for slow cooking
+  let tempLevel = TemperatureLevel.High; // Default
+  if (allText.includes('low heat') || allText.includes('on low') ||
+      allText.includes('low temperature') || allText.includes('low setting')) {
+    tempLevel = TemperatureLevel.Low;
+  }
+
+  // Extract slow cooking time - typically longer than regular cooking
+  const slowCookTimePatterns = [
+    /slow\s+cook.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /cook\s+(?:on\s+)?(?:low|high).*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:in\s+)?(?:the\s+)?(?:slow\s+cooker|crock\s+pot).*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /simmer.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of slowCookTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Slow cooking typically takes 2+ hours, accept longer times
+        if (minutes >= 30 && minutes <= 1440) { // 30 minutes to 24 hours
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  return {
+    tempLevel,
+    cookingTime
+  };
+};
+
+// Helper function to extract air frying parameters
+export const extractAirFryingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract air fryer temperature (higher than normal baking)
+  let temperature: number | null = null;
+  const airFryTempPatterns = [
+    /air\s+fry.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /(?:in\s+)?(?:the\s+)?air\s+fryer.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /crispy.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+  ];
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of airFryTempPatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const temp = parseInt(match[1]);
+        if (temp >= 300 && temp <= 450) { // Typical air fryer range
+          temperature = temp;
+          break;
+        }
+      }
+      if (temperature) break;
+    }
+    if (temperature) break;
+  }
+
+  // Extract air frying time (typically shorter than baking)
+  const airFryTimePatterns = [
+    /air\s+fry.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:in\s+)?(?:the\s+)?air\s+fryer.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /crispy.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of airFryTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Air frying typically 5-60 minutes
+        if (minutes >= 3 && minutes <= 120) {
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  // Fan speed is always high for air frying
+  const fanSpeed = FanSpeed.High;
+
+  return {
+    temperature,
+    cookingTime,
+    fanSpeed
+  };
+};
+
+// Helper function to extract roasting parameters
+export const extractRoastingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract roasting temperature (typically higher than baking)
+  let temperature: number | null = null;
+  const roastTempPatterns = [
+    /roast.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /roasting.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /oven.*?roast.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+  ];
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of roastTempPatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const temp = parseInt(match[1]);
+        if (temp >= 325 && temp <= 500) { // Typical roasting range
+          temperature = temp;
+          break;
+        }
+      }
+      if (temperature) break;
+    }
+    if (temperature) break;
+  }
+
+  // Extract roasting time (typically longer than air frying, similar to baking)
+  const roastTimePatterns = [
+    /roast.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /roasting.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:in\s+)?(?:the\s+)?oven.*?roast.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of roastTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Roasting typically 20 minutes to 4 hours
+        if (minutes >= 15 && minutes <= 240) {
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  // Medium fan speed for roasting (allows for browning but not too intense)
+  const fanSpeed = FanSpeed.Medium;
+
+  return {
+    temperature,
+    cookingTime,
+    fanSpeed
+  };
+};
+
+// Helper function to extract broiling parameters
+export const extractBroilingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract broiling temperature level (high/low)
+  let tempLevel = TemperatureLevel.High; // Default for broiling
+  if (allText.includes('low broil') || allText.includes('broil on low') ||
+      allText.includes('low heat broil')) {
+    tempLevel = TemperatureLevel.Low;
+  }
+
+  // Extract broiling time (typically very short)
+  const broilTimePatterns = [
+    /broil.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /broiling.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:under\s+)?(?:the\s+)?broiler.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of broilTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Broiling typically 2-20 minutes
+        if (minutes >= 1 && minutes <= 30) {
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  return {
+    tempLevel,
+    cookingTime
+  };
+};
+
+// Helper function to extract steaming parameters
+export const extractSteamingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract steaming time (typically moderate cooking times)
+  const steamTimePatterns = [
+    /steam.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /steaming.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:in\s+)?(?:the\s+)?steamer.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /steam\s+basket.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of steamTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Steaming typically 3-60 minutes
+        if (minutes >= 2 && minutes <= 90) {
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  return {
+    cookingTime
+  };
+};
+
+// Helper function to extract searing/sautéing parameters
+export const extractSearingSauteParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract temperature level for searing/sautéing
+  let tempLevel = TemperatureLevel.MediumHigh; // Default for searing
+  if (allText.includes('low heat') || allText.includes('gentle') ||
+      allText.includes('low temperature')) {
+    tempLevel = TemperatureLevel.MediumLow;
+  } else if (allText.includes('high heat') || allText.includes('hot')) {
+    tempLevel = TemperatureLevel.High;
+  }
+
+  // Extract searing/sautéing time (typically short)
+  const searTimePatterns = [
+    /sear.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /saut[ée].*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /brown.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /fry.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of searTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Searing/sautéing typically 1-30 minutes
+        if (minutes >= 1 && minutes <= 45) {
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  return {
+    tempLevel,
+    cookingTime
+  };
+};
+
+// Helper function to extract sous vide parameters
+export const extractSousVideParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract sous vide temperature (very precise, typically 110-200°F)
+  let temperature: number | null = null;
+  const sousVideTempPatterns = [
+    /sous\s+vide.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /water\s+bath.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /vacuum.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /immersion.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+  ];
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of sousVideTempPatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const temp = parseInt(match[1]);
+        if (temp >= 110 && temp <= 200) { // Typical sous vide range
+          temperature = temp;
+          break;
+        }
+      }
+      if (temperature) break;
+    }
+    if (temperature) break;
+  }
+
+  // Extract sous vide cooking time (typically very long - hours)
+  const sousVideTimePatterns = [
+    /sous\s+vide.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /water\s+bath.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /vacuum.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /immersion.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of sousVideTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Sous vide typically 30 minutes to 72 hours
+        if (minutes >= 30 && minutes <= 4320) { // 30 min to 72 hours
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  return {
+    temperature,
+    cookingTime
+  };
+};
+
+// Helper function to extract toasting parameters
+export const extractToastingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract shade level for toasting
+  let shadeLevel = ShadeLevel.Medium; // Default
+  if (allText.includes('light') || allText.includes('lightly toasted') ||
+      allText.includes('pale golden')) {
+    shadeLevel = ShadeLevel.Light;
+  } else if (allText.includes('medium light') || allText.includes('golden')) {
+    shadeLevel = ShadeLevel.MediumLight;
+  } else if (allText.includes('medium dark') || allText.includes('deep golden')) {
+    shadeLevel = ShadeLevel.MediumDark;
+  } else if (allText.includes('dark') || allText.includes('well toasted') ||
+             allText.includes('deep brown')) {
+    shadeLevel = ShadeLevel.Dark;
+  }
+
+  // Extract toasting time (typically very short)
+  const toastTimePatterns = [
+    /toast.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /toasting.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /golden\s+brown.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of toastTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Toasting typically 1-10 minutes
+        if (minutes >= 1 && minutes <= 15) {
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  // Check for frozen bread
+  let isFrozen = false;
+  if (allText.includes('frozen') || allText.includes('from frozen')) {
+    isFrozen = true;
+  }
+
+  // Check for bagel mode
+  let isBagel = false;
+  if (allText.includes('bagel') || allText.includes('english muffin') ||
+      allText.includes('cut side')) {
+    isBagel = true;
+  }
+
+  return {
+    shadeLevel,
+    cookingTime,
+    isFrozen,
+    isBagel
+  };
+};
+
+// Helper function to extract dehydrating parameters
+export const extractDehydratingParams = (instructions: string[]) => {
+  const allText = instructions.join(' ').toLowerCase();
+
+  // Extract dehydrating temperature (very low, typically 95-165°F)
+  let temperature: number | null = null;
+  const dehydrateTempPatterns = [
+    /dehydrat.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /dry.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /low\s+heat.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /jerky.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /(?:at\s+)?(\d{2,3})\s*degrees.*?jerky/gi,
+  ];
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of dehydrateTempPatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const temp = parseInt(match[1]);
+        if (temp >= 95 && temp <= 165) { // Typical dehydrating range
+          temperature = temp;
+          break;
+        }
+      }
+      if (temperature) break;
+    }
+    if (temperature) break;
+  }
+
+  // Extract dehydrating time (typically very long - many hours)
+  const dehydrateTimePatterns = [
+    /dehydrat.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /dry.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /until\s+dried.*?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /jerky.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+  ];
+
+  let cookingTime: number | null = null;
+
+  for (const instruction of instructions) {
+    const instructionLower = instruction.toLowerCase();
+
+    for (const pattern of dehydrateTimePatterns) {
+      pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.exec(instructionLower)) !== null) {
+        const time1 = parseInt(match[1]);
+        const time2 = match[2] ? parseInt(match[2]) : null;
+        const unit = match[3].toLowerCase();
+
+        let minutes = time1;
+        if (unit.includes('hour') || unit.includes('hr')) {
+          minutes = time1 * 60;
+        }
+
+        if (time2) {
+          let minutes2 = time2;
+          if (unit.includes('hour') || unit.includes('hr')) {
+            minutes2 = time2 * 60;
+          }
+          minutes = Math.max(minutes, minutes2);
+        }
+
+        // Dehydrating typically 2-72 hours
+        if (minutes >= 120 && minutes <= 4320) { // 2 hours to 72 hours
+          cookingTime = minutes;
+          break;
+        }
+      }
+      if (cookingTime) break;
+    }
+    if (cookingTime) break;
+  }
+
+  // Low fan speed for dehydrating (gentle air circulation)
+  const fanSpeed = FanSpeed.Low;
+
+  return {
+    temperature,
+    cookingTime,
+    fanSpeed
+  };
 };
