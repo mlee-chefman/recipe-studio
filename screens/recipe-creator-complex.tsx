@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Switch } from 'react-native';
+import MultilineInstructionInput from '../components/MultilineInstructionInput';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRecipeStore, Recipe } from '../store/store';
@@ -910,12 +911,29 @@ export default function RecipeCreatorScreen({ editingRecipe, onEditComplete }: R
                   )}
                 </View>
               ))}
-              <TouchableOpacity
-                onPress={addIngredient}
-                className="bg-blue-500 rounded-lg px-4 py-2 mt-2"
-              >
-                <Text className="text-white text-center font-semibold">Add Ingredient</Text>
-              </TouchableOpacity>
+              {/* Add New Ingredient Input */}
+              <View className="flex-row items-center mt-2">
+                <TextInput
+                  className="flex-1 border border-dashed border-gray-300 rounded-lg px-3 py-2 text-base"
+                  placeholder="+ Add new ingredient"
+                  value=""
+                  onChangeText={(value) => {
+                    if (value.trim()) {
+                      // Add new ingredient with the typed value
+                      setIngredients([...ingredients, value]);
+                    }
+                  }}
+                  onSubmitEditing={(event) => {
+                    const value = event.nativeEvent.text;
+                    if (value.trim()) {
+                      // Add new ingredient
+                      setIngredients([...ingredients, value]);
+                    }
+                  }}
+                  returnKeyType="next"
+                  style={{ opacity: 0.6 }}
+                />
+              </View>
               {validationErrors.ingredients && (
                 <Text className="text-red-500 text-sm mt-2">{validationErrors.ingredients}</Text>
               )}
@@ -930,13 +948,13 @@ export default function RecipeCreatorScreen({ editingRecipe, onEditComplete }: R
                   <View key={index} className="mb-4">
                     <View className="flex-row items-start">
                       <Text className="text-base font-semibold mr-2 mt-2">{index + 1}.</Text>
-                      <TextInput
+                      <MultilineInstructionInput
                         className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base mr-2"
                         placeholder={`Step ${index + 1}`}
                         value={instruction}
                         onChangeText={(value) => updateInstruction(index, value)}
-                        multiline
-                        numberOfLines={2}
+                        onAddNewStep={() => addInstruction()}
+                        isLastStep={index === instructions.length - 1}
                       />
                       {instructions.length > 1 && (
                         <TouchableOpacity
@@ -999,12 +1017,26 @@ export default function RecipeCreatorScreen({ editingRecipe, onEditComplete }: R
                   </View>
                 );
               })}
-              <TouchableOpacity
-                onPress={addInstruction}
-                className="bg-blue-500 rounded-lg px-4 py-2 mt-2"
-              >
-                <Text className="text-white text-center font-semibold">Add Step</Text>
-              </TouchableOpacity>
+              {/* Add New Instruction Input */}
+              <View className="flex-row items-center mt-2">
+                <MultilineInstructionInput
+                  className="flex-1 border border-dashed border-gray-300 rounded-lg px-3 py-2 text-base"
+                  placeholder="+ Add new instruction step"
+                  value=""
+                  onChangeText={(value) => {
+                    if (value.trim()) {
+                      // Add new instruction with the typed value
+                      setInstructions([...instructions, value]);
+                    }
+                  }}
+                  onAddNewStep={() => {
+                    // This will be called when Enter is pressed at end of text
+                    // A new instruction has already been added via onChangeText
+                  }}
+                  isLastStep={true}
+                  style={{ opacity: 0.6, minHeight: 40 }}
+                />
+              </View>
               {validationErrors.instructions && (
                 <Text className="text-red-500 text-sm mt-2">{validationErrors.instructions}</Text>
               )}
