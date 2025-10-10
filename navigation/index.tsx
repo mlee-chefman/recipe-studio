@@ -4,6 +4,7 @@ import Modal from '../screens/modal';
 import RecipeDetail from '../screens/recipeDetail';
 import RecipeCreator from '../screens/recipeCreator';
 import RecipeEdit from '../screens/recipeEdit';
+import RecipeWebImport from '../screens/RecipeWebImport';
 import TabNavigator from './tabNavigator';
 
 const Stack = createStackNavigator({
@@ -30,6 +31,13 @@ const Stack = createStackNavigator({
     },
     RecipeEdit: {
       screen: RecipeEdit,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
+    RecipeWebImport: {
+      screen: RecipeWebImport,
       options: {
         headerShown: true,
         presentation: 'card',
