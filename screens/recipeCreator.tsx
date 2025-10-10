@@ -1,5 +1,7 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, Modal } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import MultilineInstructionInput, { MultilineInstructionInputRef } from '../components/MultilineInstructionInput';
 import { Picker } from '@react-native-picker/picker';
 import { RECIPE_OPTIONS } from '../constants/recipeDefaults';
 import { Image } from 'expo-image';
@@ -21,6 +23,7 @@ interface RecipeCreatorProps {
 export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps = {}) {
   const navigation = useNavigation();
   const [editingCookingAction, setEditingCookingAction] = React.useState<{ action: CookingAction, stepIndex: number } | null>(null);
+  const [newInstructionText, setNewInstructionText] = React.useState('');
 
   const {
     formData,
@@ -286,44 +289,32 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
   // Refs for managing focus
   const ingredientRefs = useRef<(TextInput | null)[]>([]);
-  const instructionRefs = useRef<(TextInput | null)[]>([]);
+  const instructionRefs = useRef<(MultilineInstructionInputRef | null)[]>([]);
 
   // Helper functions for Enter key submission
   const handleIngredientSubmit = (index: number) => {
     const currentIngredient = formData.ingredients[index];
-    if (currentIngredient && currentIngredient.trim() !== '') {
-      if (index === formData.ingredients.length - 1) {
-        // If it's the last ingredient and has content, add a new one
-        addIngredient();
-        // Focus on the new ingredient field after a brief delay
-        setTimeout(() => {
-          const newIndex = formData.ingredients.length;
-          ingredientRefs.current[newIndex]?.focus();
-        }, 100);
-      } else {
-        // Focus on the next ingredient field
+    if (!currentIngredient || currentIngredient.trim() === '') {
+      // If empty, just move focus or dismiss
+      if (index < formData.ingredients.length - 1) {
         ingredientRefs.current[index + 1]?.focus();
       }
+      return;
+    }
+
+    if (index === formData.ingredients.length - 1) {
+      // If it's the last ingredient and has content, add a new one
+      addIngredient();
+      setTimeout(() => {
+        const newIndex = formData.ingredients.length;
+        ingredientRefs.current[newIndex]?.focus();
+      }, 100);
+    } else {
+      // Move to next field
+      ingredientRefs.current[index + 1]?.focus();
     }
   };
 
-  const handleInstructionSubmit = (index: number) => {
-    const currentInstruction = formData.instructions[index];
-    if (currentInstruction && currentInstruction.trim() !== '') {
-      if (index === formData.instructions.length - 1) {
-        // If it's the last instruction and has content, add a new one
-        addInstruction();
-        // Focus on the new instruction field after a brief delay
-        setTimeout(() => {
-          const newIndex = formData.instructions.length;
-          instructionRefs.current[newIndex]?.focus();
-        }, 100);
-      } else {
-        // Focus on the next instruction field
-        instructionRefs.current[index + 1]?.focus();
-      }
-    }
-  };
 
   // Cooking action handlers
   const handleCookingActionSelect = (action: CookingAction) => {
@@ -451,19 +442,15 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   };
 
   return (
-    <KeyboardAvoidingView
+    <KeyboardAwareScrollView
       style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={90}
+      contentContainerStyle={{
+        paddingHorizontal: theme.spacing.lg,
+        paddingVertical: theme.spacing.lg
+      }}
+      showsVerticalScrollIndicator={false}
+      bottomOffset={40}
     >
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.lg,
-          paddingVertical: theme.spacing.lg
-        }}
-        showsVerticalScrollIndicator={false}
-      >
         {/* Import from URL Section */}
         {formData.showImportSection && (
           <View
@@ -662,7 +649,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           <SimpleDraggableList
             data={formData.ingredients}
             onReorder={reorderIngredients}
-            keyExtractor={(item, index) => `ingredient-${index}-${item.substring(0, 10)}`}
+            keyExtractor={(item, index) => `ingredient-${index}`}
             isReorderMode={isIngredientsReorderMode}
             renderItem={(ingredient, index, isReorderMode) => (
               <View className="flex-row items-center">
@@ -678,7 +665,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                     value={ingredient}
                     onChangeText={(value) => updateIngredient(index, value)}
                     onSubmitEditing={() => handleIngredientSubmit(index)}
-                    returnKeyType={index === formData.ingredients.length - 1 ? "done" : "next"}
+                    returnKeyType="next"
                     blurOnSubmit={false}
                     scrollEnabled={false}
                     keyboardShouldPersistTaps="handled"
@@ -722,7 +709,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           <SimpleDraggableList
             data={formData.instructions}
             onReorder={reorderInstructions}
-            keyExtractor={(item, index) => `instruction-${index}-${item.substring(0, 10)}`}
+            keyExtractor={(item, index) => `instruction-${index}`}
             isReorderMode={isInstructionsReorderMode}
             renderItem={(instruction, index, isReorderMode) => {
               const cookingAction = getCookingActionForStep(index);
@@ -734,17 +721,22 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                         <Text className="text-base">{instruction || `Step ${index + 1}`}</Text>
                       </View>
                     ) : (
-                      <TextInput
+                      <MultilineInstructionInput
                         ref={(ref) => (instructionRefs.current[index] = ref)}
                         className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
                         placeholder={`Step ${index + 1}`}
                         value={instruction}
                         onChangeText={(value) => updateInstruction(index, value)}
-                        onSubmitEditing={() => handleInstructionSubmit(index)}
-                        returnKeyType={index === formData.instructions.length - 1 ? "done" : "next"}
-                        blurOnSubmit={false}
-                        style={{ minHeight: 40 }}
-                        scrollEnabled={false}
+                        onAddNewStep={() => {
+                          addInstruction();
+                          // Focus on the new instruction field after a brief delay
+                          setTimeout(() => {
+                            const newIndex = formData.instructions.length;
+                            instructionRefs.current[newIndex]?.focus();
+                          }, 100);
+                        }}
+                        onFocusNext={() => instructionRefs.current[index + 1]?.focus()}
+                        isLastStep={index === formData.instructions.length - 1}
                         keyboardShouldPersistTaps="handled"
                       />
                     )}
@@ -810,6 +802,31 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
               );
             }}
           />
+
+          {/* Add New Instruction Input */}
+          <View className="flex-row items-center mt-2">
+            <MultilineInstructionInput
+              key="add-new-instruction"
+              className="flex-1 border border-dashed border-gray-300 rounded-lg px-3 py-2 text-base mr-2"
+              placeholder="+ Add new instruction step"
+              value={newInstructionText}
+              onChangeText={setNewInstructionText}
+              onAddNewStep={() => {
+                const textToAdd = newInstructionText.trim();
+                if (textToAdd) {
+                  // Add new instruction and focus on it
+                  updateFormData({ instructions: [...formData.instructions, textToAdd] });
+                  setNewInstructionText('');
+                  setTimeout(() => {
+                    const newIndex = formData.instructions.length;
+                    instructionRefs.current[newIndex]?.focus();
+                  }, 100);
+                }
+              }}
+              isLastStep={true}
+              style={{ opacity: 0.6, minHeight: 40 }}
+            />
+          </View>
         </View>
 
         {/* Notes */}
@@ -824,7 +841,6 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             textAlignVertical="top"
           />
         </View>
-      </ScrollView>
 
       {/* ChefIQ Cooking Selector Modal */}
       {formData.selectedAppliance && (
@@ -1053,6 +1069,6 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           </View>
         </View>
       </Modal>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
