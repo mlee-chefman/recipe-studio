@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, Modal } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '../components/MultilineInstructionInput';
@@ -6,8 +6,8 @@ import { Picker } from '@react-native-picker/picker';
 import { RECIPE_OPTIONS } from '../constants/recipeDefaults';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
-import { scrapeRecipe, isValidUrl } from '../utils/recipeScraper';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { ScrapedRecipe } from '../utils/recipeScraper';
 import { CookingAction, getApplianceById } from '../types/chefiq';
 import ChefIQCookingSelector from '../components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '../components/ApplianceDropdown';
@@ -20,8 +20,11 @@ interface RecipeCreatorProps {
   onComplete?: () => void;
 }
 
+type RecipeCreatorRouteProp = RouteProp<{ RecipeCreator: { importedRecipe?: ScrapedRecipe, fromWebImport?: boolean } }, 'RecipeCreator'>;
+
 export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps = {}) {
   const navigation = useNavigation();
+  const route = useRoute<RecipeCreatorRouteProp>();
   const [editingCookingAction, setEditingCookingAction] = React.useState<{ action: CookingAction, stepIndex: number } | null>(null);
   const [newInstructionText, setNewInstructionText] = React.useState('');
 
@@ -52,6 +55,62 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     onComplete: onComplete || (() => navigation.navigate('One' as never))
   });
 
+  // Handle imported recipe from web import
+  useEffect(() => {
+    if (route.params?.importedRecipe && route.params?.fromWebImport) {
+      const scrapedRecipe = route.params.importedRecipe;
+
+      // Estimate difficulty based on cook time and number of steps
+      const totalTime = scrapedRecipe.cookTime;
+      const numSteps = scrapedRecipe.instructions.length;
+      let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
+      if (totalTime < 30 && numSteps < 5) {
+        difficulty = 'Easy';
+      } else if (totalTime > 60 || numSteps > 10) {
+        difficulty = 'Hard';
+      }
+
+      // Populate form fields with scraped data
+      setCookTimeFromMinutes(scrapedRecipe.cookTime);
+      updateFormData({
+        title: scrapedRecipe.title,
+        notes: scrapedRecipe.description,
+        ingredients: scrapedRecipe.ingredients.length > 0 ? scrapedRecipe.ingredients : [''],
+        instructions: scrapedRecipe.instructions.length > 0 ? scrapedRecipe.instructions : [''],
+        servings: scrapedRecipe.servings,
+        category: scrapedRecipe.category || '',
+        imageUrl: scrapedRecipe.image || '',
+        difficulty
+      });
+
+      // Handle ChefIQ suggestions
+      const suggestions = scrapedRecipe.chefiqSuggestions;
+      if (suggestions && suggestions.confidence > 0.3 && suggestions.suggestedActions.length > 0) {
+        // Auto-apply suggestions
+        updateFormData({
+          selectedAppliance: suggestions.suggestedAppliance || formData.selectedAppliance,
+          useProbe: suggestions.useProbe || formData.useProbe
+        });
+
+        // Automatically assign cooking actions to appropriate steps
+        try {
+          const autoAssignedActions = autoAssignCookingActions(
+            scrapedRecipe.instructions,
+            suggestions.suggestedActions
+          );
+          updateFormData({ cookingActions: autoAssignedActions });
+        } catch (error) {
+          console.error('Error in auto-assigning cooking actions:', error);
+          // Fallback: just use the suggested actions without step assignment
+          updateFormData({ cookingActions: suggestions.suggestedActions });
+        }
+      }
+
+      // Clear the route params to prevent re-triggering
+      navigation.setParams({ importedRecipe: undefined, fromWebImport: undefined } as never);
+    }
+  }, [route.params?.importedRecipe, route.params?.fromWebImport]);
+
   // Configure navigation header
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -78,9 +137,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
-            onPress={() => updateFormData({ showImportSection: !formData.showImportSection })}
+            onPress={() => navigation.navigate('RecipeWebImport' as never)}
             style={{
-              backgroundColor: formData.showImportSection ? theme.colors.primary[500] : theme.colors.gray[100],
+              backgroundColor: theme.colors.gray[100],
               borderRadius: theme.borderRadius.lg,
               paddingHorizontal: theme.spacing.md,
               paddingVertical: theme.spacing.xs,
@@ -88,7 +147,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             }}
           >
             <Text style={{
-              color: formData.showImportSection ? theme.colors.text.inverse : theme.colors.text.secondary,
+              color: theme.colors.text.secondary,
               fontSize: theme.typography.fontSize.sm,
               fontWeight: theme.typography.fontWeight.medium
             }}>
@@ -108,7 +167,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         </View>
       ),
     });
-  }, [navigation, formData.showImportSection, handleSave, handleCancel]);
+  }, [navigation, handleSave, handleCancel]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -157,92 +216,6 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         { text: 'Cancel', style: 'cancel' }
       ]
     );
-  };
-
-  const handleImportFromUrl = async () => {
-    if (!formData.importUrl.trim()) {
-      Alert.alert('Error', 'Please enter a URL');
-      return;
-    }
-
-    if (!isValidUrl(formData.importUrl)) {
-      Alert.alert('Error', 'Please enter a valid URL');
-      return;
-    }
-
-    updateFormData({ isImporting: true });
-
-    try {
-      const scrapedRecipe = await scrapeRecipe(formData.importUrl);
-
-      // Estimate difficulty based on cook time and number of steps
-      const totalTime = scrapedRecipe.cookTime;
-      const numSteps = scrapedRecipe.instructions.length;
-      let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
-      if (totalTime < 30 && numSteps < 5) {
-        difficulty = 'Easy';
-      } else if (totalTime > 60 || numSteps > 10) {
-        difficulty = 'Hard';
-      }
-
-      // Populate form fields with scraped data
-      setCookTimeFromMinutes(scrapedRecipe.cookTime);
-      updateFormData({
-        title: scrapedRecipe.title,
-        notes: scrapedRecipe.description,
-        ingredients: scrapedRecipe.ingredients.length > 0 ? scrapedRecipe.ingredients : [''],
-        instructions: scrapedRecipe.instructions.length > 0 ? scrapedRecipe.instructions : [''],
-        servings: scrapedRecipe.servings,
-        category: scrapedRecipe.category || '',
-        imageUrl: scrapedRecipe.image || '',
-        difficulty
-      });
-
-      // Handle ChefIQ suggestions
-      const suggestions = scrapedRecipe.chefiqSuggestions;
-      if (suggestions && suggestions.confidence > 0.3 && suggestions.suggestedActions.length > 0) {
-        // Auto-apply suggestions
-        updateFormData({
-          selectedAppliance: suggestions.suggestedAppliance || formData.selectedAppliance,
-          useProbe: suggestions.useProbe || formData.useProbe
-        });
-
-        // Automatically assign cooking actions to appropriate steps
-        try {
-          const autoAssignedActions = autoAssignCookingActions(
-            scrapedRecipe.instructions,
-            suggestions.suggestedActions
-          );
-          updateFormData({ cookingActions: autoAssignedActions });
-        } catch (error) {
-          console.error('Error in auto-assigning cooking actions:', error);
-          // Fallback: just use the suggested actions without step assignment
-          updateFormData({ cookingActions: suggestions.suggestedActions });
-        }
-      }
-
-      Alert.alert(
-        'Recipe Imported Successfully!',
-        'Recipe imported from website. You can now review and edit the details before saving.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              updateFormData({ showImportSection: false, importUrl: '' });
-            }
-          }
-        ]
-      );
-
-      if (scrapedRecipe.instructionSections) {
-        setInstructionSections(scrapedRecipe.instructionSections);
-      }
-
-    } catch (error) {
-      Alert.alert('Import Failed', 'Could not import recipe from this URL. Please try a different URL or enter the recipe manually.');
-    } finally {
-      updateFormData({ isImporting: false });
-    }
   };
 
 
@@ -451,45 +424,6 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       showsVerticalScrollIndicator={false}
       bottomOffset={40}
     >
-        {/* Import from URL Section */}
-        {formData.showImportSection && (
-          <View
-            className="mb-6 p-4 rounded-lg"
-            style={{ backgroundColor: theme.colors.secondary[50] }}
-          >
-            <Text
-              className="text-lg font-semibold mb-2"
-              style={{ color: theme.colors.primary[500] }}
-            >Import Recipe from Website</Text>
-            <Text className="text-sm text-gray-600 mb-3">
-              Enter a URL from popular recipe sites like AllRecipes, Food Network, etc.
-            </Text>
-            <View className="flex-row gap-2">
-              <TextInput
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base bg-white"
-                placeholder="https://www.example.com/recipe"
-                value={formData.importUrl}
-                onChangeText={(value) => updateFormData({ importUrl: value })}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-              <TouchableOpacity
-                onPress={handleImportFromUrl}
-                disabled={formData.isImporting}
-                className="rounded-lg px-4 py-2 justify-center"
-                style={{ backgroundColor: formData.isImporting ? theme.colors.gray[400] : theme.colors.primary[500] }}
-              >
-                {formData.isImporting ? (
-                  <ActivityIndicator color="white" size="small" />
-                ) : (
-                  <Text className="text-white font-semibold">Import</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         {/* Title */}
         <View className="mb-4">
           <TextInput
