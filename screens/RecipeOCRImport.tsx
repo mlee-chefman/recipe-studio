@@ -254,10 +254,14 @@ export default function RecipeOCRImportScreen() {
     }
 
     // Navigate to recipe creator with parsed recipe
-    (navigation as any).navigate('RecipeCreator', {
-      importedRecipe: parsedRecipe,
-      fromWebImport: true
-    });
+    // Remove this screen from the stack first
+    navigation.goBack(); // Remove RecipeOCRImport from stack
+    setTimeout(() => {
+      (navigation as any).navigate('RecipeCreator', {
+        importedRecipe: parsedRecipe,
+        fromWebImport: true
+      });
+    }, 100); // Small delay to ensure goBack completes first
   };
 
   const showImageOptions = () => {
