@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useEffect } from 'react';
+import React, { useLayoutEffect, useRef, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, Modal } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '../components/MultilineInstructionInput';
@@ -15,6 +15,8 @@ import { theme } from '../theme';
 import { useRecipeForm } from '../hooks/useRecipeForm';
 import { SimpleDraggableList } from '../components/DraggableList';
 import { DraggableCookingAction } from '../components/DraggableCookingAction';
+import { generateRecipeFromDescription } from '../utils/geminiRecipeParser';
+import { checkUsageLimit, recordGeneration, getRemainingGenerations } from '../utils/aiUsageTracker';
 
 interface RecipeCreatorProps {
   onComplete?: () => void;
@@ -27,6 +29,17 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const route = useRoute<RecipeCreatorRouteProp>();
   const [editingCookingAction, setEditingCookingAction] = React.useState<{ action: CookingAction, stepIndex: number } | null>(null);
   const [newInstructionText, setNewInstructionText] = React.useState('');
+
+  // AI Helper states
+  const [showAIHelper, setShowAIHelper] = useState(true);
+  const [aiDescription, setAiDescription] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [remainingGenerations, setRemainingGenerations] = useState<{
+    daily: number;
+    monthly: number;
+    dailyLimit: number;
+    monthlyLimit: number;
+  } | null>(null);
 
   const {
     formData,
@@ -55,6 +68,22 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   } = useRecipeForm({
     onComplete: onComplete || (() => navigation.goBack())
   });
+
+  // Load remaining AI generations when AI helper is shown
+  useEffect(() => {
+    if (showAIHelper) {
+      loadRemainingGenerations();
+    }
+  }, [showAIHelper]);
+
+  const loadRemainingGenerations = async () => {
+    try {
+      const remaining = await getRemainingGenerations();
+      setRemainingGenerations(remaining);
+    } catch (error) {
+      console.error('Error loading remaining generations:', error);
+    }
+  };
 
   // Handle imported recipe from web import
   useEffect(() => {
@@ -203,6 +232,94 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         { text: 'Cancel', style: 'cancel' }
       ]
     );
+  };
+
+  // AI Recipe Generation
+  const handleGenerateRecipe = async () => {
+    if (!aiDescription.trim()) {
+      Alert.alert('Missing Information', 'Please describe what you want to cook.');
+      return;
+    }
+
+    // Check usage limits before generating
+    const usageCheck = await checkUsageLimit();
+    if (!usageCheck.allowed) {
+      Alert.alert('Generation Limit Reached', usageCheck.message || 'Please try again later.');
+      return;
+    }
+
+    setIsGenerating(true);
+
+    try {
+      const result = await generateRecipeFromDescription(aiDescription);
+
+      if (!result.success || !result.recipe) {
+        Alert.alert('Generation Failed', result.error || 'Could not generate recipe. Please try again.');
+        setIsGenerating(false);
+        return;
+      }
+
+      const generatedRecipe = result.recipe;
+
+      // Estimate difficulty based on cook time and number of steps
+      const totalTime = generatedRecipe.cookTime;
+      const numSteps = generatedRecipe.instructions.length;
+      let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
+      if (totalTime < 30 && numSteps < 5) {
+        difficulty = 'Easy';
+      } else if (totalTime > 60 || numSteps > 10) {
+        difficulty = 'Hard';
+      }
+
+      // Populate form fields with generated data
+      setCookTimeFromMinutes(generatedRecipe.cookTime);
+      updateFormData({
+        title: generatedRecipe.title,
+        notes: generatedRecipe.description,
+        ingredients: generatedRecipe.ingredients.length > 0 ? generatedRecipe.ingredients : [''],
+        instructions: generatedRecipe.instructions.length > 0 ? generatedRecipe.instructions : [''],
+        servings: generatedRecipe.servings,
+        category: generatedRecipe.category || '',
+        difficulty
+      });
+
+      // Handle ChefIQ suggestions if present
+      const suggestions = generatedRecipe.chefiqSuggestions;
+      if (suggestions && suggestions.confidence > 0.3 && suggestions.suggestedActions.length > 0) {
+        updateFormData({
+          selectedAppliance: suggestions.suggestedAppliance || formData.selectedAppliance,
+          useProbe: suggestions.useProbe || formData.useProbe
+        });
+
+        try {
+          const autoAssignedActions = autoAssignCookingActions(
+            generatedRecipe.instructions,
+            suggestions.suggestedActions
+          );
+          updateFormData({ cookingActions: autoAssignedActions });
+        } catch (error) {
+          console.error('Error in auto-assigning cooking actions:', error);
+          updateFormData({ cookingActions: suggestions.suggestedActions });
+        }
+      }
+
+      // Record successful generation
+      await recordGeneration();
+
+      // Update remaining generations display
+      await loadRemainingGenerations();
+
+      // Hide the AI helper after successful generation
+      setShowAIHelper(false);
+      setAiDescription('');
+
+      Alert.alert('Success', 'Recipe generated! Review and edit as needed.');
+    } catch (error) {
+      console.error('Recipe generation error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
 
@@ -420,6 +537,98 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       showsVerticalScrollIndicator={false}
       bottomOffset={40}
     >
+        {/* AI Helper Section */}
+        {showAIHelper && (
+          <View
+            className="mb-6 p-4 rounded-xl"
+            style={{
+              backgroundColor: theme.colors.primary[50],
+              borderWidth: 1,
+              borderColor: theme.colors.primary[200],
+            }}
+          >
+            <View className="flex-row items-center justify-between mb-2">
+              <Text
+                className="text-lg font-semibold"
+                style={{ color: theme.colors.primary[700] }}
+              >
+                ✨ AI Recipe Assistant
+              </Text>
+              <TouchableOpacity
+                onPress={() => setShowAIHelper(false)}
+                className="w-6 h-6 rounded-full items-center justify-center"
+                style={{ backgroundColor: theme.colors.primary[200] }}
+              >
+                <Text style={{ color: theme.colors.primary[700], fontSize: 14 }}>×</Text>
+              </TouchableOpacity>
+            </View>
+            <Text
+              className="text-sm mb-2"
+              style={{ color: theme.colors.text.secondary }}
+            >
+              Don't know where to start? Describe what you want to cook and let AI generate a recipe for you!
+            </Text>
+            {remainingGenerations && (
+              <Text
+                className="text-xs mb-3"
+                style={{ color: theme.colors.primary[600], fontWeight: '600' }}
+              >
+                ✨ {remainingGenerations.daily} of {remainingGenerations.dailyLimit} generations remaining today
+              </Text>
+            )}
+            <TextInput
+              className="border rounded-lg px-3 py-2 mb-3 text-base"
+              style={{
+                backgroundColor: 'white',
+                borderColor: theme.colors.gray[300],
+              }}
+              placeholder='e.g., "simple pork chop" or "easy chicken pasta"'
+              value={aiDescription}
+              onChangeText={setAiDescription}
+              editable={!isGenerating}
+              multiline
+              numberOfLines={2}
+              textAlignVertical="top"
+            />
+            <TouchableOpacity
+              onPress={handleGenerateRecipe}
+              disabled={isGenerating || !aiDescription.trim()}
+              className="py-3 px-4 rounded-lg items-center"
+              style={{
+                backgroundColor: isGenerating || !aiDescription.trim()
+                  ? theme.colors.gray[300]
+                  : theme.colors.primary[500],
+              }}
+            >
+              {isGenerating ? (
+                <View className="flex-row items-center">
+                  <ActivityIndicator color="white" size="small" />
+                  <Text className="text-white font-semibold ml-2">Generating...</Text>
+                </View>
+              ) : (
+                <Text className="text-white font-semibold">Generate Recipe</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Show "Bring back AI Helper" button if hidden */}
+        {!showAIHelper && (
+          <TouchableOpacity
+            onPress={() => setShowAIHelper(true)}
+            className="mb-4 py-2 px-3 rounded-lg self-start"
+            style={{
+              backgroundColor: theme.colors.primary[100],
+              borderWidth: 1,
+              borderColor: theme.colors.primary[300],
+            }}
+          >
+            <Text style={{ color: theme.colors.primary[700], fontSize: 14 }}>
+              ✨ Show AI Helper
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Title */}
         <View className="mb-4">
           <TextInput

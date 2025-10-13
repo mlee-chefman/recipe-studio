@@ -6,6 +6,9 @@ import RecipeCreator from '../screens/recipeCreator';
 import RecipeEdit from '../screens/recipeEdit';
 import RecipeWebImport from '../screens/RecipeWebImport';
 import RecipeOCRImport from '../screens/RecipeOCRImport';
+import RecipeTextImport from '../screens/RecipeTextImport';
+import RecipePDFImport from '../screens/RecipePDFImport';
+import RecipeSelection from '../screens/RecipeSelection';
 import TabNavigator from './tabNavigator';
 
 const Stack = createStackNavigator({
@@ -46,6 +49,27 @@ const Stack = createStackNavigator({
     },
     RecipeOCRImport: {
       screen: RecipeOCRImport,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
+    RecipeTextImport: {
+      screen: RecipeTextImport,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
+    RecipePDFImport: {
+      screen: RecipePDFImport,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
+    RecipeSelection: {
+      screen: RecipeSelection,
       options: {
         headerShown: true,
         presentation: 'card',

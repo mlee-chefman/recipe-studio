@@ -7,6 +7,8 @@ interface CreateRecipeOptionsModalProps {
   onClose: () => void;
   onSelectWebImport: () => void;
   onSelectOCRImport: () => void;
+  onSelectTextImport: () => void;
+  onSelectPDFImport: () => void;
   onSelectStartFromScratch: () => void;
 }
 
@@ -15,6 +17,8 @@ export default function CreateRecipeOptionsModal({
   onClose,
   onSelectWebImport,
   onSelectOCRImport,
+  onSelectTextImport,
+  onSelectPDFImport,
   onSelectStartFromScratch
 }: CreateRecipeOptionsModalProps) {
   const slideAnim = useRef(new Animated.Value(500)).current;
@@ -104,6 +108,42 @@ export default function CreateRecipeOptionsModal({
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
 
+            {/* Text Import Option */}
+            <TouchableOpacity
+              style={styles.optionButton}
+              onPress={onSelectTextImport}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.optionIcon, { backgroundColor: theme.colors.info.light }]}>
+                <Text style={styles.optionEmoji}>📝</Text>
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>Import from Text/Notes</Text>
+                <Text style={styles.optionDescription}>
+                  Paste recipe text from Notes, Messages, or clipboard
+                </Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
+            {/* PDF Import Option */}
+            <TouchableOpacity
+              style={styles.optionButton}
+              onPress={onSelectPDFImport}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.optionIcon, { backgroundColor: theme.colors.error.light }]}>
+                <Text style={styles.optionEmoji}>📄</Text>
+              </View>
+              <View style={styles.optionContent}>
+                <Text style={styles.optionTitle}>Import from PDF</Text>
+                <Text style={styles.optionDescription}>
+                  Extract recipes from PDF cookbooks or documents
+                </Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </TouchableOpacity>
+
             {/* Start from Scratch Option */}
             <TouchableOpacity
               style={styles.optionButton}
@@ -147,7 +187,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 40,
-    maxHeight: '70%',
+    maxHeight: '85%',
   },
   header: {
     padding: theme.spacing.xl,

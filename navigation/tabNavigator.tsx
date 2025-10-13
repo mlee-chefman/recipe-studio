@@ -23,6 +23,16 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
     navigation.navigate('RecipeOCRImport');
   };
 
+  const handleTextImport = () => {
+    setShowCreateModal(false);
+    navigation.navigate('RecipeTextImport');
+  };
+
+  const handlePDFImport = () => {
+    setShowCreateModal(false);
+    navigation.navigate('RecipePDFImport');
+  };
+
   const handleStartFromScratch = () => {
     setShowCreateModal(false);
     navigation.navigate('RecipeCreator');
@@ -109,6 +119,8 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
         onClose={() => setShowCreateModal(false)}
         onSelectWebImport={handleWebImport}
         onSelectOCRImport={handleOCRImport}
+        onSelectTextImport={handleTextImport}
+        onSelectPDFImport={handlePDFImport}
         onSelectStartFromScratch={handleStartFromScratch}
       />
     </>
