@@ -37,7 +37,7 @@ const COOKING_METHOD_PATTERNS: CookingMethodKeywords[] = [
   {
     methodId: CookerMethod.SearSaute,
     applianceType: 'cooker',
-    keywords: ['sauté', 'saute', 'brown', 'sear', 'fry', 'cook until golden'],
+    keywords: ['sauté', 'saute', 'brown', 'sear', 'fry', 'cook until golden', 'cook over medium heat', 'cook over high heat'],
     defaultParams: {
       cooking_method: CookerMethod.SearSaute,
       temp_level: TemperatureLevel.MediumLow,
@@ -137,7 +137,7 @@ const COOKING_METHOD_PATTERNS: CookingMethodKeywords[] = [
   {
     methodId: OvenMethod.Dehydrate,
     applianceType: 'oven',
-    keywords: ['dehydrate', 'dry', 'dried', 'dehydrating', 'jerky'],
+    keywords: ['dehydrate', 'dehydrating', 'dehydrator', 'make jerky', 'beef jerky', 'dried fruit', 'drying fruit', 'fruit leather'],
     defaultParams: {
       cooking_time: 28800, // 8 hours
       target_cavity_temp: 135,
@@ -190,8 +190,39 @@ export const analyzeRecipeForChefIQ = (
   cookTime: number
 ): RecipeAnalysisResult => {
   try {
-    const allText = [title, description, ...instructions].join(' ');
+    // Filter out storage instructions and notes that might have false positive keywords
+    const filteredDescription = description
+      .split('\n')
+      .filter(line => {
+        const lineLower = line.toLowerCase();
+        return !lineLower.includes('storage') &&
+               !lineLower.includes('store in') &&
+               !lineLower.includes('refrigerat') &&
+               !lineLower.includes('freezer');
+      })
+      .join(' ');
+
+    const allText = [title, filteredDescription, ...instructions].join(' ');
     const allTextLower = allText.toLowerCase();
+
+    // Check for stovetop-only recipes (no appliance needed)
+    // Note: "over medium/high heat" are NOT stovetop-only as they can be done in ChefIQ cooker (sauté mode)
+    const stovetopKeywords = ['in a saucepan', 'in a pot', 'in a skillet', 'in a frying pan', 'stove top', 'stovetop', 'on the stove', 'on the burner', 'over low heat', 'bring to a boil', 'bring to boil'];
+    const hasStorvetopOnly = stovetopKeywords.some(keyword => allTextLower.includes(keyword));
+
+    // Check if recipe mentions any ChefIQ-compatible methods
+    const hasChefIQMethod = COOKING_METHOD_PATTERNS.some(pattern =>
+      pattern.keywords.some(keyword => allTextLower.includes(keyword))
+    );
+
+    // If it's stovetop-only and doesn't mention any ChefIQ methods, don't suggest appliances
+    if (hasStorvetopOnly && !hasChefIQMethod) {
+      return {
+        suggestedActions: [],
+        confidence: 0,
+        reasoning: ['Recipe uses stovetop cooking only - no ChefIQ appliance needed.']
+      };
+    }
     const reasoning: string[] = [];
     const suggestedActions: CookingAction[] = [];
 
@@ -275,6 +306,11 @@ export const analyzeRecipeForChefIQ = (
     if (ovenAppliance) {
       const methodPattern = COOKING_METHOD_PATTERNS.find(p => p.methodId === suggestedOvenMethod);
       if (methodPattern) {
+        // Find which instruction step contains grilling keywords
+        const grillStepIndex = instructions.findIndex(instruction =>
+          grillKeywords.some(keyword => instruction.toLowerCase().includes(keyword))
+        );
+
         const action: CookingAction = {
           id: `auto_${Date.now()}`,
           applianceId: ovenAppliance.category_id,
@@ -288,6 +324,7 @@ export const analyzeRecipeForChefIQ = (
             ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allTextLower) } : {}),
             cooking_time: cookTime * 60 || methodPattern.estimatedTime! * 60,
           },
+          ...(grillStepIndex >= 0 ? { stepIndex: grillStepIndex } : {}),
         };
 
         return {
@@ -591,6 +628,11 @@ export const analyzeRecipeForChefIQ = (
     }
   }
 
+  // Find which instruction step(s) contain the best method
+  const primaryMethodStep = instructionAnalysis.find(analysis =>
+    analysis.matches.some(m => m.methodId === bestMethod.method.methodId)
+  );
+
   const primaryAction: CookingAction = {
     id: `auto_${Date.now()}`,
     applianceId: suggestedAppliance.category_id,
@@ -606,6 +648,7 @@ export const analyzeRecipeForChefIQ = (
                    (cookTime * 60) ||
                    primaryParams.cooking_time,
     },
+    ...(primaryMethodStep ? { stepIndex: primaryMethodStep.index } : {}),
   };
 
   suggestedActions.push(primaryAction);
@@ -649,6 +692,11 @@ export const analyzeRecipeForChefIQ = (
   );
 
   additionalMethods.forEach((method, index) => {
+    // Find which instruction step contains this additional method
+    const additionalMethodStep = instructionAnalysis.find(analysis =>
+      analysis.matches.some(m => m.methodId === method.method.methodId)
+    );
+
     const additionalAction: CookingAction = {
       id: `auto_${Date.now()}_${index + 1}`,
       applianceId: suggestedAppliance.category_id,
@@ -664,6 +712,7 @@ export const analyzeRecipeForChefIQ = (
           (cookTime * 60) / 3
         ),
       },
+      ...(additionalMethodStep ? { stepIndex: additionalMethodStep.index } : {}),
     };
 
     suggestedActions.push(additionalAction);
@@ -1513,10 +1562,10 @@ export const extractDehydratingParams = (instructions: string[]) => {
   let temperature: number | null = null;
   const dehydrateTempPatterns = [
     /dehydrat.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
-    /dry.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
-    /low\s+heat.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
-    /jerky.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
-    /(?:at\s+)?(\d{2,3})\s*degrees.*?jerky/gi,
+    /dehydrator.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /(?:make|making)\s+jerky.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
+    /(?:at\s+)?(\d{2,3})\s*degrees.*?(?:for\s+)?jerky/gi,
+    /drying\s+fruit.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
   ];
 
   for (const instruction of instructions) {
@@ -1540,9 +1589,10 @@ export const extractDehydratingParams = (instructions: string[]) => {
   // Extract dehydrating time (typically very long - many hours)
   const dehydrateTimePatterns = [
     /dehydrat.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
-    /dry.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
-    /until\s+dried.*?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
-    /jerky.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /dehydrator.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /(?:make|making)\s+jerky.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /drying\s+fruit.*?(?:for\s+)?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
+    /until\s+completely\s+dried.*?(\d+)\s*(?:[-–to]\s*(\d+)\s*)?(hour|hr|minute|min)s?/gi,
   ];
 
   let cookingTime: number | null = null;
