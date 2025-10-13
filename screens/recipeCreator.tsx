@@ -6,7 +6,7 @@ import { Picker } from '@react-native-picker/picker';
 import { RECIPE_OPTIONS } from '../constants/recipeDefaults';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { ScrapedRecipe } from '../utils/recipeScraper';
 import { CookingAction, getApplianceById } from '../types/chefiq';
 import ChefIQCookingSelector from '../components/ChefIQCookingSelector';
@@ -15,7 +15,6 @@ import { theme } from '../theme';
 import { useRecipeForm } from '../hooks/useRecipeForm';
 import { SimpleDraggableList } from '../components/DraggableList';
 import { DraggableCookingAction } from '../components/DraggableCookingAction';
-import ImportOptionsModal from '../components/ImportOptionsModal';
 
 interface RecipeCreatorProps {
   onComplete?: () => void;
@@ -28,7 +27,6 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const route = useRoute<RecipeCreatorRouteProp>();
   const [editingCookingAction, setEditingCookingAction] = React.useState<{ action: CookingAction, stepIndex: number } | null>(null);
   const [newInstructionText, setNewInstructionText] = React.useState('');
-  const [showImportModal, setShowImportModal] = React.useState(false);
 
   const {
     formData,
@@ -52,9 +50,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     draggingCookingAction,
     handleCookingActionDragStart,
     handleCookingActionDragEnd,
-    removeCookingAction
+    removeCookingAction,
+    resetForm
   } = useRecipeForm({
-    onComplete: onComplete || (() => navigation.navigate('One' as never))
+    onComplete: onComplete || (() => navigation.goBack())
   });
 
   // Handle imported recipe from web import
@@ -128,45 +127,31 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       headerLeft: () => (
         <TouchableOpacity
           onPress={handleCancel}
-          style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+          style={{
+            paddingLeft: theme.spacing.lg,
+            paddingRight: theme.spacing.md,
+            paddingVertical: theme.spacing.xs
+          }}
         >
           <Text style={{
-            color: theme.colors.info.main,
-            fontSize: theme.typography.fontSize.lg
-          }}>Cancel</Text>
+            color: theme.colors.text.primary,
+            fontSize: 28,
+            fontWeight: '300',
+            lineHeight: 28
+          }}>×</Text>
         </TouchableOpacity>
       ),
       headerRight: () => (
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity
-            onPress={() => setShowImportModal(true)}
-            style={{
-              backgroundColor: theme.colors.gray[100],
-              borderRadius: theme.borderRadius.lg,
-              paddingHorizontal: theme.spacing.md,
-              paddingVertical: theme.spacing.xs,
-              marginRight: theme.spacing.md
-            }}
-          >
-            <Text style={{
-              color: theme.colors.text.secondary,
-              fontSize: theme.typography.fontSize.sm,
-              fontWeight: theme.typography.fontWeight.medium
-            }}>
-              Import
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={handleSave}
-            style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
-          >
-            <Text style={{
-              color: theme.colors.primary[500],
-              fontSize: theme.typography.fontSize.lg,
-              fontWeight: theme.typography.fontWeight.semibold
-            }}>Save</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={handleSave}
+          style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+        >
+          <Text style={{
+            color: theme.colors.primary[500],
+            fontSize: theme.typography.fontSize.lg,
+            fontWeight: theme.typography.fontWeight.semibold
+          }}>Save</Text>
+        </TouchableOpacity>
       ),
     });
   }, [navigation, handleSave, handleCancel]);
@@ -423,16 +408,6 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     });
 
     return assignedActions;
-  };
-
-  const handleWebImport = () => {
-    setShowImportModal(false);
-    navigation.navigate('RecipeWebImport' as never);
-  };
-
-  const handleOCRImport = () => {
-    setShowImportModal(false);
-    navigation.navigate('RecipeOCRImport' as never);
   };
 
   return (
@@ -1024,14 +999,6 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           </View>
         </View>
       </Modal>
-
-      {/* Import Options Modal */}
-      <ImportOptionsModal
-        visible={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        onSelectWebImport={handleWebImport}
-        onSelectOCRImport={handleOCRImport}
-      />
     </KeyboardAwareScrollView>
   );
 }

@@ -27,7 +27,7 @@ const Stack = createStackNavigator({
       screen: RecipeCreator,
       options: {
         headerShown: true,
-        presentation: 'card',
+        presentation: 'modal',
       },
     },
     RecipeEdit: {

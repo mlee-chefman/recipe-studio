@@ -271,10 +271,14 @@ export default function RecipeWebImportScreen() {
       const scrapedRecipe = await scrapeRecipe(currentUrl);
 
       // Navigate to recipe creator with the scraped data
-      (navigation as any).navigate('RecipeCreator', {
-        importedRecipe: scrapedRecipe,
-        fromWebImport: true
-      });
+      // Use replace to remove this screen from the stack
+      navigation.goBack(); // Remove RecipeWebImport from stack
+      setTimeout(() => {
+        (navigation as any).navigate('RecipeCreator', {
+          importedRecipe: scrapedRecipe,
+          fromWebImport: true
+        });
+      }, 100); // Small delay to ensure goBack completes first
 
     } catch (error) {
       Alert.alert(
@@ -282,7 +286,6 @@ export default function RecipeWebImportScreen() {
         'Could not import recipe from this page. Please try a different recipe or enter it manually.',
         [{ text: 'OK' }]
       );
-    } finally {
       setIsImporting(false);
     }
   };
