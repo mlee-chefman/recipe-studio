@@ -5,6 +5,7 @@ import RecipeDetail from '../screens/recipeDetail';
 import RecipeCreator from '../screens/recipeCreator';
 import RecipeEdit from '../screens/recipeEdit';
 import RecipeWebImport from '../screens/RecipeWebImport';
+import RecipeOCRImport from '../screens/RecipeOCRImport';
 import TabNavigator from './tabNavigator';
 
 const Stack = createStackNavigator({
@@ -38,6 +39,13 @@ const Stack = createStackNavigator({
     },
     RecipeWebImport: {
       screen: RecipeWebImport,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
+    RecipeOCRImport: {
+      screen: RecipeOCRImport,
       options: {
         headerShown: true,
         presentation: 'card',

@@ -15,6 +15,7 @@ import { theme } from '../theme';
 import { useRecipeForm } from '../hooks/useRecipeForm';
 import { SimpleDraggableList } from '../components/DraggableList';
 import { DraggableCookingAction } from '../components/DraggableCookingAction';
+import ImportOptionsModal from '../components/ImportOptionsModal';
 
 interface RecipeCreatorProps {
   onComplete?: () => void;
@@ -27,6 +28,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const route = useRoute<RecipeCreatorRouteProp>();
   const [editingCookingAction, setEditingCookingAction] = React.useState<{ action: CookingAction, stepIndex: number } | null>(null);
   const [newInstructionText, setNewInstructionText] = React.useState('');
+  const [showImportModal, setShowImportModal] = React.useState(false);
 
   const {
     formData,
@@ -137,7 +139,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       headerRight: () => (
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
-            onPress={() => navigation.navigate('RecipeWebImport' as never)}
+            onPress={() => setShowImportModal(true)}
             style={{
               backgroundColor: theme.colors.gray[100],
               borderRadius: theme.borderRadius.lg,
@@ -332,7 +334,16 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const autoAssignCookingActions = (instructions: string[], suggestedActions: CookingAction[]) => {
     const assignedActions: CookingAction[] = [];
     suggestedActions.forEach(action => {
-      // Find the best step to assign this cooking action to
+      // If the action already has a stepIndex from ChefIQ analyzer, use that
+      if (action.stepIndex !== undefined && action.stepIndex >= 0 && action.stepIndex < instructions.length) {
+        assignedActions.push({
+          ...action,
+          id: action.id || `auto_${Date.now()}_${action.stepIndex}`
+        });
+        return;
+      }
+
+      // Otherwise, find the best step to assign this cooking action to
       let bestStepIndex = -1;
       let bestScore = 0;
 
@@ -343,7 +354,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         // Score based on cooking method keywords
         const methodKeywords = {
           'pressure': ['pressure', 'instant pot', 'cook under pressure'],
-          'sauté': ['sauté', 'saute', 'brown', 'sear', 'fry', 'heat oil'],
+          'sauté': ['sauté', 'saute', 'brown', 'sear', 'fry', 'heat oil', 'cook over medium heat', 'cook over high heat'],
           'bake': ['bake', 'oven', 'preheat', 'degrees', '°f', 'baking'],
           'air fry': ['air fry', 'crispy', 'golden', 'crunchy'],
           'roast': ['roast', 'roasted', 'roasting'],
@@ -412,6 +423,16 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     });
 
     return assignedActions;
+  };
+
+  const handleWebImport = () => {
+    setShowImportModal(false);
+    navigation.navigate('RecipeWebImport' as never);
+  };
+
+  const handleOCRImport = () => {
+    setShowImportModal(false);
+    navigation.navigate('RecipeOCRImport' as never);
   };
 
   return (
@@ -1003,6 +1024,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           </View>
         </View>
       </Modal>
+
+      {/* Import Options Modal */}
+      <ImportOptionsModal
+        visible={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        onSelectWebImport={handleWebImport}
+        onSelectOCRImport={handleOCRImport}
+      />
     </KeyboardAwareScrollView>
   );
 }
