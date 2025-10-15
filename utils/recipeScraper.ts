@@ -17,6 +17,7 @@ export interface ScrapedRecipe {
   prepTime: number;
   servings: number;
   category?: string;
+  tags?: string[];
   image?: string;
   // ChefIQ suggestions
   chefiqSuggestions?: RecipeAnalysisResult;

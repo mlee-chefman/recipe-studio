@@ -4,6 +4,7 @@ export const RECIPE_DEFAULTS = {
   TITLE: '',
   IMAGE_URL: '',
   CATEGORY: '',
+  TAGS: [] as string[],
   DESCRIPTION: '',
   NOTES: '',
 
@@ -35,6 +36,8 @@ export const RECIPE_DEFAULTS = {
   SHOW_COOKING_SELECTOR: false,
   SHOW_SERVINGS_PICKER: false,
   SHOW_COOK_TIME_PICKER: false,
+  SHOW_CATEGORY_PICKER: false,
+  SHOW_TAGS_PICKER: false,
   SHOW_CANCEL_CONFIRMATION: false,
 } as const;
 
@@ -68,6 +71,45 @@ export const RECIPE_OPTIONS = {
     'Marinade',
     'Condiment',
   ] as const,
+
+  // Common tags for quick selection
+  COMMON_TAGS: [
+    // Dietary & Lifestyle
+    'Vegetarian',
+    'Vegan',
+    'Gluten-Free',
+    'Dairy-Free',
+    'Low-Carb',
+    'Keto',
+    'Paleo',
+    // Difficulty & Time
+    'Quick',
+    'Easy',
+    'Healthy',
+    // Characteristics
+    'Comfort Food',
+    'Spicy',
+    'Kid-Friendly',
+    'Holiday',
+    // Cuisines
+    'American',
+    'Chinese',
+    'French',
+    'Greek',
+    'Indian',
+    'Italian',
+    'Japanese',
+    'Korean',
+    'Mediterranean',
+    'Mexican',
+    // Cooking Methods
+    'BBQ',
+    'One-Pot',
+    'Slow Cooker',
+    'Air Fryer',
+    'Baking',
+    'Grilling',
+  ] as const,
 } as const;
 
 // Validation rules
@@ -86,6 +128,7 @@ export const hasFormData = (formData: RecipeFormState) => {
     formData.title ||
     formData.imageUrl ||
     formData.category ||
+    formData.tags.length > 0 ||
     formData.cookTime > RECIPE_DEFAULTS.COOK_TIME ||
     formData.servings !== RECIPE_DEFAULTS.SERVINGS ||
     formData.ingredients.some(i => i.trim()) ||
@@ -104,6 +147,7 @@ export const hasFormChanges = (formData: RecipeFormState, originalRecipe: any) =
   if (formData.title !== originalRecipe.title) return true;
   if (formData.imageUrl !== (originalRecipe.image || '')) return true;
   if (formData.category !== originalRecipe.category) return true;
+  if (JSON.stringify(formData.tags) !== JSON.stringify(originalRecipe.tags || [])) return true;
   if (formData.notes !== originalRecipe.description) return true;
   if (formData.cookTime !== originalRecipe.cookTime) return true;
   if (formData.servings !== originalRecipe.servings) return true;
@@ -132,6 +176,7 @@ export interface RecipeFormState {
   title: string;
   imageUrl: string;
   category: string;
+  tags: string[];
   notes: string;
 
   // Time and Servings
@@ -163,6 +208,8 @@ export interface RecipeModalState {
   showCookingSelector: boolean;
   showServingsPicker: boolean;
   showCookTimePicker: boolean;
+  showCategoryPicker: boolean;
+  showTagsPicker: boolean;
   showCancelConfirmation: boolean;
 }
 
@@ -171,6 +218,7 @@ export const getInitialFormState = (): RecipeFormState => ({
   title: RECIPE_DEFAULTS.TITLE,
   imageUrl: RECIPE_DEFAULTS.IMAGE_URL,
   category: RECIPE_DEFAULTS.CATEGORY,
+  tags: [...RECIPE_DEFAULTS.TAGS],
   cookTime: RECIPE_DEFAULTS.COOK_TIME,
   cookTimeHours: RECIPE_DEFAULTS.COOK_TIME_HOURS,
   cookTimeMinutes: RECIPE_DEFAULTS.COOK_TIME_MINUTES,
@@ -193,5 +241,7 @@ export const getInitialModalState = (): RecipeModalState => ({
   showCookingSelector: RECIPE_DEFAULTS.SHOW_COOKING_SELECTOR,
   showServingsPicker: RECIPE_DEFAULTS.SHOW_SERVINGS_PICKER,
   showCookTimePicker: RECIPE_DEFAULTS.SHOW_COOK_TIME_PICKER,
+  showCategoryPicker: RECIPE_DEFAULTS.SHOW_CATEGORY_PICKER,
+  showTagsPicker: RECIPE_DEFAULTS.SHOW_TAGS_PICKER,
   showCancelConfirmation: RECIPE_DEFAULTS.SHOW_CANCEL_CONFIRMATION,
 });

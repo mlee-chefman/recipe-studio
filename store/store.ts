@@ -13,6 +13,7 @@ export interface Recipe {
   servings: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
   category: string;
+  tags?: string[]; // Multiple keywords for detailed searching
   image?: string;
   // ChefIQ Integration
   chefiqAppliance?: string; // appliance category_id
@@ -34,9 +35,13 @@ export interface RecipeState {
   searchQuery: string;
   selectedCategory: string;
   selectedDifficulty: string;
+  selectedTags: string[];
+  selectedAppliance: string;
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (category: string) => void;
   setSelectedDifficulty: (difficulty: string) => void;
+  setSelectedTags: (tags: string[]) => void;
+  setSelectedAppliance: (appliance: string) => void;
   filterRecipes: () => void;
   addRecipe: (recipe: Omit<Recipe, 'id'>) => void;
   deleteRecipe: (id: string) => void;
@@ -107,6 +112,8 @@ export const useRecipeStore = create<RecipeState>()(
       searchQuery: '',
       selectedCategory: '',
       selectedDifficulty: '',
+      selectedTags: [],
+      selectedAppliance: '',
       setSearchQuery: (query: string) => {
         set({ searchQuery: query });
         get().filterRecipes();
@@ -119,23 +126,53 @@ export const useRecipeStore = create<RecipeState>()(
         set({ selectedDifficulty: difficulty });
         get().filterRecipes();
       },
+      setSelectedTags: (tags: string[]) => {
+        set({ selectedTags: tags });
+        get().filterRecipes();
+      },
+      setSelectedAppliance: (appliance: string) => {
+        set({ selectedAppliance: appliance });
+        get().filterRecipes();
+      },
       filterRecipes: () => {
-        const { recipes, searchQuery, selectedCategory, selectedDifficulty } = get();
+        const { recipes, searchQuery, selectedCategory, selectedDifficulty, selectedTags, selectedAppliance } = get();
         let filtered = recipes;
 
+        // Search query filter
         if (searchQuery) {
-          filtered = filtered.filter(recipe =>
-            recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            recipe.description.toLowerCase().includes(searchQuery.toLowerCase())
-          );
+          filtered = filtered.filter(recipe => {
+            const searchLower = searchQuery.toLowerCase();
+            return (
+              recipe.title.toLowerCase().includes(searchLower) ||
+              recipe.description.toLowerCase().includes(searchLower) ||
+              (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+            );
+          });
         }
 
+        // Category filter
         if (selectedCategory) {
           filtered = filtered.filter(recipe => recipe.category === selectedCategory);
         }
 
+        // Difficulty filter
         if (selectedDifficulty) {
           filtered = filtered.filter(recipe => recipe.difficulty === selectedDifficulty);
+        }
+
+        // Tags filter (recipe must have ALL selected tags)
+        if (selectedTags.length > 0) {
+          filtered = filtered.filter(recipe => {
+            if (!recipe.tags || recipe.tags.length === 0) return false;
+            return selectedTags.every(selectedTag =>
+              recipe.tags!.some(recipeTag => recipeTag.toLowerCase() === selectedTag.toLowerCase())
+            );
+          });
+        }
+
+        // Appliance filter
+        if (selectedAppliance) {
+          filtered = filtered.filter(recipe => recipe.chefiqAppliance === selectedAppliance);
         }
 
         set({ filteredRecipes: filtered });

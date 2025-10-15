@@ -313,6 +313,7 @@ Return a JSON object with the following structure:
   "prepTime": 15,
   "servings": 4,
   "category": "category name (e.g., Main Course, Dessert, etc.)",
+  "tags": ["tag1", "tag2", "tag3"],
   "notes": "Any helpful tips, variations, or serving suggestions"
 }
 
@@ -323,8 +324,9 @@ Guidelines:
 4. **Instructions**: Write clear, numbered steps in chronological order. Be specific about temperatures, times, and techniques
 5. **Times**: Provide realistic prep time and cook time in minutes
 6. **Servings**: Specify number of servings (typically 4-6)
-7. **Category**: Choose the most appropriate category
-8. **Notes**: Include helpful tips, substitutions, or serving suggestions
+7. **Category**: Choose the most appropriate category (e.g., Main Course, Dessert, Appetizer, etc.)
+8. **Tags**: Add 2-5 relevant tags (e.g., "Quick", "Healthy", "Vegetarian", "Spicy", "Italian", "Kid-Friendly", "Gluten-Free", etc.)
+9. **Notes**: Include helpful tips, substitutions, or serving suggestions
 
 Important:
 - Make the recipe practical and achievable for home cooks
@@ -356,6 +358,7 @@ Please parse this text and return a JSON object with the following structure:
   "prepTime": 15,
   "servings": 4,
   "category": "category name (e.g., Dessert, Main Course, etc.)",
+  "tags": ["tag1", "tag2", "tag3"],
   "notes": "Any additional notes, tips, or variations mentioned (if available, otherwise empty string)"
 }
 
@@ -367,7 +370,8 @@ Guidelines:
 5. **Times**: Extract prep time and cook time in minutes. If not specified, use reasonable defaults (prepTime: 15, cookTime: 30)
 6. **Servings**: Extract number of servings. If not specified, default to 4
 7. **Category**: Infer category from the recipe (e.g., "Dessert", "Main Course", "Appetizer", "Soup", "Salad", "Breakfast", etc.)
-8. **Notes**: Include any tips, variations, storage instructions, or additional notes
+8. **Tags**: Infer 2-5 relevant tags based on the recipe (e.g., "Quick", "Vegetarian", "Italian", "Spicy", "Kid-Friendly", "Healthy", etc.)
+9. **Notes**: Include any tips, variations, storage instructions, or additional notes
 
 Important:
 - Fix obvious OCR errors (e.g., "1 cuρ" → "1 cup")
@@ -428,6 +432,7 @@ function parseGeminiResponse(
       prepTime: parseInt(parsed.prepTime) || 15,
       servings: parseInt(parsed.servings) || 4,
       category: parsed.category || 'General',
+      tags: Array.isArray(parsed.tags) ? parsed.tags.filter((tag: any) => tag && tag.trim()) : [],
       image: imageUri,
     };
 
@@ -638,6 +643,7 @@ For each recipe found, return a JSON object with this structure:
   "prepTime": 15,
   "servings": 4,
   "category": "category name",
+  "tags": ["tag1", "tag2", "tag3"],
   "notes": "Any additional notes or tips"
 }
 
@@ -649,7 +655,8 @@ Guidelines:
 5. **Times**: Extract or estimate reasonable times in minutes
 6. **Servings**: Extract or default to 4
 7. **Category**: Infer from recipe type (e.g., "Main Course", "Dessert", "Appetizer")
-8. **Notes**: Include any tips, variations, or serving suggestions
+8. **Tags**: Infer 2-5 relevant tags (e.g., "Quick", "Vegetarian", "Italian", "Spicy", "American", "French", "Healthy", etc.)
+9. **Notes**: Include any tips, variations, or serving suggestions
 
 Important:
 - Return an array of recipe objects: [recipe1, recipe2, ...]
@@ -719,6 +726,7 @@ function parseMultiRecipeResponse(responseText: string): ScrapedRecipe[] {
         prepTime: parseInt(parsed.prepTime) || 15,
         servings: parseInt(parsed.servings) || 4,
         category: parsed.category || 'General',
+        tags: Array.isArray(parsed.tags) ? parsed.tags.filter((tag: any) => tag && tag.trim()) : [],
         image: '',
       };
 

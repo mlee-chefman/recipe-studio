@@ -31,26 +31,31 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
           <Text className="text-lg font-bold text-gray-800 mb-2">{recipe.title}</Text>
           <Text className="text-gray-600 mb-3 line-clamp-2">{recipe.description}</Text>
 
+          {/* Tags */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <View className="flex-row flex-wrap gap-1 mb-3">
+              {recipe.tags.slice(0, 4).map((tag, index) => (
+                <View key={index} className="px-2 py-0.5 rounded-full" style={{ backgroundColor: theme.colors.primary[100] }}>
+                  <Text className="text-xs" style={{ color: theme.colors.primary[700] }}>{tag}</Text>
+                </View>
+              ))}
+              {recipe.tags.length > 4 && (
+                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: theme.colors.gray[200] }}>
+                  <Text className="text-xs" style={{ color: theme.colors.text.secondary }}>+{recipe.tags.length - 4}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
           <View className="flex-row justify-between items-center mb-2">
             <View className="flex-row items-center">
               <Text className="text-sm text-gray-500 mr-4">⏱️ {recipe.cookTime} min</Text>
               <Text className="text-sm text-gray-500 mr-4">👥 {recipe.servings} servings</Text>
             </View>
-            <View className={`px-2 py-1 rounded-full ${
-              recipe.difficulty === 'Easy' ? 'bg-green-100' :
-              recipe.difficulty === 'Medium' ? 'bg-yellow-100' : 'bg-red-100'
-            }`}>
-              <Text className={`text-xs font-medium ${
-                recipe.difficulty === 'Easy' ? 'text-green-800' :
-                recipe.difficulty === 'Medium' ? 'text-yellow-800' : 'text-red-800'
-              }`}>
-                {recipe.difficulty}
-              </Text>
-            </View>
           </View>
 
           <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center">
+            <View className="flex-row items-center flex-wrap gap-1">
               <Text className="text-sm font-medium mr-2" style={{ color: theme.colors.primary[500] }}>{recipe.category}</Text>
               {recipe.chefiqAppliance && (
                 <View className="flex-row items-center gap-1">
@@ -109,9 +114,13 @@ export const RecipeList = () => {
     searchQuery,
     selectedCategory,
     selectedDifficulty,
+    selectedTags,
+    selectedAppliance,
     setSearchQuery,
     setSelectedCategory,
     setSelectedDifficulty,
+    setSelectedTags,
+    setSelectedAppliance,
     recipes,
     filterRecipes
   } = useRecipeStore();
@@ -127,9 +136,25 @@ export const RecipeList = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Get unique categories and difficulties for filter options
-  const categories = Array.from(new Set(recipes.map(recipe => recipe.category)));
+  // Get unique categories, difficulties, tags, and appliances for filter options
+  const categories = Array.from(new Set(recipes.map(recipe => recipe.category).filter(c => c)));
   const difficulties = ['Easy', 'Medium', 'Hard'];
+  const allTags = Array.from(new Set(recipes.flatMap(recipe => recipe.tags || [])));
+
+  // Deduplicate appliances by ID
+  const applianceMap = new Map<string, { id: string; name: string }>();
+  recipes
+    .filter(recipe => recipe.chefiqAppliance)
+    .forEach(recipe => {
+      const id = recipe.chefiqAppliance!;
+      if (!applianceMap.has(id)) {
+        applianceMap.set(id, {
+          id,
+          name: getApplianceById(id)?.name || 'Unknown'
+        });
+      }
+    });
+  const appliances = Array.from(applianceMap.values());
 
   const handleRecipePress = (recipe: Recipe) => {
     // @ts-ignore - Navigation typing issue with static navigation
@@ -146,12 +171,16 @@ export const RecipeList = () => {
   const handleClearFilters = () => {
     setSelectedCategory('');
     setSelectedDifficulty('');
+    setSelectedTags([]);
+    setSelectedAppliance('');
   };
 
   const getActiveFiltersCount = () => {
     let count = 0;
     if (selectedCategory) count++;
     if (selectedDifficulty) count++;
+    if (selectedTags.length > 0) count += selectedTags.length;
+    if (selectedAppliance) count++;
     return count;
   };
 
@@ -184,7 +213,7 @@ export const RecipeList = () => {
         </View>
 
         {/* Active Filters Display */}
-        {(selectedCategory || selectedDifficulty) && (
+        {(selectedCategory || selectedDifficulty || selectedTags.length > 0 || selectedAppliance) && (
           <View className="mb-3">
             <Text className="text-sm font-medium text-gray-700 mb-2">Active Filters:</Text>
             <View className="flex-row flex-wrap">
@@ -200,6 +229,22 @@ export const RecipeList = () => {
                 <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
                   <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Difficulty: {selectedDifficulty}</Text>
                   <TouchableOpacity onPress={() => setSelectedDifficulty('')}>
+                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {selectedTags.map((tag) => (
+                <View key={tag} className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Tag: {tag}</Text>
+                  <TouchableOpacity onPress={() => setSelectedTags(selectedTags.filter(t => t !== tag))}>
+                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {selectedAppliance && (
+                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Appliance: {getApplianceById(selectedAppliance)?.short_code}</Text>
+                  <TouchableOpacity onPress={() => setSelectedAppliance('')}>
                     <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
                   </TouchableOpacity>
                 </View>
@@ -247,10 +292,16 @@ export const RecipeList = () => {
         onClose={() => setFilterModalVisible(false)}
         categories={categories}
         difficulties={difficulties}
+        allTags={allTags}
+        appliances={appliances}
         selectedCategory={selectedCategory}
         selectedDifficulty={selectedDifficulty}
+        selectedTags={selectedTags}
+        selectedAppliance={selectedAppliance}
         onCategoryChange={setSelectedCategory}
         onDifficultyChange={setSelectedDifficulty}
+        onTagsChange={setSelectedTags}
+        onApplianceChange={setSelectedAppliance}
         onClearFilters={handleClearFilters}
       />
 

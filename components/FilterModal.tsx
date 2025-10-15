@@ -1,16 +1,23 @@
 import * as React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { theme } from '../theme';
+import { CHEFIQ_APPLIANCES } from '../types/chefiq';
 
 interface FilterModalProps {
   visible: boolean;
   onClose: () => void;
   categories: string[];
   difficulties: string[];
+  allTags: string[];
+  appliances: Array<{ id: string; name: string }>;
   selectedCategory: string;
   selectedDifficulty: string;
+  selectedTags: string[];
+  selectedAppliance: string;
   onCategoryChange: (category: string) => void;
   onDifficultyChange: (difficulty: string) => void;
+  onTagsChange: (tags: string[]) => void;
+  onApplianceChange: (appliance: string) => void;
   onClearFilters: () => void;
 }
 
@@ -48,8 +55,15 @@ const DropdownSection = ({
 
       {/* Dropdown Options */}
       {isOpen && (
-        <View className="bg-white border border-gray-300 border-t-0 rounded-b-lg max-h-40">
-          <ScrollView showsVerticalScrollIndicator={false}>
+        <View
+          className="bg-white border border-gray-300 border-t-0 rounded-b-lg"
+          style={{ maxHeight: 280 }}
+        >
+          <ScrollView
+            showsVerticalScrollIndicator={true}
+            persistentScrollbar={true}
+            style={{ maxHeight: 280 }}
+          >
             {/* Clear option */}
             <TouchableOpacity
               onPress={() => {
@@ -60,7 +74,7 @@ const DropdownSection = ({
             >
               <Text className="text-base text-gray-500 italic">Clear selection</Text>
             </TouchableOpacity>
-            
+
             {/* Options */}
             {options.map((option) => (
               <TouchableOpacity
@@ -89,17 +103,83 @@ const DropdownSection = ({
   );
 };
 
+const TagsSection = ({
+  title,
+  options,
+  selectedTags,
+  onToggle
+}: {
+  title: string;
+  options: string[];
+  selectedTags: string[];
+  onToggle: (tag: string) => void;
+}) => {
+  return (
+    <View className="mb-6">
+      <Text className="text-lg font-semibold text-gray-800 mb-3">{title}</Text>
+      <View className="flex-row flex-wrap gap-2">
+        {options.map((tag) => {
+          const isSelected = selectedTags.includes(tag);
+          return (
+            <TouchableOpacity
+              key={tag}
+              onPress={() => onToggle(tag)}
+              className="px-3 py-2 rounded-full"
+              style={{
+                backgroundColor: isSelected ? theme.colors.primary[500] : theme.colors.gray[100],
+                borderWidth: 1,
+                borderColor: isSelected ? theme.colors.primary[500] : theme.colors.gray[300]
+              }}
+            >
+              <Text
+                className="text-sm"
+                style={{
+                  color: isSelected ? 'white' : theme.colors.text.primary,
+                  fontWeight: isSelected ? '600' : '400'
+                }}
+              >
+                {tag}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      {selectedTags.length > 0 && (
+        <Text className="text-xs mt-2" style={{ color: theme.colors.text.secondary }}>
+          Recipes must have ALL selected tags ({selectedTags.length} selected)
+        </Text>
+      )}
+    </View>
+  );
+};
+
 export const FilterModal = ({
   visible,
   onClose,
   categories,
   difficulties,
+  allTags,
+  appliances,
   selectedCategory,
   selectedDifficulty,
+  selectedTags,
+  selectedAppliance,
   onCategoryChange,
   onDifficultyChange,
+  onTagsChange,
+  onApplianceChange,
   onClearFilters
 }: FilterModalProps) => {
+  const handleTagToggle = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      onTagsChange(selectedTags.filter(t => t !== tag));
+    } else {
+      onTagsChange([...selectedTags, tag]);
+    }
+  };
+
+  const hasActiveFilters = selectedCategory || selectedDifficulty || selectedTags.length > 0 || selectedAppliance;
+
   return (
     <Modal
       visible={visible}
@@ -139,8 +219,32 @@ export const FilterModal = ({
             placeholder="Select difficulty level"
           />
 
+          {/* ChefIQ Appliance Dropdown */}
+          {appliances.length > 0 && (
+            <DropdownSection
+              title="ChefIQ Appliance"
+              options={appliances.map(a => a.name)}
+              selectedValue={appliances.find(a => a.id === selectedAppliance)?.name || ''}
+              onSelect={(name) => {
+                const appliance = appliances.find(a => a.name === name);
+                onApplianceChange(appliance?.id || '');
+              }}
+              placeholder="Select an appliance"
+            />
+          )}
+
+          {/* Tags Multi-Select */}
+          {allTags.length > 0 && (
+            <TagsSection
+              title="Tags"
+              options={allTags}
+              selectedTags={selectedTags}
+              onToggle={handleTagToggle}
+            />
+          )}
+
           {/* Clear All Filters Button */}
-          {(selectedCategory || selectedDifficulty) && (
+          {hasActiveFilters && (
             <TouchableOpacity
               onPress={onClearFilters}
               className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 items-center mt-4"

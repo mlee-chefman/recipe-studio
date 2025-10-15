@@ -92,6 +92,7 @@ export default function RecipeSelectionScreen() {
       servings: scrapedRecipe.servings,
       difficulty,
       category: scrapedRecipe.category || 'General',
+      tags: scrapedRecipe.tags || [],
       image: scrapedRecipe.image,
       // ChefIQ data if available
       chefiqAppliance: scrapedRecipe.chefiqSuggestions?.suggestedAppliance,

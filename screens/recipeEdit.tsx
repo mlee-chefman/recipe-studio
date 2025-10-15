@@ -304,6 +304,35 @@ export default function RecipeEditScreen() {
           )}
         </View>
 
+        {/* Info Section */}
+        <View className="mb-4 border-b border-gray-200 pb-3">
+          <Text className="text-lg text-gray-800 mb-3">Info</Text>
+          <View className="flex-row items-center justify-between gap-4">
+            {/* Cook Time */}
+            <View className="flex-1 flex-row items-center justify-between">
+              <Text className="text-base text-gray-600">Cook Time</Text>
+              <TouchableOpacity
+                onPress={() => updateModalStates({ showCookTimePicker: true })}
+                className="border-b border-gray-200 py-1 px-2"
+              >
+                <Text className="text-base text-gray-800 text-right">
+                  {formData.cookTimeHours > 0 ? `${formData.cookTimeHours}h ${formData.cookTimeMinutes}m` : `${formData.cookTimeMinutes}m`}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {/* Servings */}
+            <View className="flex-1 flex-row items-center justify-between">
+              <Text className="text-base text-gray-600">Servings</Text>
+              <TouchableOpacity
+                onPress={() => updateModalStates({ showServingsPicker: true })}
+                className="border-b border-gray-200 py-1 px-2"
+              >
+                <Text className="text-base text-gray-800 text-right">{formData.servings}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
         {/* Category */}
         <TouchableOpacity className="mb-4 border-b border-gray-200 pb-3">
           <View className="flex-row items-center justify-between">
@@ -318,55 +347,51 @@ export default function RecipeEditScreen() {
           </View>
         </TouchableOpacity>
 
-        {/* Info Section */}
+        {/* Tags */}
         <View className="mb-4 border-b border-gray-200 pb-3">
-          <Text className="text-lg text-gray-800 mb-3">Info</Text>
-          <View className="space-y-3">
-            <View className="flex-row items-center justify-between">
-              <Text className="text-base text-gray-600">Cook Time</Text>
-              <TouchableOpacity
-                onPress={() => updateModalStates({ showCookTimePicker: true })}
-                className="border-b border-gray-200 py-1 px-2 min-w-[100px]"
-              >
-                <Text className="text-base text-gray-800 text-right">
-                  {formData.cookTimeHours > 0 ? `${formData.cookTimeHours}h ${formData.cookTimeMinutes}m` : `${formData.cookTimeMinutes}m`}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <View className="flex-row items-center justify-between">
-              <Text className="text-base text-gray-600">Servings</Text>
-              <TouchableOpacity
-                onPress={() => updateModalStates({ showServingsPicker: true })}
-                className="border-b border-gray-200 py-1 px-2 min-w-[60px]"
-              >
-                <Text className="text-base text-gray-800 text-right">{formData.servings}</Text>
-              </TouchableOpacity>
-            </View>
-            <View className="flex-row items-center justify-between">
-              <Text className="text-base text-gray-600">Difficulty</Text>
-              <View className="flex-row space-x-2">
-                {RECIPE_OPTIONS.DIFFICULTIES.map((level) => (
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-lg text-gray-800">Tags</Text>
+            <TouchableOpacity
+              onPress={() => updateModalStates({ showTagsPicker: true })}
+              className="px-3 py-1 rounded-lg"
+              style={{ backgroundColor: theme.colors.primary[100] }}
+            >
+              <Text style={{ color: theme.colors.primary[700], fontSize: theme.typography.fontSize.sm }}>
+                + Add
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {formData.tags && formData.tags.length > 0 && (
+            <View className="flex-row flex-wrap gap-2">
+              {formData.tags.map((tag, index) => (
+                <View
+                  key={index}
+                  className="flex-row items-center px-3 py-1 rounded-full"
+                  style={{ backgroundColor: theme.colors.primary[100] }}
+                >
+                  <Text style={{ color: theme.colors.primary[700], fontSize: theme.typography.fontSize.sm }}>
+                    {tag}
+                  </Text>
                   <TouchableOpacity
-                    key={level}
-                    onPress={() => updateFormData({ difficulty: level })}
-                    className="px-3 py-1 rounded-full"
-                    style={{
-                      backgroundColor: formData.difficulty === level ? theme.colors.primary[100] : theme.colors.gray[100]
+                    onPress={() => {
+                      const newTags = (formData.tags || []).filter((_, i) => i !== index);
+                      updateFormData({ tags: newTags });
                     }}
+                    className="ml-1"
                   >
-                    <Text
-                      className="text-sm"
-                      style={{
-                        color: formData.difficulty === level ? theme.colors.primary[600] : theme.colors.text.secondary
-                      }}
-                    >
-                      {level}
+                    <Text style={{ color: theme.colors.primary[700], fontSize: 16, fontWeight: 'bold' }}>
+                      ×
                     </Text>
                   </TouchableOpacity>
-                ))}
-              </View>
+                </View>
+              ))}
             </View>
-          </View>
+          )}
+          {(!formData.tags || formData.tags.length === 0) && (
+            <Text className="text-sm" style={{ color: theme.colors.text.secondary }}>
+              No tags added
+            </Text>
+          )}
         </View>
 
         {/* ChefIQ Smart Cooking */}
@@ -772,6 +797,117 @@ export default function RecipeEditScreen() {
                 </Picker>
               </View>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Tags Picker Modal */}
+      <Modal
+        visible={modalStates.showTagsPicker}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => updateModalStates({ showTagsPicker: false })}
+      >
+        <View style={{ flex: 1 }}>
+          {/* Backdrop */}
+          <TouchableOpacity
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.3)'
+            }}
+            activeOpacity={1}
+            onPress={() => updateModalStates({ showTagsPicker: false })}
+          />
+          {/* Bottom Sheet */}
+          <View
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              backgroundColor: 'white',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+              paddingBottom: 20,
+              maxHeight: '70%',
+            }}
+          >
+            <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+              <View />
+              <Text className="text-lg font-semibold">Add Tags</Text>
+              <TouchableOpacity onPress={() => updateModalStates({ showTagsPicker: false })}>
+                <Text className="text-base font-semibold" style={{ color: theme.colors.primary[500] }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+            <KeyboardAwareScrollView
+              style={{ flex: 1 }}
+              contentContainerStyle={{ padding: theme.spacing.lg }}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text className="text-sm font-medium mb-3" style={{ color: theme.colors.text.secondary }}>
+                Common Tags
+              </Text>
+              <View className="flex-row flex-wrap gap-2 mb-4">
+                {RECIPE_OPTIONS.COMMON_TAGS.map((tag) => {
+                  const isSelected = formData.tags && formData.tags.includes(tag);
+                  return (
+                    <TouchableOpacity
+                      key={tag}
+                      onPress={() => {
+                        if (isSelected) {
+                          updateFormData({ tags: (formData.tags || []).filter(t => t !== tag) });
+                        } else {
+                          updateFormData({ tags: [...(formData.tags || []), tag] });
+                        }
+                      }}
+                      className="px-3 py-2 rounded-full"
+                      style={{
+                        backgroundColor: isSelected ? theme.colors.primary[500] : theme.colors.gray[100],
+                        borderWidth: 1,
+                        borderColor: isSelected ? theme.colors.primary[500] : theme.colors.gray[300]
+                      }}
+                    >
+                      <Text
+                        className="text-sm"
+                        style={{
+                          color: isSelected ? 'white' : theme.colors.text.primary,
+                          fontWeight: isSelected ? '600' : '400'
+                        }}
+                      >
+                        {tag}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text className="text-sm font-medium mb-2" style={{ color: theme.colors.text.secondary }}>
+                Custom Tag
+              </Text>
+              <View className="flex-row gap-2">
+                <TextInput
+                  className="flex-1 border rounded-lg px-3 py-2"
+                  style={{
+                    borderColor: theme.colors.gray[300],
+                    fontSize: theme.typography.fontSize.base
+                  }}
+                  placeholder="Enter custom tag"
+                  onSubmitEditing={(e) => {
+                    const customTag = e.nativeEvent.text.trim();
+                    const currentTags = formData.tags || [];
+                    if (customTag && !currentTags.includes(customTag)) {
+                      updateFormData({ tags: [...currentTags, customTag] });
+                      e.target.clear();
+                    }
+                  }}
+                  returnKeyType="done"
+                />
+              </View>
+            </KeyboardAwareScrollView>
           </View>
         </View>
       </Modal>
