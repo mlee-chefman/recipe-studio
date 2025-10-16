@@ -66,14 +66,20 @@ yarn run ios
 yarn run android
 ```
 
-### Key Files
-- `store/store.ts` - Recipe state management with Zustand
-- `screens/recipe-creator.tsx` - Clean, single-screen recipe creation interface
-- `screens/recipe-creator-complex.tsx` - Original complex recipe creator (backup)
-- `components/RecipeList.tsx` - Recipe browsing and management
-- `types/chefiq.ts` - ChefIQ type definitions
+### Project Structure
+The codebase follows a clean, modular architecture:
+- `hooks/` - Custom React hooks for reusable logic
+- `components/modals/` - Reusable modal components
+- `utils/helpers/` - Pure utility functions
+- `services/` - External API integrations (Gemini AI, Google Vision)
+- `constants/` - App constants and configurations
+- `screens/` - Screen components
+- `store/` - Zustand state management
+
+See `TECH_ARCHITECTURE.md` for detailed folder structure and recent refactoring improvements.
 
 ### Documentation
+- `TECH_ARCHITECTURE.md` - **Technical architecture, folder structure, and refactoring details**
 - `FEATURES_PROGRESS.md` - Detailed feature implementation status
 - `DEVELOPMENT_GUIDE.md` - Development patterns and standards
 - `PROJECT_OVERVIEW.md` - Competition context and goals

@@ -34,23 +34,148 @@
 
 ## Project Structure
 ```
-src/
+recipe-studio/
 ├── components/
-│   ├── common/           # Reusable UI components
-│   ├── recipe/           # Recipe-specific components
-│   └── forms/            # Form components
-├── screens/              # Screen components
-├── stores/               # Zustand stores
-├── services/             # Firebase and API services
-├── types/                # TypeScript type definitions
-├── utils/                # Helper functions
-└── constants/            # App constants
-
-app/                      # Expo Router screens
-├── (tabs)/              # Tab navigation
-├── recipe/              # Recipe-related screens
-└── modals/              # Modal screens
+│   ├── modals/              # Reusable modal components
+│   │   ├── ServingsPickerModal.tsx
+│   │   ├── CookTimePickerModal.tsx
+│   │   ├── CategoryPickerModal.tsx
+│   │   ├── TagsPickerModal.tsx
+│   │   ├── ConfirmationModal.tsx
+│   │   └── index.ts         # Barrel exports
+│   ├── DraggableList.tsx
+│   ├── RecipeList.tsx
+│   ├── ApplianceDropdown.tsx
+│   └── ...                  # Other UI components
+│
+├── screens/                 # Screen components
+│   ├── recipeCreator.tsx    # Recipe creation screen
+│   ├── recipeEdit.tsx       # Recipe editing screen
+│   ├── RecipeWebImport.tsx  # Web recipe import
+│   └── ...                  # Other screens
+│
+├── hooks/                   # Custom React hooks
+│   ├── useRecipeForm.ts     # Form state management
+│   ├── useImagePicker.ts    # Image selection logic
+│   ├── useAIRecipeGenerator.ts  # AI recipe generation
+│   ├── useCookingActions.ts # Cooking action management
+│   ├── useWebViewImport.ts  # WebView recipe detection
+│   ├── useOCRImport.ts      # OCR import logic
+│   ├── usePDFImport.ts      # PDF import logic
+│   └── useTextImport.ts     # Text import logic
+│
+├── services/                # External API services
+│   ├── gemini.service.ts    # Google Gemini AI integration
+│   └── googleVision.service.ts  # Google Vision OCR
+│
+├── utils/
+│   └── helpers/             # Pure utility functions
+│       ├── recipeFormHelpers.ts    # Ingredient/instruction helpers
+│       ├── recipeParser.ts         # Recipe text parsing
+│       ├── recipeConversion.ts     # Recipe format conversion
+│       └── urlHelpers.ts           # URL validation/formatting
+│
+├── constants/               # App constants and configs
+│   ├── recipeDefaults.ts    # Default recipe options
+│   ├── importMessages.ts    # Import UI messages
+│   └── webViewScripts.ts    # WebView injected scripts
+│
+├── store/                   # Zustand state management
+│   └── store.ts             # Recipe store
+│
+├── types/                   # TypeScript type definitions
+│   └── chefiq.ts            # ChefIQ type definitions
+│
+└── theme.ts                 # App theme configuration
 ```
+
+## Code Architecture & Refactoring
+
+### Design Principles
+The codebase follows these key architectural principles:
+
+1. **Separation of Concerns**: UI components, business logic, and data access are cleanly separated
+2. **DRY (Don't Repeat Yourself)**: Shared logic is extracted into reusable hooks and helpers
+3. **Single Responsibility**: Each module has a clear, focused purpose
+4. **Composition**: Complex functionality is built from smaller, composable pieces
+
+### Recent Refactoring (2024)
+
+The codebase underwent significant refactoring to improve maintainability and reduce code duplication:
+
+#### Modal Components Extraction
+**Files Created:**
+- `components/modals/ServingsPickerModal.tsx`
+- `components/modals/CookTimePickerModal.tsx`
+- `components/modals/CategoryPickerModal.tsx`
+- `components/modals/TagsPickerModal.tsx`
+- `components/modals/ConfirmationModal.tsx`
+- `components/modals/index.ts` (barrel exports)
+
+**Impact:**
+- Removed ~300 lines of duplicate modal code from `recipeCreator.tsx`
+- Removed ~270 lines of duplicate modal code from `recipeEdit.tsx`
+- Created 5 reusable modal components
+
+#### Custom Hooks Extraction
+
+**`hooks/useCookingActions.ts`**
+- Manages cooking action state and handlers
+- Used by both `recipeCreator.tsx` and `recipeEdit.tsx`
+- Encapsulates: action selection, editing, and retrieval logic
+
+**`hooks/useWebViewImport.ts`**
+- Handles recipe detection from web pages
+- Manages import state and error handling
+- Used by `RecipeWebImport.tsx`
+
+**Impact:**
+- Removed ~70 lines of duplicate code from recipe screens
+- Better testability and reusability
+
+#### Helper Functions Extraction
+
+**`utils/helpers/recipeFormHelpers.ts`**
+- Pure functions for ingredient/instruction management
+- Validation logic with typed results
+- Functions: `addIngredient`, `removeIngredient`, `updateIngredient`, etc.
+
+**`utils/helpers/urlHelpers.ts`**
+- URL validation and formatting utilities
+- Functions: `isExcludedUrl`, `formatUrl`, `isValidUrl`, `formatAndValidateUrl`
+
+**Impact:**
+- Removed ~80 lines of duplicate helper code
+- Easier to unit test
+- Consistent behavior across screens
+
+#### Constants Extraction
+
+**`constants/webViewScripts.ts`**
+- Injected JavaScript for recipe detection
+- Extracted ~105 lines of script code from `RecipeWebImport.tsx`
+
+**Impact:**
+- Cleaner screen components
+- Easier to maintain and test scripts
+- Potential for reuse in other screens
+
+### File Size Reductions
+| File | Before | After | Reduction |
+|------|--------|-------|-----------|
+| `recipeCreator.tsx` | ~1,316 lines | ~994 lines | -24% |
+| `recipeEdit.tsx` | ~995 lines | ~725 lines | -27% |
+| `RecipeWebImport.tsx` | ~517 lines | ~330 lines | -36% |
+
+**Total Lines Removed:** ~779 lines of duplicate/inline code
+**Total Lines Added (reusable):** ~473 lines in hooks, helpers, and constants
+
+### Benefits Achieved
+1. **Reduced Duplication**: Shared logic centralized in one place
+2. **Improved Testability**: Pure functions and isolated hooks are easier to test
+3. **Better Maintainability**: Changes to shared logic automatically affect all consumers
+4. **Cleaner Components**: Screen components focus on UI and composition
+5. **Consistent Behavior**: All screens use identical logic for shared functionality
 
 ## Data Models
 
