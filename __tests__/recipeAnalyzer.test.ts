@@ -13,7 +13,7 @@ import {
   extractSousVideParams,
   extractToastingParams,
   extractDehydratingParams,
-} from '../utils/recipeAnalyzer';
+} from '~/utils/recipeAnalyzer';
 import {
   FanSpeed,
   TemperatureLevel,
@@ -23,7 +23,7 @@ import {
   ShadeLevel,
   CookerMethod,
   OvenMethod
-} from '../types/cookingEnums';
+} from '~/types/cookingEnums';
 
 describe('Recipe Analyzer', () => {
   describe('Temperature Extraction', () => {

@@ -28,9 +28,124 @@ eas build --platform android --profile preview
 ### File Naming Conventions
 - **Components**: PascalCase (`RecipeCard.tsx`)
 - **Screens**: PascalCase with Screen suffix (`RecipeListScreen.tsx`)
+- **Hooks**: camelCase with `use` prefix (`useRecipeForm.ts`)
+- **Helpers**: camelCase (`recipeFormHelpers.ts`)
+- **Services**: camelCase with `.service` suffix (`gemini.service.ts`)
 - **Stores**: camelCase with Store suffix (`recipeStore.ts`)
-- **Utils**: camelCase (`validateRecipe.ts`)
+- **Constants**: camelCase or UPPER_CASE (`webViewScripts.ts`)
 - **Types**: PascalCase (`Recipe.ts`)
+
+### Code Organization Patterns
+
+#### When to Extract Components
+Extract inline JSX into components when:
+- The same UI pattern is used in multiple places (2+ times)
+- The component has complex state or logic
+- The component exceeds ~50 lines of JSX
+- The component represents a distinct UI concept
+
+**Example:**
+```typescript
+// ✅ Good: Extracted modal component
+<ServingsPickerModal
+  visible={showPicker}
+  selectedValue={servings}
+  onValueChange={setServings}
+  onClose={() => setShowPicker(false)}
+/>
+
+// ❌ Bad: Inline modal duplicated across screens
+<Modal visible={showPicker}>
+  <View>{/* 50+ lines of picker UI */}</View>
+</Modal>
+```
+
+#### When to Extract Custom Hooks
+Create custom hooks when:
+- State logic is shared across multiple components
+- Complex side effects need encapsulation
+- Business logic should be separated from UI
+
+**Example:**
+```typescript
+// ✅ Good: Reusable hook
+function useWebViewImport({ onImportSuccess }) {
+  const [isImportable, setIsImportable] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleMessage = useCallback((event) => {
+    // Recipe detection logic
+  }, []);
+
+  const handleImport = useCallback(async (url) => {
+    // Import logic
+  }, [onImportSuccess]);
+
+  return { isImportable, isImporting, handleMessage, handleImport };
+}
+
+// Usage in component
+const { isImportable, handleMessage, handleImport } = useWebViewImport({
+  onImportSuccess: (recipe) => navigate('RecipeCreator', { recipe })
+});
+```
+
+#### When to Extract Helper Functions
+Create helper functions when:
+- Pure logic is duplicated across components
+- Complex calculations or transformations are needed
+- Validation or formatting logic exists
+
+**Example:**
+```typescript
+// utils/helpers/recipeFormHelpers.ts
+export function addIngredient(
+  currentIngredients: string[]
+): ValidationResult<string[]> {
+  const lastIngredient = currentIngredients[currentIngredients.length - 1];
+
+  if (lastIngredient && lastIngredient.trim() === '') {
+    return {
+      success: false,
+      error: 'Please fill in the current ingredient first.',
+    };
+  }
+
+  return {
+    success: true,
+    value: [...currentIngredients, ''],
+  };
+}
+
+// Usage in component
+const result = recipeHelpers.addIngredient(formData.ingredients);
+if (result.success) {
+  updateFormData({ ingredients: result.value });
+} else {
+  Alert.alert('Validation Error', result.error);
+}
+```
+
+#### When to Extract Constants
+Move to constants files when:
+- Values are used in multiple places
+- Large string content (like scripts, templates)
+- Configuration objects
+
+**Example:**
+```typescript
+// constants/webViewScripts.ts
+export const RECIPE_DETECTION_SCRIPT = `
+  (function() {
+    // 100+ lines of JavaScript
+  })();
+`;
+
+// Usage
+<WebView
+  injectedJavaScript={RECIPE_DETECTION_SCRIPT}
+/>
+```
 
 ### Component Structure
 ```typescript
