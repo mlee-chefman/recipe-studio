@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Recipe, useRecipeStore } from '~/store/store';
+import { Recipe, useRecipeStore } from '@store/store';
 import {
   RECIPE_DEFAULTS,
   RecipeFormState,

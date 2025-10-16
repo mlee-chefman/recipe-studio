@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import { parseMultipleRecipes } from '~/services/gemini.service';
-import { extractTextFromPDF } from '~/utils/pdfExtractor';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
-import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_ALERTS } from '~/constants/importMessages';
+import { parseMultipleRecipes } from '@services/gemini.service';
+import { extractTextFromPDF } from '@utils/pdfExtractor';
+import { ScrapedRecipe } from '@utils/recipeScraper';
+import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_ALERTS } from '@constants/importMessages';
 
 export interface UsePDFImportResult {
   selectedFile: { name: string; uri: string } | null;

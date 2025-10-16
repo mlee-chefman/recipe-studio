@@ -11,11 +11,11 @@ import {
   Clipboard,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '~/theme';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
-import { parseMultipleRecipes } from '~/services/gemini.service';
-import { useRecipeStore, Recipe } from '~/store/store';
-import { convertScrapedToRecipe } from '~/utils/helpers/recipeConversion';
+import { theme } from '@theme/index';
+import { ScrapedRecipe } from '@utils/recipeScraper';
+import { parseMultipleRecipes } from '@services/gemini.service';
+import { useRecipeStore, Recipe } from '@store/store';
+import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 export default function RecipeTextImportScreen() {
   const navigation = useNavigation();

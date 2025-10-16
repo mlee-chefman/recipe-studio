@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Alert, Clipboard } from 'react-native';
-import { parseMultipleRecipes } from '~/services/gemini.service';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
+import { parseMultipleRecipes } from '@services/gemini.service';
+import { ScrapedRecipe } from '@utils/recipeScraper';
 
 export interface UseTextImportResult {
   importText: string;

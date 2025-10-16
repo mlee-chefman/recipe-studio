@@ -1,5 +1,5 @@
-import { ScreenContent } from '~/components/ScreenContent';
-import { RecipeList } from '~/components/RecipeList';
+import { ScreenContent } from '@components/ScreenContent';
+import { RecipeList } from '@components/RecipeList';
 
 export default function TabOneScreen() {
   return (

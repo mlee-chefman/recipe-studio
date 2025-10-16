@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { scrapeRecipe } from '~/utils/recipeScraper';
-import { isExcludedUrl } from '~/utils/helpers/urlHelpers';
+import { scrapeRecipe } from '@utils/recipeScraper';
+import { isExcludedUrl } from '@utils/helpers/urlHelpers';
 
 interface RecipeDetails {
   title: string | null;

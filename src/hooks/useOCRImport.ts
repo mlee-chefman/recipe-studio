@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
-import { recognizeText } from '~/services/googleVision.service';
-import { parseRecipeWithGemini } from '~/services/gemini.service';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
-import { parseRecipeFromText } from '~/utils/helpers/recipeParser';
+import { recognizeText } from '@services/googleVision.service';
+import { parseRecipeWithGemini } from '@services/gemini.service';
+import { ScrapedRecipe } from '@utils/recipeScraper';
+import { parseRecipeFromText } from '@utils/helpers/recipeParser';
 
 export interface UseOCRImportResult {
   imageUri: string | null;

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet, Animated } from 'react-native';
-import { theme } from '~/theme';
+import { theme } from '@theme/index';
 
 interface CreateRecipeOptionsModalProps {
   visible: boolean;

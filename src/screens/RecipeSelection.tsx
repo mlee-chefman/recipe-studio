@@ -9,10 +9,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { theme } from '~/theme';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
-import { useRecipeStore, Recipe } from '~/store/store';
-import { convertScrapedToRecipe } from '~/utils/helpers/recipeConversion';
+import { theme } from '@theme/index';
+import { ScrapedRecipe } from '@utils/recipeScraper';
+import { useRecipeStore, Recipe } from '@store/store';
+import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 type RecipeSelectionRouteProp = RouteProp<{
   RecipeSelection: {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { theme } from '~/theme';
-import { RECIPE_OPTIONS } from '~/constants/recipeDefaults';
+import { theme } from '@theme/index';
+import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 
 interface CategoryPickerModalProps {
   visible: boolean;

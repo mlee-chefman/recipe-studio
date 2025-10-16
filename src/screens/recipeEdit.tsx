@@ -1,21 +1,21 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import MultilineInstructionInput, { MultilineInstructionInputRef } from '~/components/MultilineInstructionInput';
-import { RECIPE_OPTIONS } from '~/constants/recipeDefaults';
+import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
+import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Recipe } from '~/store/store';
-import { useRecipeForm } from '~/hooks/useRecipeForm';
-import { CookingAction, getApplianceById } from '~/types/chefiq';
-import ChefIQCookingSelector from '~/components/ChefIQCookingSelector';
-import { ApplianceDropdown } from '~/components/ApplianceDropdown';
-import { theme } from '~/theme';
-import { SimpleDraggableList } from '~/components/DraggableList';
-import { DraggableCookingAction } from '~/components/DraggableCookingAction';
-import { useImagePicker } from '~/hooks/useImagePicker';
-import { useCookingActions } from '~/hooks/useCookingActions';
-import * as recipeHelpers from '~/utils/helpers/recipeFormHelpers';
+import { Recipe } from '@store/store';
+import { useRecipeForm } from '@hooks/useRecipeForm';
+import { CookingAction, getApplianceById } from '@types/chefiq';
+import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
+import { ApplianceDropdown } from '@components/ApplianceDropdown';
+import { theme } from '@theme/index';
+import { SimpleDraggableList } from '@components/DraggableList';
+import { DraggableCookingAction } from '@components/DraggableCookingAction';
+import { useImagePicker } from '@hooks/useImagePicker';
+import { useCookingActions } from '@hooks/useCookingActions';
+import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
 import {
   ServingsPickerModal,
   CookTimePickerModal,

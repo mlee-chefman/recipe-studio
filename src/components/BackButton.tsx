@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
-import { theme } from '~/theme';
+import { theme } from '@theme/index';
 
 export const BackButton = ({ onPress }: { onPress: () => void }) => {
   return (

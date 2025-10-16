@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
-import { generateRecipeFromDescription } from '~/services/gemini.service';
-import { checkUsageLimit, recordGeneration, getRemainingGenerations } from '~/utils/aiUsageTracker';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
+import { generateRecipeFromDescription } from '@services/gemini.service';
+import { checkUsageLimit, recordGeneration, getRemainingGenerations } from '@utils/aiUsageTracker';
+import { ScrapedRecipe } from '@utils/recipeScraper';
 
 export interface AIGenerationResult {
   success: boolean;

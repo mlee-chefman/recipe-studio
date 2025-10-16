@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { theme } from '~/theme';
+import { theme } from '@theme/index';
 
 interface CookingActionDropZoneProps {
   stepIndex: number;
