@@ -1,9 +1,9 @@
 import * as React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { Image } from 'expo-image';
-import { Recipe, useRecipeStore } from '~/store/store';
-import { getApplianceById, formatCookingAction } from '~/types/chefiq';
-import { theme } from '~/theme';
+import { Recipe, useRecipeStore } from '@store/store';
+import { getApplianceById, formatCookingAction } from '@types/chefiq';
+import { theme } from '@theme/index';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;

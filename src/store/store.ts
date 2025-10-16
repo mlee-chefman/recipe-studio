@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CookingAction, InstructionSection } from '~/types/chefiq';
+import { CookingAction, InstructionSection } from '@types/chefiq';
 
 export interface Recipe {
   id: string;

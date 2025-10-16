@@ -3,10 +3,10 @@ import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Styl
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { theme } from '~/theme';
-import { RECIPE_DETECTION_SCRIPT, DEBUG_LOGGING_SCRIPT } from '~/constants/webViewScripts';
-import { isExcludedUrl, formatAndValidateUrl } from '~/utils/helpers/urlHelpers';
-import { useWebViewImport } from '~/hooks/useWebViewImport';
+import { theme } from '@theme/index';
+import { RECIPE_DETECTION_SCRIPT, DEBUG_LOGGING_SCRIPT } from '@constants/webViewScripts';
+import { isExcludedUrl, formatAndValidateUrl } from '@utils/helpers/urlHelpers';
+import { useWebViewImport } from '@hooks/useWebViewImport';
 
 type RecipeWebImportRouteProp = RouteProp<{ RecipeWebImport: { initialUrl?: string } }, 'RecipeWebImport'>;
 

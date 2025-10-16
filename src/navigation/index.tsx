@@ -1,14 +1,14 @@
 import { createStaticNavigation, StaticParamList } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import Modal from '~/screens/modal';
-import RecipeDetail from '~/screens/recipeDetail';
-import RecipeCreator from '~/screens/recipeCreator';
-import RecipeEdit from '~/screens/recipeEdit';
-import RecipeWebImport from '~/screens/RecipeWebImport';
-import RecipeOCRImport from '~/screens/RecipeOCRImport';
-import RecipeTextImport from '~/screens/RecipeTextImport';
-import RecipePDFImport from '~/screens/RecipePDFImport';
-import RecipeSelection from '~/screens/RecipeSelection';
+import Modal from '@screens/modal';
+import RecipeDetail from '@screens/recipeDetail';
+import RecipeCreator from '@screens/recipeCreator';
+import RecipeEdit from '@screens/recipeEdit';
+import RecipeWebImport from '@screens/RecipeWebImport';
+import RecipeOCRImport from '@screens/RecipeOCRImport';
+import RecipeTextImport from '@screens/RecipeTextImport';
+import RecipePDFImport from '@screens/RecipePDFImport';
+import RecipeSelection from '@screens/RecipeSelection';
 import TabNavigator from './tabNavigator';
 
 const Stack = createStackNavigator({

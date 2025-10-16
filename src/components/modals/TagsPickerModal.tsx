@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, Modal, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { theme } from '~/theme';
-import { RECIPE_OPTIONS } from '~/constants/recipeDefaults';
+import { theme } from '@theme/index';
+import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 
 interface TagsPickerModalProps {
   visible: boolean;

@@ -8,10 +8,10 @@ import {
   TextInput,
   Switch,
 } from 'react-native';
-import { cookingFunctions as rj40Functions, getSmartCookerDefaultState } from '~/utils/rj40CookingFunctions';
-import { cookingFunctions as cq50Functions } from '~/utils/cq50CookingFunctions';
-import { CookingAction, getApplianceById } from '~/types/chefiq';
-import { theme } from '~/theme';
+import { cookingFunctions as rj40Functions, getSmartCookerDefaultState } from '@utils/rj40CookingFunctions';
+import { cookingFunctions as cq50Functions } from '@utils/cq50CookingFunctions';
+import { CookingAction, getApplianceById } from '@types/chefiq';
+import { theme } from '@theme/index';
 
 interface ChefIQCookingSelectorProps {
   visible: boolean;

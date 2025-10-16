@@ -10,13 +10,13 @@ import {
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '~/theme';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
-import { parseMultipleRecipes } from '~/services/gemini.service';
-import { extractTextFromPDF } from '~/utils/pdfExtractor';
-import { useRecipeStore, Recipe } from '~/store/store';
-import { convertScrapedToRecipe } from '~/utils/helpers/recipeConversion';
-import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_SUCCESS, IMPORT_ALERTS, IMPORT_BUTTONS } from '~/constants/importMessages';
+import { theme } from '@theme/index';
+import { ScrapedRecipe } from '@utils/recipeScraper';
+import { parseMultipleRecipes } from '@services/gemini.service';
+import { extractTextFromPDF } from '@utils/pdfExtractor';
+import { useRecipeStore, Recipe } from '@store/store';
+import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
+import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_SUCCESS, IMPORT_ALERTS, IMPORT_BUTTONS } from '@constants/importMessages';
 
 export default function RecipePDFImportScreen() {
   const navigation = useNavigation();

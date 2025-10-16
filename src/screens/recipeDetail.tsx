@@ -3,10 +3,10 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Recipe, useRecipeStore } from '~/store/store';
-import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
-import { getCookingMethodIcon, formatKeyParameters } from '~/utils/cookingActionHelpers';
-import { theme } from '~/theme';
+import { Recipe, useRecipeStore } from '@store/store';
+import { getApplianceById, formatCookingAction, CookingAction } from '@types/chefiq';
+import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
+import { theme } from '@theme/index';
 
 type RootStackParamList = {
   RecipeDetail: { recipe: Recipe };

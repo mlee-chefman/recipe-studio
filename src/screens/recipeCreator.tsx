@@ -1,29 +1,29 @@
 import React, { useLayoutEffect, useRef, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import MultilineInstructionInput, { MultilineInstructionInputRef } from '~/components/MultilineInstructionInput';
-import { RECIPE_OPTIONS } from '~/constants/recipeDefaults';
+import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
+import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { ScrapedRecipe } from '~/utils/recipeScraper';
-import { CookingAction, getApplianceById } from '~/types/chefiq';
-import ChefIQCookingSelector from '~/components/ChefIQCookingSelector';
-import { ApplianceDropdown } from '~/components/ApplianceDropdown';
-import { theme } from '~/theme';
-import { useRecipeForm } from '~/hooks/useRecipeForm';
-import { SimpleDraggableList } from '~/components/DraggableList';
-import { DraggableCookingAction } from '~/components/DraggableCookingAction';
-import { useImagePicker } from '~/hooks/useImagePicker';
-import { useAIRecipeGenerator } from '~/hooks/useAIRecipeGenerator';
-import { useCookingActions } from '~/hooks/useCookingActions';
-import * as recipeHelpers from '~/utils/helpers/recipeFormHelpers';
+import { ScrapedRecipe } from '@utils/recipeScraper';
+import { CookingAction, getApplianceById } from '@types/chefiq';
+import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
+import { ApplianceDropdown } from '@components/ApplianceDropdown';
+import { theme } from '@theme/index';
+import { useRecipeForm } from '@hooks/useRecipeForm';
+import { SimpleDraggableList } from '@components/DraggableList';
+import { DraggableCookingAction } from '@components/DraggableCookingAction';
+import { useImagePicker } from '@hooks/useImagePicker';
+import { useAIRecipeGenerator } from '@hooks/useAIRecipeGenerator';
+import { useCookingActions } from '@hooks/useCookingActions';
+import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
 import {
   ServingsPickerModal,
   CookTimePickerModal,
   CategoryPickerModal,
   TagsPickerModal,
   ConfirmationModal,
-} from '~/components/modals';
+} from '@components/modals';
 
 interface RecipeCreatorProps {
   onComplete?: () => void;

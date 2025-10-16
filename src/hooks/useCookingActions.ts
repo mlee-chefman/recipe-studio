@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CookingAction } from '~/types/chefiq';
+import { CookingAction } from '@types/chefiq';
 
 interface FormData {
   cookingActions: CookingAction[];

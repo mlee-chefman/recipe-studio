@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, FlatList, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
-import { useRecipeStore, Recipe } from '~/store/store';
+import { useRecipeStore, Recipe } from '@store/store';
 import { FilterModal } from './FilterModal';
-import { getApplianceById } from '~/types/chefiq';
-import RecipeCreatorScreen from '~/screens/recipeCreator';
-import { theme } from '~/theme';
+import { getApplianceById } from '@types/chefiq';
+import RecipeCreatorScreen from '@screens/recipeCreator';
+import { theme } from '@theme/index';
 
 const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
   return (

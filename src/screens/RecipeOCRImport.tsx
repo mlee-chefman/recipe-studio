@@ -12,9 +12,9 @@ import {
 import { Image } from 'expo-image';
 import * as DocumentPicker from 'expo-document-picker';
 import { useNavigation } from '@react-navigation/native';
-import { theme } from '~/theme';
-import { useOCRImport } from '~/hooks/useOCRImport';
-import { useImagePicker } from '~/hooks/useImagePicker';
+import { theme } from '@theme/index';
+import { useOCRImport } from '@hooks/useOCRImport';
+import { useImagePicker } from '@hooks/useImagePicker';
 
 export default function RecipeOCRImportScreen() {
   const navigation = useNavigation();

@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import { HeaderButton } from '~/components/HeaderButton';
-import { TabBarIcon } from '~/components/TabBarIcon';
-import One from '~/screens/one';
-import Two from '~/screens/two';
-import CreateRecipeOptionsModal from '~/components/CreateRecipeOptionsModal';
-import { theme } from '~/theme';
+import { HeaderButton } from '@components/HeaderButton';
+import { TabBarIcon } from '@components/TabBarIcon';
+import One from '@screens/one';
+import Two from '@screens/two';
+import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
+import { theme } from '@theme/index';
 
 // Custom Tab Bar Component with centered + button
 function CustomTabBar({ state, descriptors, navigation }: any) {
