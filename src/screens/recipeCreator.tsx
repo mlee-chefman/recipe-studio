@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
@@ -525,32 +526,50 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         </View>
 
         {/* Image */}
-        <View className="mb-4">
-          <View className="flex-row items-center justify-between mb-2">
+        <View className="mb-4 border-b border-gray-200 pb-3">
+          <View className="flex-row items-center justify-between">
             <Text className="text-lg text-gray-800">Image</Text>
-            <TouchableOpacity
-              onPress={showImageOptions}
-              className="w-12 h-12 border-2 rounded-lg items-center justify-center"
-              style={{ borderColor: theme.colors.primary[500] }}
-            >
-              <Text className="text-xl" style={{ color: theme.colors.primary[500] }}>📷</Text>
-            </TouchableOpacity>
-          </View>
-          {formData.imageUrl && (
-            <View className="relative mb-2">
-              <Image
-                source={{ uri: formData.imageUrl }}
-                style={{ width: '100%', height: 120, borderRadius: 8 }}
-                contentFit="cover"
-              />
+            {formData.imageUrl ? (
               <TouchableOpacity
-                onPress={() => updateFormData({ imageUrl: '' })}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full items-center justify-center"
+                onPress={() => {
+                  Alert.alert(
+                    'Image Options',
+                    'Choose an action',
+                    [
+                      { text: 'Replace', onPress: showImageOptions },
+                      {
+                        text: 'Remove',
+                        onPress: () => updateFormData({ imageUrl: '' }),
+                        style: 'destructive'
+                      },
+                      { text: 'Cancel', style: 'cancel' }
+                    ]
+                  );
+                }}
+                className="relative"
               >
-                <Text className="text-white text-sm font-bold">×</Text>
+                <Image
+                  source={{ uri: formData.imageUrl }}
+                  style={{ width: 80, height: 80, borderRadius: 8 }}
+                  contentFit="cover"
+                />
+                <View
+                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full items-center justify-center"
+                  style={{ backgroundColor: theme.colors.primary[500] }}
+                >
+                  <Ionicons name="pencil" size={14} color="white" />
+                </View>
               </TouchableOpacity>
-            </View>
-          )}
+            ) : (
+              <TouchableOpacity
+                onPress={showImageOptions}
+                className="w-12 h-12 border-2 rounded-lg items-center justify-center"
+                style={{ borderColor: theme.colors.primary[500] }}
+              >
+                <Text className="text-xl" style={{ color: theme.colors.primary[500] }}>📷</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Info Section */}

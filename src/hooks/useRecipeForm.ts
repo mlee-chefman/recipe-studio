@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, StackActions } from '@react-navigation/native';
 import { Recipe, useRecipeStore } from '@store/store';
 import {
   RECIPE_DEFAULTS,
@@ -10,7 +10,7 @@ import {
   getInitialModalState,
   hasFormData,
   hasFormChanges
-} from '~/constants/recipeDefaults';
+} from '@constants/recipeDefaults';
 import { CookingAction, InstructionSection } from '~/types/chefiq';
 
 export interface UseRecipeFormProps {
@@ -18,8 +18,9 @@ export interface UseRecipeFormProps {
   onComplete?: () => void;
 }
 
-export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps = {}) => {
+export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   const navigation = useNavigation();
+  const { editingRecipe, onComplete = () => navigation?.goBack() } = props;
   const { addRecipe, updateRecipe, deleteRecipe } = useRecipeStore();
 
   // Form state
@@ -205,12 +206,15 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
     if (editingRecipe) {
       updateRecipe(editingRecipe.id, recipe);
       Alert.alert('Success', 'Recipe updated!', [
-        { text: 'OK', onPress: onComplete || (() => navigation.goBack()) }
+        { text: 'OK', onPress: onComplete }
       ]);
     } else {
       addRecipe(recipe);
       Alert.alert('Success', 'Recipe created!', [
-        { text: 'OK', onPress: onComplete || (() => navigation.navigate('One' as never)) }
+        {
+          text: 'OK',
+          onPress: onComplete
+        }
       ]);
     }
   };
@@ -226,11 +230,7 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
       if (!editingRecipe) {
         resetForm();
       }
-      if (onComplete) {
-        onComplete();
-      } else {
-        navigation.goBack();
-      }
+        onComplete?.();
     }
   };
 
@@ -239,11 +239,7 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
     if (!editingRecipe) {
       resetForm();
     }
-    if (onComplete) {
-      onComplete();
-    } else {
-      navigation.goBack();
-    }
+    onComplete?.();
   };
 
   const handleDelete = () => {
@@ -262,11 +258,7 @@ export const useRecipeForm = ({ editingRecipe, onComplete }: UseRecipeFormProps 
           style: 'destructive',
           onPress: () => {
             deleteRecipe(editingRecipe.id);
-            if (onComplete) {
-              onComplete();
-            } else {
-              navigation.goBack();
-            }
+            navigation?.dispatch(StackActions.popToTop());
           }
         }
       ]

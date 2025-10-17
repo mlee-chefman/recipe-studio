@@ -115,7 +115,7 @@ export default function RecipePDFImportScreen() {
             {
               text: 'OK',
               onPress: () => {
-                navigation.navigate('TabNavigator' as any, { screen: 'One' });
+                navigation.navigate('TabNavigator' as any, { screen: 'Home' });
               }
             }
           ]

@@ -93,7 +93,7 @@ export default function RecipeTextImportScreen() {
             {
               text: 'OK',
               onPress: () => {
-                navigation.navigate('TabNavigator' as any, { screen: 'One' });
+                navigation.navigate('TabNavigator' as any, { screen: 'Home' });
               }
             }
           ]

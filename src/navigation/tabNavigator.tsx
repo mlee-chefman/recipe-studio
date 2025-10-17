@@ -4,8 +4,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import { HeaderButton } from '@components/HeaderButton';
 import { TabBarIcon } from '@components/TabBarIcon';
-import One from '@screens/one';
-import Two from '@screens/two';
+import Home from '@screens/home';
+import Settings from '@screens/settings';
 import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
 import { theme } from '@theme/index';
 
@@ -135,16 +135,16 @@ const Tab = createBottomTabNavigator({
   },
   tabBar: (props: any) => <CustomTabBar {...props} />,
   screens: {
-    One: {
-      screen: One,
+    Home: {
+      screen: Home,
       options: ({ navigation }) => ({
         title: 'Recipes',
         tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
         headerRight: () => <HeaderButton onPress={() => navigation.navigate('Modal')} />,
       }),
     },
-    Two: {
-      screen: Two,
+    Settings: {
+      screen: Settings,
       options: {
         title: 'Settings',
         tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
