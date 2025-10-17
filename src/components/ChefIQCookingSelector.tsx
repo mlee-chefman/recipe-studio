@@ -7,6 +7,8 @@ import {
   ScrollView,
   TextInput,
   Switch,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { cookingFunctions as rj40Functions, getSmartCookerDefaultState } from '@utils/rj40CookingFunctions';
 import { cookingFunctions as cq50Functions } from '@utils/cq50CookingFunctions';
@@ -67,6 +69,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
 }) => {
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [parameters, setParameters] = useState<any>({});
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
 
   const appliance = getApplianceById(applianceId);
   const isRJ40 = appliance?.thing_category_name === 'cooker';
@@ -74,14 +77,54 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
   const methods = isRJ40 ? RJ40_METHODS : CQ50_METHODS;
 
   useEffect(() => {
+    // Only initialize when modal becomes visible
+    if (!visible) return;
+
     if (initialAction) {
       // Load from initial action for editing
-      setSelectedMethod(initialAction.methodId);
+      console.log('Loading initial action for editing:', initialAction);
+      console.log('Method ID:', initialAction.methodId, 'Type:', typeof initialAction.methodId);
+      console.log('Available methods:', methods);
+
+      // For RJ40, ensure methodId is a number. For CQ50, keep as string.
+      let methodId = isRJ40 && typeof initialAction.methodId === 'string'
+        ? parseInt(initialAction.methodId)
+        : initialAction.methodId;
+
+      // If we can't find the method by ID, try to find it by name (for auto-imported recipes)
+      if (!methods.find(m => m.id === methodId) && initialAction.methodName) {
+        console.log('Method not found by ID, trying by name:', initialAction.methodName);
+
+        // Normalize method names to handle variations
+        const normalizedName = initialAction.methodName.toLowerCase().trim();
+        const foundMethod = methods.find(m => {
+          const methodNameLower = m.name.toLowerCase();
+          // Direct match
+          if (methodNameLower === normalizedName) return true;
+          // Handle "Sauté" -> "Sear/Sauté"
+          if (normalizedName === 'sauté' && methodNameLower.includes('sauté')) return true;
+          if (normalizedName === 'saute' && methodNameLower.includes('sauté')) return true;
+          if (normalizedName === 'sear' && methodNameLower.includes('sear')) return true;
+          // Handle "Air Fry" variations
+          if (normalizedName === 'air fry' && methodNameLower.includes('air fry')) return true;
+          return false;
+        });
+
+        if (foundMethod) {
+          console.log('Found method by name:', foundMethod);
+          methodId = foundMethod.id;
+        }
+      }
+
+      console.log('Final methodId:', methodId, 'Type:', typeof methodId);
+      setSelectedMethod(methodId);
       setParameters(initialAction.parameters || {});
+      setValidationErrors({});
     } else if (isRJ40 && methods.length > 0) {
       const defaultMethod = methods[0];
       setSelectedMethod(defaultMethod.id);
       setParameters(getSmartCookerDefaultState(defaultMethod.id));
+      setValidationErrors({});
     } else if (isCQ50 && methods.length > 0) {
       const defaultMethod = methods[0];
       setSelectedMethod(defaultMethod.id);
@@ -93,11 +136,13 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         temp_level: methodSettings?.settings?.temp_level?.default,
         shade_level: methodSettings?.settings?.shade_level?.default,
       });
+      setValidationErrors({});
     }
-  }, [applianceId, isRJ40, isCQ50, methods, initialAction]);
+  }, [visible, applianceId, isRJ40, isCQ50, methods, initialAction]);
 
   const handleMethodChange = (methodId: any) => {
     setSelectedMethod(methodId);
+    setValidationErrors({}); // Clear validation errors when changing method
 
     if (isRJ40) {
       setParameters(getSmartCookerDefaultState(methodId));
@@ -115,20 +160,135 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
     }
   };
 
+  const validateParameter = (key: string, value: any): string | null => {
+    // Allow empty strings during editing - don't validate
+    if (value === '' || value === undefined || value === null) {
+      return null;
+    }
+
+    if (isRJ40) {
+      const methodSettings = rj40Functions[selectedMethod];
+      if (!methodSettings) return null;
+
+      if (key === 'cooking_time' && methodSettings.cookingTime) {
+        const numValue = parseInt(value);
+        if (isNaN(numValue)) return 'Cooking time must be a number';
+        // Value is in seconds, so compare to min/max in seconds
+        if (numValue < methodSettings.cookingTime.min) {
+          return `Cooking time must be at least ${Math.floor(methodSettings.cookingTime.min / 60)} minutes`;
+        }
+        if (numValue > methodSettings.cookingTime.max) {
+          return `Cooking time must not exceed ${Math.floor(methodSettings.cookingTime.max / 60)} minutes`;
+        }
+      }
+
+      if (key === 'cooking_temp' && methodSettings.cookingTemp) {
+        const numValue = parseInt(value);
+        if (isNaN(numValue)) return 'Temperature must be a number';
+        if (numValue < methodSettings.cookingTemp.min) {
+          return `Temperature must be at least ${methodSettings.cookingTemp.min}°F`;
+        }
+        if (numValue > methodSettings.cookingTemp.max) {
+          return `Temperature must not exceed ${methodSettings.cookingTemp.max}°F`;
+        }
+      }
+    } else if (isCQ50) {
+      const methodSettings = cq50Functions[selectedMethod];
+      if (!methodSettings) return null;
+
+      if (key === 'cooking_time' && methodSettings.settings?.cooking_time) {
+        const numValue = parseInt(value);
+        if (isNaN(numValue)) return 'Cooking time must be a number';
+        // Value is in seconds, so compare to min/max in seconds
+        if (numValue < methodSettings.settings.cooking_time.min) {
+          return `Cooking time must be at least ${Math.floor(methodSettings.settings.cooking_time.min / 60)} minutes`;
+        }
+        if (numValue > methodSettings.settings.cooking_time.max) {
+          return `Cooking time must not exceed ${Math.floor(methodSettings.settings.cooking_time.max / 60)} minutes`;
+        }
+      }
+
+      if (key === 'target_cavity_temp' && methodSettings.settings?.target_cavity_temp) {
+        const numValue = parseInt(value);
+        if (isNaN(numValue)) return 'Temperature must be a number';
+        const tempSettings = methodSettings.settings.target_cavity_temp[0];
+        if (numValue < tempSettings.min) {
+          return `Temperature must be at least ${tempSettings.min}°F`;
+        }
+        if (numValue > tempSettings.max) {
+          return `Temperature must not exceed ${tempSettings.max}°F`;
+        }
+      }
+
+      if (key === 'target_probe_temp' && useProbe) {
+        const numValue = parseInt(value);
+        if (isNaN(numValue)) return 'Temperature must be a number';
+        if (numValue < 100) {
+          return 'Probe temperature must be at least 100°F';
+        }
+        if (numValue > 300) {
+          return 'Probe temperature must not exceed 300°F';
+        }
+      }
+    }
+
+    return null;
+  };
+
   const updateParameter = (key: string, value: any) => {
     setParameters({ ...parameters, [key]: value });
+
+    // Validate the parameter
+    const error = validateParameter(key, value);
+    setValidationErrors(prev => {
+      const newErrors = { ...prev };
+      if (error) {
+        newErrors[key] = error;
+      } else {
+        delete newErrors[key];
+      }
+      return newErrors;
+    });
   };
 
   const handleSave = () => {
     const method = methods.find(m => m.id === selectedMethod);
     if (!method || !applianceId) return;
 
+    // Fill in default values for any undefined parameters
+    const finalParameters = { ...parameters };
+
+    if (isRJ40) {
+      const methodSettings = rj40Functions[selectedMethod];
+      if (methodSettings) {
+        if (finalParameters.cooking_time === undefined && methodSettings.cookingTime) {
+          finalParameters.cooking_time = methodSettings.cookingTime.default;
+        }
+        if (finalParameters.cooking_temp === undefined && methodSettings.cookingTemp) {
+          finalParameters.cooking_temp = methodSettings.cookingTemp.default;
+        }
+      }
+    } else if (isCQ50) {
+      const methodSettings = cq50Functions[selectedMethod];
+      if (methodSettings?.settings) {
+        if (finalParameters.cooking_time === undefined && methodSettings.settings.cooking_time) {
+          finalParameters.cooking_time = methodSettings.settings.cooking_time.default;
+        }
+        if (finalParameters.target_cavity_temp === undefined && methodSettings.settings.target_cavity_temp) {
+          finalParameters.target_cavity_temp = methodSettings.settings.target_cavity_temp[0].default;
+        }
+        if (finalParameters.target_probe_temp === undefined && useProbe) {
+          finalParameters.target_probe_temp = 160;
+        }
+      }
+    }
+
     const action: CookingAction = {
       id: `action_${Date.now()}`,
       applianceId,
       methodId: selectedMethod,
       methodName: method.name,
-      parameters,
+      parameters: finalParameters,
     };
 
     onSelect(action);
@@ -142,40 +302,38 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
       <View className="mt-4">
         {/* Cooking Time */}
         <View className="mb-4">
-          <Text className="text-base font-semibold mb-2">Cooking Time</Text>
+          <Text className="text-base font-semibold mb-2">Cooking Time (minutes)</Text>
           <View className="flex-row items-center">
             <TextInput
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base"
-              value={formatTime(parameters.cooking_time || methodSettings.cookingTime?.default || 900)}
-              editable={false}
+              className={`flex-1 border rounded-lg px-3 py-2 text-base ${
+                validationErrors.cooking_time ? 'border-red-500' : 'border-gray-300'
+              }`}
+              value={
+                parameters.cooking_time !== undefined && parameters.cooking_time !== null
+                  ? String(Math.floor(parameters.cooking_time / 60))
+                  : ''
+              }
+              placeholder={String(Math.floor((methodSettings.cookingTime?.default || 900) / 60))}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              onChangeText={(text) => {
+                if (text === '') {
+                  updateParameter('cooking_time', undefined);
+                } else {
+                  const minutes = parseInt(text);
+                  if (!isNaN(minutes)) {
+                    updateParameter('cooking_time', minutes * 60);
+                  }
+                }
+              }}
             />
-            <View className="flex-row ml-2">
-              <TouchableOpacity
-                onPress={() => {
-                  const current = parameters.cooking_time || methodSettings.cookingTime?.default || 900;
-                  const min = methodSettings.cookingTime?.min || 0;
-                  const granularity = methodSettings.cookingTime?.granularity || 60;
-                  const newValue = Math.max(min, current - granularity);
-                  updateParameter('cooking_time', newValue);
-                }}
-                className="bg-gray-200 px-3 py-2 rounded-l-lg"
-              >
-                <Text className="font-bold">-</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => {
-                  const current = parameters.cooking_time || methodSettings.cookingTime?.default || 900;
-                  const max = methodSettings.cookingTime?.max || 14400;
-                  const granularity = methodSettings.cookingTime?.granularity || 60;
-                  const newValue = Math.min(max, current + granularity);
-                  updateParameter('cooking_time', newValue);
-                }}
-                className="bg-gray-200 px-3 py-2 rounded-r-lg border-l border-gray-300"
-              >
-                <Text className="font-bold">+</Text>
-              </TouchableOpacity>
-            </View>
           </View>
+          {validationErrors.cooking_time && (
+            <Text className="text-red-500 text-sm mt-1">{validationErrors.cooking_time}</Text>
+          )}
+          <Text className="text-gray-500 text-xs mt-1">
+            Range: {Math.floor((methodSettings.cookingTime?.min || 0) / 60)} - {Math.floor((methodSettings.cookingTime?.max || 14400) / 60)} minutes
+          </Text>
         </View>
 
         {/* Temperature (for certain methods) */}
@@ -184,12 +342,32 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             <Text className="text-base font-semibold mb-2">Temperature (°F)</Text>
             <View className="flex-row items-center">
               <TextInput
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base"
-                value={String(parameters.cooking_temp || methodSettings.cookingTemp.default)}
-                keyboardType="numeric"
-                onChangeText={(text) => updateParameter('cooking_temp', parseInt(text) || 0)}
+                className={`flex-1 border rounded-lg px-3 py-2 text-base ${
+                  validationErrors.cooking_temp ? 'border-red-500' : 'border-gray-300'
+                }`}
+                value={
+                  parameters.cooking_temp !== undefined && parameters.cooking_temp !== null
+                    ? String(parameters.cooking_temp)
+                    : ''
+                }
+                placeholder={String(methodSettings.cookingTemp.default)}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                onChangeText={(text) => {
+                  if (text === '') {
+                    updateParameter('cooking_temp', undefined);
+                  } else {
+                    updateParameter('cooking_temp', text);
+                  }
+                }}
               />
             </View>
+            {validationErrors.cooking_temp && (
+              <Text className="text-red-500 text-sm mt-1">{validationErrors.cooking_temp}</Text>
+            )}
+            <Text className="text-gray-500 text-xs mt-1">
+              Range: {methodSettings.cookingTemp.min}°F - {methodSettings.cookingTemp.max}°F
+            </Text>
           </View>
         )}
 
@@ -274,77 +452,70 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         {useProbe ? (
           <View className="mb-4">
             <Text className="text-base font-semibold mb-2">🌡️ Target Temperature (°F)</Text>
-            <View className="flex-row items-center">
-              <TextInput
-                className="flex-1 border border-orange-300 rounded-lg px-3 py-2 text-base bg-orange-50"
-                value={String(parameters.target_probe_temp || 160)}
-                keyboardType="numeric"
-                onChangeText={(text) => updateParameter('target_probe_temp', parseInt(text) || 160)}
-              />
-              <View className="flex-row ml-2">
-                <TouchableOpacity
-                  onPress={() => {
-                    const current = parameters.target_probe_temp || 160;
-                    const newValue = Math.max(100, current - 5);
-                    updateParameter('target_probe_temp', newValue);
-                  }}
-                  className="bg-orange-200 px-3 py-2 rounded-l-lg"
-                >
-                  <Text className="font-bold text-orange-800">-</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    const current = parameters.target_probe_temp || 160;
-                    const newValue = Math.min(300, current + 5);
-                    updateParameter('target_probe_temp', newValue);
-                  }}
-                  className="bg-orange-200 px-3 py-2 rounded-r-lg border-l border-orange-300"
-                >
-                  <Text className="font-bold text-orange-800">+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            <Text className="text-xs text-orange-600 mt-1">
-              Probe will monitor internal temperature (100-300°F)
+            <TextInput
+              className={`border rounded-lg px-3 py-2 text-base ${
+                validationErrors.target_probe_temp
+                  ? 'border-red-500'
+                  : 'border-gray-300'
+              }`}
+              value={
+                parameters.target_probe_temp !== undefined && parameters.target_probe_temp !== null
+                  ? String(parameters.target_probe_temp)
+                  : ''
+              }
+              placeholder="160"
+              keyboardType="number-pad"
+              returnKeyType="done"
+              onChangeText={(text) => {
+                if (text === '') {
+                  updateParameter('target_probe_temp', undefined);
+                } else {
+                  updateParameter('target_probe_temp', text);
+                }
+              }}
+            />
+            {validationErrors.target_probe_temp && (
+              <Text className="text-red-500 text-sm mt-1">{validationErrors.target_probe_temp}</Text>
+            )}
+            <Text className="text-gray-500 text-xs mt-1">
+              Range: 100°F - 300°F • Probe will monitor internal temperature
             </Text>
           </View>
         ) : (
           settings.cooking_time && (
             <View className="mb-4">
-              <Text className="text-base font-semibold mb-2">Cooking Time</Text>
+              <Text className="text-base font-semibold mb-2">Cooking Time (minutes)</Text>
               <View className="flex-row items-center">
                 <TextInput
-                  className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base"
-                  value={formatTime(parameters.cooking_time || settings.cooking_time.default)}
-                  editable={false}
+                  className={`flex-1 border rounded-lg px-3 py-2 text-base ${
+                    validationErrors.cooking_time ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  value={
+                    parameters.cooking_time !== undefined && parameters.cooking_time !== null
+                      ? String(Math.floor(parameters.cooking_time / 60))
+                      : ''
+                  }
+                  placeholder={String(Math.floor(settings.cooking_time.default / 60))}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  onChangeText={(text) => {
+                    if (text === '') {
+                      updateParameter('cooking_time', undefined);
+                    } else {
+                      const minutes = parseInt(text);
+                      if (!isNaN(minutes)) {
+                        updateParameter('cooking_time', minutes * 60);
+                      }
+                    }
+                  }}
                 />
-                <View className="flex-row ml-2">
-                  <TouchableOpacity
-                    onPress={() => {
-                      const current = parameters.cooking_time || settings.cooking_time.default;
-                      const min = settings.cooking_time.min;
-                      const granularity = settings.cooking_time.granularity;
-                      const newValue = Math.max(min, current - granularity);
-                      updateParameter('cooking_time', newValue);
-                    }}
-                    className="bg-gray-200 px-3 py-2 rounded-l-lg"
-                  >
-                    <Text className="font-bold">-</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => {
-                      const current = parameters.cooking_time || settings.cooking_time.default;
-                      const max = settings.cooking_time.max;
-                      const granularity = settings.cooking_time.granularity;
-                      const newValue = Math.min(max, current + granularity);
-                      updateParameter('cooking_time', newValue);
-                    }}
-                    className="bg-gray-200 px-3 py-2 rounded-r-lg border-l border-gray-300"
-                  >
-                    <Text className="font-bold">+</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
+              {validationErrors.cooking_time && (
+                <Text className="text-red-500 text-sm mt-1">{validationErrors.cooking_time}</Text>
+              )}
+              <Text className="text-gray-500 text-xs mt-1">
+                Range: {Math.floor(settings.cooking_time.min / 60)} - {Math.floor(settings.cooking_time.max / 60)} minutes
+              </Text>
             </View>
           )
         )}
@@ -355,12 +526,32 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             <Text className="text-base font-semibold mb-2">Temperature (°F)</Text>
             <View className="flex-row items-center">
               <TextInput
-                className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-base"
-                value={String(parameters.target_cavity_temp || settings.target_cavity_temp[0].default)}
-                keyboardType="numeric"
-                onChangeText={(text) => updateParameter('target_cavity_temp', parseInt(text) || 0)}
+                className={`flex-1 border rounded-lg px-3 py-2 text-base ${
+                  validationErrors.target_cavity_temp ? 'border-red-500' : 'border-gray-300'
+                }`}
+                value={
+                  parameters.target_cavity_temp !== undefined && parameters.target_cavity_temp !== null
+                    ? String(parameters.target_cavity_temp)
+                    : ''
+                }
+                placeholder={String(settings.target_cavity_temp[0].default)}
+                keyboardType="number-pad"
+                returnKeyType="done"
+                onChangeText={(text) => {
+                  if (text === '') {
+                    updateParameter('target_cavity_temp', undefined);
+                  } else {
+                    updateParameter('target_cavity_temp', text);
+                  }
+                }}
               />
             </View>
+            {validationErrors.target_cavity_temp && (
+              <Text className="text-red-500 text-sm mt-1">{validationErrors.target_cavity_temp}</Text>
+            )}
+            <Text className="text-gray-500 text-xs mt-1">
+              Range: {settings.target_cavity_temp[0].min}°F - {settings.target_cavity_temp[0].max}°F
+            </Text>
           </View>
         )}
 
@@ -454,7 +645,11 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-white">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1 bg-white"
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      >
         {/* Header */}
         <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
           <View className="flex-1">
@@ -472,7 +667,11 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
           </TouchableOpacity>
         </View>
 
-        <ScrollView className="flex-1 p-4">
+        <ScrollView
+          className="flex-1 p-4"
+          keyboardDismissMode="interactive"
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Method Selection */}
           <View className="mb-4">
             <Text className="text-lg font-semibold mb-2">Cooking Method</Text>
@@ -502,15 +701,25 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         <View className="p-4 border-t border-gray-200">
           <TouchableOpacity
             onPress={handleSave}
+            disabled={Object.keys(validationErrors).length > 0}
             className="rounded-lg py-3"
-            style={{ backgroundColor: theme.colors.primary[500] }}
+            style={{
+              backgroundColor: Object.keys(validationErrors).length > 0
+                ? theme.colors.gray[300]
+                : theme.colors.primary[500]
+            }}
           >
             <Text className="text-white text-center text-lg font-bold">
               Save Cooking Action
             </Text>
           </TouchableOpacity>
+          {Object.keys(validationErrors).length > 0 && (
+            <Text className="text-red-500 text-sm text-center mt-2">
+              Please fix validation errors before saving
+            </Text>
+          )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 };
