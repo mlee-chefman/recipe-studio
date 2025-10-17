@@ -1,11 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, FlatList } from 'react-native';
-import DraggableFlatList, {
-  ScaleDecorator,
-  RenderItemParams,
-  DragEndParams,
-} from 'react-native-draggable-flatlist';
+import { View, TouchableOpacity, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { theme } from '@theme/index';
 
 interface DraggableListProps<T> {
   data: T[];
@@ -24,7 +20,18 @@ export function SimpleDraggableList<T>({
   containerClassName = '',
   isReorderMode = false,
 }: DraggableListProps<T>) {
-  const handleDragEnd = ({ data: newData }: DragEndParams<T>) => {
+
+  const moveItemUp = (index: number) => {
+    if (index === 0) return;
+    const newData = [...data];
+    [newData[index - 1], newData[index]] = [newData[index], newData[index - 1]];
+    onReorder(newData);
+  };
+
+  const moveItemDown = (index: number) => {
+    if (index === data.length - 1) return;
+    const newData = [...data];
+    [newData[index], newData[index + 1]] = [newData[index + 1], newData[index]];
     onReorder(newData);
   };
 
@@ -40,94 +47,71 @@ export function SimpleDraggableList<T>({
     );
   };
 
-  const renderDraggableItem = ({
-    item,
-    drag,
-    isActive,
-    getIndex,
-  }: RenderItemParams<T>) => {
-    const index = getIndex();
-    if (index === undefined) return null;
+  const renderReorderItem = ({ item, index }: { item: T; index: number }) => {
+    const canMoveUp = index > 0;
+    const canMoveDown = index < data.length - 1;
+    const isEmpty = item && String(item).trim() === '';
 
     return (
-      <ScaleDecorator>
-        <View
-          style={{
-            opacity: isActive ? 0.8 : 1,
-            backgroundColor: isActive ? '#f3f4f6' : 'transparent',
-            borderRadius: isActive ? 8 : 0,
-            paddingVertical: 4,
-          }}
-        >
-          {isReorderMode && (
-            <TouchableOpacity
-              onLongPress={item && String(item).trim() !== '' ? drag : undefined}
-              delayLongPress={400}
-              disabled={isActive || (item && String(item).trim() === '')}
-              activeOpacity={0.8}
+      <View style={{ paddingVertical: 4 }}>
+        <View className="flex-row items-center gap-2">
+          {/* Up/Down buttons */}
+          {!isEmpty && (
+            <View
+              className="rounded-lg overflow-hidden"
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 1,
+                borderWidth: 1,
+                borderColor: theme.colors.gray[200],
               }}
-            />
-          )}
-          <View className="flex-row items-center">
-            {isReorderMode && item && String(item).trim() !== '' && (
-              <View className="pr-2">
-                <Feather name="menu" size={20} color="#9CA3AF" />
-              </View>
-            )}
-            <View className="flex-1">
-              {renderItem(item, index, isReorderMode)}
+            >
+              <TouchableOpacity
+                onPress={() => moveItemUp(index)}
+                disabled={!canMoveUp}
+                className="w-7 h-5 items-center justify-center"
+                style={{
+                  backgroundColor: canMoveUp ? theme.colors.primary[100] : theme.colors.gray[50],
+                  borderBottomWidth: 0.5,
+                  borderBottomColor: theme.colors.gray[200],
+                }}
+              >
+                <Feather
+                  name="chevron-up"
+                  size={14}
+                  color={canMoveUp ? theme.colors.primary[600] : theme.colors.gray[300]}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => moveItemDown(index)}
+                disabled={!canMoveDown}
+                className="w-7 h-5 items-center justify-center"
+                style={{
+                  backgroundColor: canMoveDown ? theme.colors.primary[100] : theme.colors.gray[50],
+                }}
+              >
+                <Feather
+                  name="chevron-down"
+                  size={14}
+                  color={canMoveDown ? theme.colors.primary[600] : theme.colors.gray[300]}
+                />
+              </TouchableOpacity>
             </View>
+          )}
+          <View className="flex-1">
+            {renderItem(item, index, isReorderMode)}
           </View>
         </View>
-      </ScaleDecorator>
+      </View>
     );
   };
 
-  if (!isReorderMode) {
-    // Use regular FlatList when not in reorder mode to avoid gesture conflicts
-    return (
-      <View className={containerClassName}>
-        <FlatList
-          data={data}
-          keyExtractor={keyExtractor}
-          renderItem={renderRegularItem}
-          scrollEnabled={false}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      </View>
-    );
-  }
-
-  // Use DraggableFlatList only when in reorder mode
   return (
     <View className={containerClassName}>
-      <DraggableFlatList
+      <FlatList
         data={data}
-        onDragEnd={handleDragEnd}
         keyExtractor={keyExtractor}
-        renderItem={renderDraggableItem}
+        renderItem={isReorderMode ? renderReorderItem : renderRegularItem}
         scrollEnabled={false}
-        containerStyle={{ overflow: 'visible' }}
         contentContainerStyle={{ paddingBottom: 20 }}
-        activationDistance={8}
-        autoscrollThreshold={60}
-        dragItemOverflow={true}
-        keyboardShouldPersistTaps="handled"
-        onDragBegin={() => console.log('Drag started')}
-        panGestureHandlerProps={{
-          minPointers: 1,
-          maxPointers: 1,
-          activeOffsetY: [-5, 5],
-          shouldCancelWhenOutside: false,
-          enabled: true,
-        }}
       />
     </View>
   );
