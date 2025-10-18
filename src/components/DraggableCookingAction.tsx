@@ -20,6 +20,7 @@ interface DraggableCookingActionProps {
   onDragEnd: (fromStepIndex: number, targetStepIndex: number) => void;
   onRemove: () => void;
   onEdit: () => void;
+  onShowTempInfo?: () => void;
   selectedAppliance?: string;
   isReorderMode?: boolean;
 }
@@ -31,6 +32,7 @@ export function DraggableCookingAction({
   onDragEnd,
   onRemove,
   onEdit,
+  onShowTempInfo,
   selectedAppliance,
   isReorderMode = false,
 }: DraggableCookingActionProps) {
@@ -119,9 +121,22 @@ export function DraggableCookingAction({
                     selectedAppliance ? getApplianceById(selectedAppliance)?.thing_category_name : undefined
                   )} {cookingAction.methodName}
                 </Text>
-                <Text className="text-xs text-green-600 mt-1">
-                  {formatKeyParameters(cookingAction)}
-                </Text>
+                <View className="flex-row items-center">
+                  <Text className="text-xs text-green-600 mt-1 flex-1">
+                    {formatKeyParameters(cookingAction)}
+                  </Text>
+                  {cookingAction.parameters.target_probe_temp && onShowTempInfo && !isReorderMode && (
+                    <TouchableOpacity
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        onShowTempInfo();
+                      }}
+                      className="ml-2 p-1"
+                    >
+                      <Feather name="info" size={14} color={theme.colors.info.main} />
+                    </TouchableOpacity>
+                  )}
+                </View>
                 {selectedAppliance && (
                   <Text className="text-xs text-green-500 mt-0.5">
                     {getApplianceById(selectedAppliance)?.name}

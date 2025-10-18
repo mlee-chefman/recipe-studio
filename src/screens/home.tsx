@@ -1,9 +1,9 @@
 import { ScreenContent } from '@components/ScreenContent';
 import { RecipeList } from '@components/RecipeList';
 
-export default function TabOneScreen() {
+export default function HomeScreen() {
   return (
-    <ScreenContent path="screens/one.tsx" title="">
+    <ScreenContent path="screens/home.tsx" title="">
       <RecipeList />
     </ScreenContent>
   );

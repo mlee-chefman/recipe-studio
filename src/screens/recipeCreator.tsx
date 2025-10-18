@@ -1,5 +1,6 @@
 import React, { useLayoutEffect, useRef, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator } from 'react-native';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
@@ -9,6 +10,7 @@ import { ScrapedRecipe } from '@utils/recipeScraper';
 import { CookingAction, getApplianceById } from '@types/chefiq';
 import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '@components/ApplianceDropdown';
+import { TemperatureInfoModal } from '@components/TemperatureInfoModal';
 import { theme } from '@theme/index';
 import { useRecipeForm } from '@hooks/useRecipeForm';
 import { SimpleDraggableList } from '@components/DraggableList';
@@ -36,6 +38,8 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const route = useRoute<RecipeCreatorRouteProp>();
   const [newInstructionText, setNewInstructionText] = React.useState('');
   const [showAIHelper, setShowAIHelper] = useState(true);
+  const [showTempInfo, setShowTempInfo] = useState(false);
+  const [tempInfoStepIndex, setTempInfoStepIndex] = useState<number | null>(null);
 
   const {
     formData,
@@ -191,40 +195,41 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   useLayoutEffect(() => {
     navigation.setOptions({
       title: 'Create Recipe',
+      presentation: 'fullScreenModal',
       headerStyle: {
         backgroundColor: theme.colors.background.primary,
       },
       headerTintColor: theme.colors.text.primary,
       headerTitleStyle: {
-        fontWeight: theme.typography.fontWeight.semibold,
-        fontSize: theme.typography.fontSize.lg,
+        fontWeight: theme.typography.fontWeight.semibold as any,
+        fontSize: theme.typography.fontSize.xl,
       },
+      headerTitleAlign: 'center',
+      headerShadowVisible: true,
       headerLeft: () => (
         <TouchableOpacity
           onPress={handleCancel}
           style={{
             paddingLeft: theme.spacing.lg,
             paddingRight: theme.spacing.md,
-            paddingVertical: theme.spacing.xs
+            paddingVertical: theme.spacing.sm,
           }}
         >
-          <Text style={{
-            color: theme.colors.text.primary,
-            fontSize: 28,
-            fontWeight: '300',
-            lineHeight: 28
-          }}>×</Text>
+          <Feather name="x" size={28} color={theme.colors.text.secondary} />
         </TouchableOpacity>
       ),
       headerRight: () => (
         <TouchableOpacity
           onPress={handleSave}
-          style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+          style={{
+            paddingHorizontal: theme.spacing.lg,
+            paddingVertical: theme.spacing.sm,
+          }}
         >
           <Text style={{
             color: theme.colors.primary[500],
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold
+            fontSize: theme.typography.fontSize.base,
+            fontWeight: theme.typography.fontWeight.semibold as any,
           }}>Save</Text>
         </TouchableOpacity>
       ),
@@ -525,32 +530,50 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         </View>
 
         {/* Image */}
-        <View className="mb-4">
-          <View className="flex-row items-center justify-between mb-2">
+        <View className="mb-4 border-b border-gray-200 pb-3">
+          <View className="flex-row items-center justify-between">
             <Text className="text-lg text-gray-800">Image</Text>
-            <TouchableOpacity
-              onPress={showImageOptions}
-              className="w-12 h-12 border-2 rounded-lg items-center justify-center"
-              style={{ borderColor: theme.colors.primary[500] }}
-            >
-              <Text className="text-xl" style={{ color: theme.colors.primary[500] }}>📷</Text>
-            </TouchableOpacity>
-          </View>
-          {formData.imageUrl && (
-            <View className="relative mb-2">
-              <Image
-                source={{ uri: formData.imageUrl }}
-                style={{ width: '100%', height: 120, borderRadius: 8 }}
-                contentFit="cover"
-              />
+            {formData.imageUrl ? (
               <TouchableOpacity
-                onPress={() => updateFormData({ imageUrl: '' })}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full items-center justify-center"
+                onPress={() => {
+                  Alert.alert(
+                    'Image Options',
+                    'Choose an action',
+                    [
+                      { text: 'Replace', onPress: showImageOptions },
+                      {
+                        text: 'Remove',
+                        onPress: () => updateFormData({ imageUrl: '' }),
+                        style: 'destructive'
+                      },
+                      { text: 'Cancel', style: 'cancel' }
+                    ]
+                  );
+                }}
+                className="relative"
               >
-                <Text className="text-white text-sm font-bold">×</Text>
+                <Image
+                  source={{ uri: formData.imageUrl }}
+                  style={{ width: 80, height: 80, borderRadius: 8 }}
+                  contentFit="cover"
+                />
+                <View
+                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full items-center justify-center"
+                  style={{ backgroundColor: theme.colors.primary[500] }}
+                >
+                  <Ionicons name="pencil" size={14} color="white" />
+                </View>
               </TouchableOpacity>
-            </View>
-          )}
+            ) : (
+              <TouchableOpacity
+                onPress={showImageOptions}
+                className="w-12 h-12 border-2 rounded-lg items-center justify-center"
+                style={{ borderColor: theme.colors.primary[500] }}
+              >
+                <Text className="text-xl" style={{ color: theme.colors.primary[500] }}>📷</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {/* Info Section */}
@@ -840,6 +863,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                         onDragEnd={handleCookingActionDragEnd}
                         onRemove={() => removeCookingAction(index)}
                         onEdit={() => handleEditCookingAction(index)}
+                        onShowTempInfo={() => {
+                          setTempInfoStepIndex(index);
+                          setShowTempInfo(true);
+                        }}
                         selectedAppliance={formData.selectedAppliance}
                         isReorderMode={isInstructionsReorderMode}
                       />
@@ -960,6 +987,38 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         onConfirm={confirmCancel}
         onCancel={() => updateModalStates({ showCancelConfirmation: false })}
       />
+
+      {/* Temperature Info Modal for imported recipes */}
+      {showTempInfo && tempInfoStepIndex !== null && (
+        <TemperatureInfoModal
+          visible={showTempInfo}
+          onClose={() => {
+            setShowTempInfo(false);
+            setTempInfoStepIndex(null);
+          }}
+          currentTemperature={
+            formData.cookingActions.find(a => a.stepIndex === tempInfoStepIndex)?.parameters.target_probe_temp || 165
+          }
+          recipeText={`${formData.title} ${formData.instructions.join(' ')}`}
+          onTemperatureChange={(newTemp, doneness, removeTemp) => {
+            const updatedActions = formData.cookingActions.map(action =>
+              action.stepIndex === tempInfoStepIndex
+                ? {
+                    ...action,
+                    parameters: {
+                      ...action.parameters,
+                      target_probe_temp: newTemp,
+                      remove_probe_temp: removeTemp || newTemp
+                    }
+                  }
+                : action
+            );
+            updateFormData({ cookingActions: updatedActions });
+            setShowTempInfo(false);
+            setTempInfoStepIndex(null);
+          }}
+        />
+      )}
     </KeyboardAwareScrollView>
   );
 }

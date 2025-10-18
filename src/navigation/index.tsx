@@ -12,6 +12,10 @@ import RecipeSelection from '@screens/RecipeSelection';
 import TabNavigator from './tabNavigator';
 
 const Stack = createStackNavigator({
+  screenOptions: {
+    headerBackTitle: '',
+    headerBackTitleVisible: false,
+  },
   screens: {
     TabNavigator: {
       screen: TabNavigator,

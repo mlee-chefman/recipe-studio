@@ -11,6 +11,7 @@ import {
   Clipboard,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { parseMultipleRecipes } from '@services/gemini.service';
@@ -34,13 +35,13 @@ export default function RecipeTextImportScreen() {
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ paddingLeft: theme.spacing.md, paddingRight: theme.spacing.xs }}
+          style={{
+            paddingLeft: theme.spacing.lg,
+            paddingRight: theme.spacing.md,
+            paddingVertical: theme.spacing.sm,
+          }}
         >
-          <Text style={{
-            color: theme.colors.info.main,
-            fontSize: 24,
-            fontWeight: '300'
-          }}>×</Text>
+          <Feather name="x" size={28} color={theme.colors.text.secondary} />
         </TouchableOpacity>
       ),
     });
@@ -93,7 +94,7 @@ export default function RecipeTextImportScreen() {
             {
               text: 'OK',
               onPress: () => {
-                navigation.navigate('TabNavigator' as any, { screen: 'One' });
+                navigation.navigate('TabNavigator' as any, { screen: 'Home' });
               }
             }
           ]

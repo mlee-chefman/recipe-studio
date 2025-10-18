@@ -459,13 +459,13 @@ Return a JSON object with the following structure:
 Guidelines:
 1. **Title**: Create a clear, appetizing title that matches the request
 2. **Description**: Write 1-2 sentences describing the dish and why it's delicious
-3. **Ingredients**: List all ingredients with specific quantities and units (e.g., "2 cups flour", "1 lb pork chops")
-4. **Instructions**: Write clear, numbered steps in chronological order. Be specific about temperatures, times, and techniques
+3. **Ingredients**: List all ingredients with specific quantities and units (e.g., "2 cups flour", "1 lb pork chops", "1/3 cup milk"). Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements
+4. **Instructions**: Write clear, numbered steps in chronological order. Be specific about temperatures, times, and techniques. For meat dishes (especially steaks, roasts, or large cuts), include internal temperature targets and mention if the meat should be removed at a lower temperature to rest (e.g., "Cook until internal temperature reaches 130°F, then remove and let rest 5-10 minutes")
 5. **Times**: Provide realistic prep time and cook time in minutes
 6. **Servings**: Specify number of servings (typically 4-6)
 7. **Category**: Choose the most appropriate category (e.g., Main Course, Dessert, Appetizer, etc.)
 8. **Tags**: Add 2-5 relevant tags (e.g., "Quick", "Healthy", "Vegetarian", "Spicy", "Italian", "Kid-Friendly", "Gluten-Free", etc.)
-9. **Notes**: Include helpful tips, substitutions, or serving suggestions
+9. **Notes**: Include helpful tips, substitutions, or serving suggestions. For large meat dishes, mention resting time and carryover cooking if applicable
 
 Important:
 - Make the recipe practical and achievable for home cooks
@@ -504,13 +504,13 @@ Please parse this text and return a JSON object with the following structure:
 Guidelines:
 1. **Title**: Extract the recipe name. If unclear, use "Untitled Recipe"
 2. **Description**: Include any description, intro text, or summary about the dish
-3. **Ingredients**: Parse into a clean array. Include quantities and units. Each ingredient should be a separate string
-4. **Instructions**: Parse into numbered steps. Each step should be a separate string. Organize chronologically
+3. **Ingredients**: Parse into a clean array. Include quantities and units. Each ingredient should be a separate string. Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements (e.g., "1/3 cup" not "0.33 cup")
+4. **Instructions**: Parse into numbered steps. Each step should be a separate string. Organize chronologically. Preserve any mentions of internal temperatures, remove temperatures, or resting times (e.g., "remove at 160°F", "let rest 10 minutes")
 5. **Times**: Extract prep time and cook time in minutes. If not specified, use reasonable defaults (prepTime: 15, cookTime: 30)
 6. **Servings**: Extract number of servings. If not specified, default to 4
 7. **Category**: Infer category from the recipe (e.g., "Dessert", "Main Course", "Appetizer", "Soup", "Salad", "Breakfast", etc.)
 8. **Tags**: Infer 2-5 relevant tags based on the recipe (e.g., "Quick", "Vegetarian", "Italian", "Spicy", "Kid-Friendly", "Healthy", etc.)
-9. **Notes**: Include any tips, variations, storage instructions, or additional notes
+9. **Notes**: Include any tips, variations, storage instructions, or additional notes. Preserve any mentions of resting time or carryover cooking for meat dishes
 
 Important:
 - Fix obvious OCR errors (e.g., "1 cuρ" → "1 cup")
@@ -561,13 +561,13 @@ For each recipe found, return a JSON object with this structure:
 Guidelines:
 1. **Identify recipe boundaries**: Look for recipe titles, "Ingredients", "Instructions" headers
 2. **Title**: Extract or create a descriptive title for each recipe
-3. **Ingredients**: Parse into clean array with quantities and units
-4. **Instructions**: Break into clear, sequential steps
+3. **Ingredients**: Parse into clean array with quantities and units. Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements (e.g., "1/3 cup" not "0.33 cup")
+4. **Instructions**: Break into clear, sequential steps. Preserve any mentions of internal temperatures, remove temperatures, or resting times for meat dishes
 5. **Times**: Extract or estimate reasonable times in minutes
 6. **Servings**: Extract or default to 4
 7. **Category**: Infer from recipe type (e.g., "Main Course", "Dessert", "Appetizer")
 8. **Tags**: Infer 2-5 relevant tags (e.g., "Quick", "Vegetarian", "Italian", "Spicy", "American", "French", "Healthy", etc.)
-9. **Notes**: Include any tips, variations, or serving suggestions
+9. **Notes**: Include any tips, variations, or serving suggestions. Preserve any mentions of resting time or carryover cooking for meat dishes
 
 Important:
 - Return an array of recipe objects: [recipe1, recipe2, ...]
@@ -584,6 +584,20 @@ ${text}
 """
 
 Return the recipes as a JSON array:`;
+}
+
+/**
+ * Cleans up ingredient quantities by rounding excessive decimal places
+ * Converts values like "0.3333333334326744 cup" to "0.33 cup"
+ */
+function cleanIngredientQuantities(ingredients: string[]): string[] {
+  return ingredients.map(ingredient => {
+    // Match decimal numbers with more than 2 decimal places
+    return ingredient.replace(/(\d+\.\d{3,})/g, (match) => {
+      const num = parseFloat(match);
+      return num.toFixed(2);
+    });
+  });
 }
 
 /**
@@ -624,7 +638,7 @@ function parseGeminiResponse(
     const recipe: ScrapedRecipe = {
       title: parsed.title || 'Untitled Recipe',
       description: parsed.description || parsed.notes || '',
-      ingredients: parsed.ingredients.filter((ing: any) => ing && ing.trim()),
+      ingredients: cleanIngredientQuantities(parsed.ingredients.filter((ing: any) => ing && ing.trim())),
       instructions: parsed.instructions.filter((inst: any) => inst && inst.trim()),
       cookTime: parseInt(parsed.cookTime) || 30,
       prepTime: parseInt(parsed.prepTime) || 15,
@@ -720,7 +734,7 @@ function parseMultiRecipeResponse(responseText: string): ScrapedRecipe[] {
       const recipe: ScrapedRecipe = {
         title: parsed.title || 'Untitled Recipe',
         description: parsed.description || parsed.notes || '',
-        ingredients: parsed.ingredients.filter((ing: any) => ing && ing.trim()),
+        ingredients: cleanIngredientQuantities(parsed.ingredients.filter((ing: any) => ing && ing.trim())),
         instructions: parsed.instructions.filter((inst: any) => inst && inst.trim()),
         cookTime: parseInt(parsed.cookTime) || 30,
         prepTime: parseInt(parsed.prepTime) || 15,

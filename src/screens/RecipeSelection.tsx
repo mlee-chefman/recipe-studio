@@ -103,7 +103,7 @@ export default function RecipeSelectionScreen() {
             text: 'OK',
             onPress: () => {
               // Navigate to home screen (Recipes tab)
-              navigation.navigate('TabNavigator' as any, { screen: 'One' });
+              navigation.navigate('TabNavigator' as any, { screen: 'Home' });
             }
           }
         ]
