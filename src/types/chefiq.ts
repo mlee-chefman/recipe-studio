@@ -1,4 +1,5 @@
 // ChefIQ Appliance Types and Cooking Methods
+import { Step } from './recipe';
 
 export interface CookingParameter {
   name: string;
@@ -43,9 +44,9 @@ export interface CookingAction {
   estimatedTime?: number;
 }
 
-export interface InstructionSection {
+export interface StepSection {
   title: string;
-  steps: string[];
+  steps: Step[];
   cookingAction?: CookingAction;
 }
 

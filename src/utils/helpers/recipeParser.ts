@@ -54,7 +54,7 @@ export function parseRecipeFromText(text: string, imageUri: string): ScrapedReci
     title,
     description: '',
     ingredients: ingredients.length > 0 ? ingredients : [''],
-    instructions: instructions.length > 0 ? instructions : [''],
+    steps: instructions.length > 0 ? instructions.map(text => ({ text })) : [{ text: '' }],
     cookTime: 30,
     prepTime: 15,
     servings: 4,

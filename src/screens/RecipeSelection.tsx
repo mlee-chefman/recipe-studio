@@ -147,7 +147,7 @@ export default function RecipeSelectionScreen() {
             <View style={styles.metadataItem}>
               <Text style={styles.metadataIcon}>📝</Text>
               <Text style={styles.metadataText}>
-                {item.instructions.length} step{item.instructions.length !== 1 ? 's' : ''}
+                {item.steps.length} step{item.steps.length !== 1 ? 's' : ''}
               </Text>
             </View>
             <View style={styles.metadataItem}>

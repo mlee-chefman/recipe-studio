@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Recipe, useRecipeStore } from '@store/store';
-import { getApplianceById, formatCookingAction, CookingAction } from '@types/chefiq';
+import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { theme } from '@theme/index';
 import StepImage from '@components/StepImage';
@@ -153,9 +153,9 @@ export default function RecipeDetailScreen() {
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Instructions</Text>
             <View className="bg-gray-50 p-4 rounded-lg">
-              {recipe.instructions.map((instruction, index) => {
-                const cookingAction = recipe.cookingActions?.find(action => action.stepIndex === index);
-                const stepImage = recipe.instructionImages?.[index];
+              {recipe.steps.map((step, index) => {
+                const cookingAction = step.cookingAction;
+                const stepImage = step.image;
 
                 return (
                   <View key={index} className="mb-4">
@@ -164,7 +164,7 @@ export default function RecipeDetailScreen() {
                         <Text className="text-white text-sm font-bold">{index + 1}</Text>
                       </View>
                       <View className="flex-1">
-                        <Text className="text-base text-gray-700 leading-6 mb-2">{instruction}</Text>
+                        <Text className="text-base text-gray-700 leading-6 mb-2">{step.text}</Text>
 
                         {/* Step Image */}
                         {stepImage && (

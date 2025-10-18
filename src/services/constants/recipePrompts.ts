@@ -14,7 +14,7 @@ Return a JSON object with the following structure:
   "title": "Recipe title",
   "description": "A brief, appetizing description of the dish (1-2 sentences)",
   "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity", ...],
-  "instructions": ["step 1", "step 2", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
   "cookTime": 30,
   "prepTime": 15,
   "servings": 4,
@@ -27,7 +27,7 @@ Guidelines:
 1. **Title**: Create a clear, appetizing title that matches the request
 2. **Description**: Write 1-2 sentences describing the dish and why it's delicious
 3. **Ingredients**: List all ingredients with specific quantities and units (e.g., "2 cups flour", "1 lb pork chops", "1/3 cup milk"). Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements
-4. **Instructions**: Write clear, numbered steps in chronological order. Be specific about temperatures, times, and techniques. For meat dishes (especially steaks, roasts, or large cuts), include internal temperature targets and mention if the meat should be removed at a lower temperature to rest (e.g., "Cook until internal temperature reaches 130°F, then remove and let rest 5-10 minutes")
+4. **Steps**: Write clear, numbered steps in chronological order as objects with a "text" field. Be specific about temperatures, times, and techniques. For meat dishes (especially steaks, roasts, or large cuts), include internal temperature targets and mention if the meat should be removed at a lower temperature to rest (e.g., "Cook until internal temperature reaches 130°F, then remove and let rest 5-10 minutes")
 5. **Times**: Provide realistic prep time and cook time in minutes
 6. **Servings**: Specify number of servings (typically 4-6)
 7. **Category**: Choose the most appropriate category (e.g., Main Course, Dessert, Appetizer, etc.)
@@ -59,7 +59,7 @@ Please parse this text and return a JSON object with the following structure:
   "title": "Recipe title",
   "description": "Brief description or summary (if available, otherwise empty string)",
   "ingredients": ["ingredient 1", "ingredient 2", ...],
-  "instructions": ["step 1", "step 2", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
   "cookTime": 30,
   "prepTime": 15,
   "servings": 4,
@@ -119,7 +119,7 @@ For each recipe found, return a JSON object with this structure:
   "title": "Recipe title",
   "description": "Brief description (if available)",
   "ingredients": ["ingredient 1", "ingredient 2", ...],
-  "instructions": ["step 1", "step 2", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
   "cookTime": 30,
   "prepTime": 15,
   "servings": 4,
@@ -129,10 +129,10 @@ For each recipe found, return a JSON object with this structure:
 }
 
 Guidelines:
-1. **Identify recipe boundaries**: Look for recipe titles, "Ingredients", "Instructions" headers
+1. **Identify recipe boundaries**: Look for recipe titles, "Ingredients", "Steps" headers
 2. **Title**: Extract or create a descriptive title for each recipe
 3. **Ingredients**: Parse into clean array with quantities and units. Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements (e.g., "1/3 cup" not "0.33 cup")
-4. **Instructions**: Break into clear, sequential steps. Preserve any mentions of internal temperatures, remove temperatures, or resting times for meat dishes
+4. **Steps**: Break into clear, sequential steps as objects with a "text" field. Preserve any mentions of internal temperatures, remove temperatures, or resting times for meat dishes
 5. **Times**: Extract or estimate reasonable times in minutes
 6. **Servings**: Extract or default to 4
 7. **Category**: Infer from recipe type (e.g., "Main Course", "Dessert", "Appetizer")

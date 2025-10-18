@@ -1,4 +1,5 @@
 import { CHEFIQ_APPLIANCES, CookingAction } from '~/types/chefiq';
+import { Step } from '~/types/recipe';
 import {
   FanSpeed,
   TemperatureLevel,
@@ -9,6 +10,8 @@ import {
   CookerMethod,
   OvenMethod
 } from '~/types/cookingEnums';
+
+import { detectProteinType, getUsdaRecommendedTemp } from '@constants/temperatureGuide';
 
 interface CookingMethodKeywords {
   methodId: string | number;
@@ -167,8 +170,6 @@ const CARRYOVER_PROTEINS = [
   'duck breast', 'venison', 'tenderloin'
 ];
 
-import { detectProteinType, getUsdaRecommendedTemp } from '@constants/temperatureGuide';
-
 // Legacy fallback temperatures for proteins not in temperature guide
 const FALLBACK_PROTEIN_TEMPERATURES: { [key: string]: number } = {
   'salmon': 145,
@@ -254,7 +255,7 @@ const extractRemoveTemperature = (text: string, targetTemp: number): number | nu
 export const analyzeRecipeForChefIQ = (
   title: string,
   description: string,
-  instructions: string[],
+  steps: Step[],
   cookTime: number
 ): RecipeAnalysisResult => {
   try {
@@ -270,7 +271,7 @@ export const analyzeRecipeForChefIQ = (
       })
       .join(' ');
 
-    const allText = [title, filteredDescription, ...instructions].join(' ');
+    const allText = [title, filteredDescription, ...steps.map(s => s.text)].join(' ');
     const allTextLower = allText.toLowerCase();
 
     // Check for stovetop-only recipes (no appliance needed)
@@ -295,11 +296,13 @@ export const analyzeRecipeForChefIQ = (
     const suggestedActions: CookingAction[] = [];
 
   // Extract temperatures from the recipe text
+  const stepTexts = steps.map(s => s.text);
+
   const extractedTemp = extractTemperature(allText, true); // Prefer initial/preheat temperature
-  const temperatureSteps = extractTemperaturesWithContext(instructions);
+  const temperatureSteps = extractTemperaturesWithContext(stepTexts);
 
   // Extract cooking time from instructions
-  const extractedCookingTime = extractCookingTimeFromInstructions(instructions);
+  const extractedCookingTime = extractCookingTimeFromInstructions(stepTexts);
 
   if (extractedTemp) {
     reasoning.push(`Detected initial temperature: ${extractedTemp}°F`);
@@ -315,24 +318,24 @@ export const analyzeRecipeForChefIQ = (
   }
 
   // Analyze individual instructions for cooking methods
-  const instructionAnalysis = instructions.map((instruction, index) => {
-    const instructionLower = instruction.toLowerCase();
+  const instructionAnalysis = stepTexts.map((stepText, index) => {
+    const stepLower = stepText.toLowerCase();
 
     // Special handling: if "increase temperature" is mentioned, it's likely baking, not dehydrating
     let matches = COOKING_METHOD_PATTERNS.filter(pattern => {
       // Skip dehydrate method if we see "increase temperature" or temperature changes
       if (pattern.methodId === OvenMethod.Dehydrate &&
-          (instructionLower.includes('increase') || instructionLower.includes('raise')) &&
-          instructionLower.includes('temperature')) {
+          (stepLower.includes('increase') || stepLower.includes('raise')) &&
+          stepLower.includes('temperature')) {
         return false;
       }
 
-      return pattern.keywords.some(keyword => instructionLower.includes(keyword));
+      return pattern.keywords.some(keyword => stepLower.includes(keyword));
     });
 
     // If we detect temperature increase/change, prioritize baking methods
-    if ((instructionLower.includes('increase') || instructionLower.includes('raise')) &&
-        instructionLower.includes('temperature')) {
+    if ((stepLower.includes('increase') || stepLower.includes('raise')) &&
+        stepLower.includes('temperature')) {
       // Add baking method if not already present
       const bakingMethod = COOKING_METHOD_PATTERNS.find(p => p.methodId === OvenMethod.Bake);
       if (bakingMethod && !matches.some(m => m.methodId === OvenMethod.Bake)) {
@@ -340,7 +343,7 @@ export const analyzeRecipeForChefIQ = (
       }
     }
 
-    return { instruction, index, matches, text: instructionLower, originalText: instruction };
+    return { step: stepText, index, matches, text: stepLower, originalText: stepText };
   });
 
   // Detect primary protein cooking vs auxiliary steps
@@ -375,8 +378,8 @@ export const analyzeRecipeForChefIQ = (
       const methodPattern = COOKING_METHOD_PATTERNS.find(p => p.methodId === suggestedOvenMethod);
       if (methodPattern) {
         // Find which instruction step contains grilling keywords
-        const grillStepIndex = instructions.findIndex(instruction =>
-          grillKeywords.some(keyword => instruction.toLowerCase().includes(keyword))
+        const grillStepIndex = stepTexts.findIndex(stepText =>
+          grillKeywords.some(keyword => stepText.toLowerCase().includes(keyword))
         );
 
         // Check for remove temp in grilled protein recipes
@@ -518,7 +521,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for air frying
   if (bestMethod.method.applianceType === 'oven' &&
       bestMethod.method.methodId === OvenMethod.AirFry) {
-    const airFryParams = extractAirFryingParams(instructions);
+    const airFryParams = extractAirFryingParams(stepTexts);
 
     if (airFryParams.temperature) {
       primaryParams.target_cavity_temp = airFryParams.temperature;
@@ -540,7 +543,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for roasting
   if (bestMethod.method.applianceType === 'oven' &&
       bestMethod.method.methodId === OvenMethod.Roast) {
-    const roastParams = extractRoastingParams(instructions);
+    const roastParams = extractRoastingParams(stepTexts);
 
     if (roastParams.temperature) {
       primaryParams.target_cavity_temp = roastParams.temperature;
@@ -562,7 +565,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for broiling
   if (bestMethod.method.applianceType === 'oven' &&
       bestMethod.method.methodId === OvenMethod.Broil) {
-    const broilParams = extractBroilingParams(instructions);
+    const broilParams = extractBroilingParams(stepTexts);
 
     if (broilParams.tempLevel !== undefined) {
       primaryParams.temp_level = broilParams.tempLevel;
@@ -580,7 +583,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for steaming
   if (bestMethod.method.applianceType === 'cooker' &&
       bestMethod.method.methodId === CookerMethod.Steam) {
-    const steamParams = extractSteamingParams(instructions);
+    const steamParams = extractSteamingParams(stepTexts);
 
     // Override cooking time with steam-specific time if found
     if (steamParams.cookingTime) {
@@ -592,7 +595,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for searing/sautéing
   if (bestMethod.method.applianceType === 'cooker' &&
       bestMethod.method.methodId === CookerMethod.SearSaute) {
-    const searParams = extractSearingSauteParams(instructions);
+    const searParams = extractSearingSauteParams(stepTexts);
 
     if (searParams.tempLevel !== undefined) {
       primaryParams.temp_level = searParams.tempLevel;
@@ -611,7 +614,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for sous vide
   if (bestMethod.method.applianceType === 'cooker' &&
       bestMethod.method.methodId === CookerMethod.SousVide) {
-    const sousVideParams = extractSousVideParams(instructions);
+    const sousVideParams = extractSousVideParams(stepTexts);
 
     if (sousVideParams.temperature) {
       primaryParams.cooking_temp = sousVideParams.temperature;
@@ -628,7 +631,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for toasting
   if (bestMethod.method.applianceType === 'oven' &&
       bestMethod.method.methodId === OvenMethod.Toast) {
-    const toastParams = extractToastingParams(instructions);
+    const toastParams = extractToastingParams(stepTexts);
 
     if (toastParams.shadeLevel !== undefined) {
       primaryParams.shade_level = toastParams.shadeLevel;
@@ -656,7 +659,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for dehydrating
   if (bestMethod.method.applianceType === 'oven' &&
       bestMethod.method.methodId === OvenMethod.Dehydrate) {
-    const dehydrateParams = extractDehydratingParams(instructions);
+    const dehydrateParams = extractDehydratingParams(stepTexts);
 
     if (dehydrateParams.temperature) {
       primaryParams.target_cavity_temp = dehydrateParams.temperature;
@@ -678,7 +681,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for pressure cooking
   if (bestMethod.method.applianceType === 'cooker' &&
       bestMethod.method.methodId === CookerMethod.Pressure) {
-    const pressureParams = extractPressureCookingParams(instructions);
+    const pressureParams = extractPressureCookingParams(stepTexts);
 
     if (pressureParams.pressureLevel !== undefined) {
       primaryParams.pres_level = pressureParams.pressureLevel;
@@ -702,7 +705,7 @@ export const analyzeRecipeForChefIQ = (
   // Extract specialized parameters for slow cooking
   if (bestMethod.method.applianceType === 'cooker' &&
       bestMethod.method.methodId === CookerMethod.SlowCook) {
-    const slowCookParams = extractSlowCookingParams(instructions);
+    const slowCookParams = extractSlowCookingParams(stepTexts);
 
     if (slowCookParams.tempLevel !== undefined) {
       primaryParams.temp_level = slowCookParams.tempLevel;
@@ -868,21 +871,21 @@ export const extractCookingTimeFromInstructions = (instructions: string[]): numb
   let foundTime = false;
   const foundTimes: number[] = [];
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     // Skip pure prep steps, but allow steps that might have cooking time
-    if (instructionLower.startsWith('preheat') ||
-        instructionLower.includes('prepare') ||
-        instructionLower.includes('mix') ||
-        instructionLower.includes('combine')) {
+    if (stepLower.startsWith('preheat') ||
+        stepLower.includes('prepare') ||
+        stepLower.includes('mix') ||
+        stepLower.includes('combine')) {
       continue;
     }
 
     for (const pattern of timePatterns) {
       pattern.lastIndex = 0; // Reset regex
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(step.toLowerCase())) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -904,7 +907,7 @@ export const extractCookingTimeFromInstructions = (instructions: string[]): numb
 
         // Accumulate cooking times (e.g., "2 hours" + "additional 30 minutes")
         if (minutes > 0 && minutes <= 480) { // Max 8 hours
-          if (instructionLower.includes('additional')) {
+          if (stepLower.includes('additional')) {
             // This is additional time, add to total
             totalTime += minutes;
           } else {
@@ -1074,13 +1077,13 @@ export const extractPressureCookingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of pressureTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1098,7 +1101,8 @@ export const extractPressureCookingParams = (instructions: string[]) => {
           minutes = Math.max(minutes, minutes2);
         }
 
-        if (minutes > 0 && minutes <= 240) { // Max 4 hours for pressure cooking
+        if (minutes > 0 && minutes <= 240) {
+          // Max 4 hours for pressure cooking
           cookingTime = minutes;
           break;
         }
@@ -1136,13 +1140,13 @@ export const extractSlowCookingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of slowCookTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(step.toLowerCase())) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1189,13 +1193,13 @@ export const extractAirFryingParams = (instructions: string[]) => {
     /crispy.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
   ];
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of airFryTempPatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(step.toLowerCase())) !== null) {
         const temp = parseInt(match[1]);
         if (temp >= 300 && temp <= 450) { // Typical air fryer range
           temperature = temp;
@@ -1216,13 +1220,13 @@ export const extractAirFryingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of airFryTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(step.toLowerCase())) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1273,13 +1277,13 @@ export const extractRoastingParams = (instructions: string[]) => {
     /oven.*?roast.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
   ];
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of roastTempPatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const temp = parseInt(match[1]);
         if (temp >= 325 && temp <= 500) { // Typical roasting range
           temperature = temp;
@@ -1300,13 +1304,13 @@ export const extractRoastingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of roastTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1365,13 +1369,13 @@ export const extractBroilingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of broilTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1420,13 +1424,13 @@ export const extractSteamingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of steamTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1483,13 +1487,13 @@ export const extractSearingSauteParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of searTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1537,13 +1541,13 @@ export const extractSousVideParams = (instructions: string[]) => {
     /immersion.*?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
   ];
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of sousVideTempPatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const temp = parseInt(match[1]);
         if (temp >= 110 && temp <= 200) { // Typical sous vide range
           temperature = temp;
@@ -1565,13 +1569,13 @@ export const extractSousVideParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of sousVideTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1633,13 +1637,13 @@ export const extractToastingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of toastTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();
@@ -1703,13 +1707,13 @@ export const extractDehydratingParams = (instructions: string[]) => {
     /drying\s+fruit.*?(?:at\s+)?(\d{2,3})\s*(?:°\s*f|degrees\s*f?)/gi,
   ];
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of dehydrateTempPatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const temp = parseInt(match[1]);
         if (temp >= 95 && temp <= 165) { // Typical dehydrating range
           temperature = temp;
@@ -1732,13 +1736,13 @@ export const extractDehydratingParams = (instructions: string[]) => {
 
   let cookingTime: number | null = null;
 
-  for (const instruction of instructions) {
-    const instructionLower = instruction.toLowerCase();
+  for (const step of instructions) {
+    const stepLower = step.toLowerCase();
 
     for (const pattern of dehydrateTimePatterns) {
       pattern.lastIndex = 0;
       let match;
-      while ((match = pattern.exec(instructionLower)) !== null) {
+      while ((match = pattern.exec(stepLower)) !== null) {
         const time1 = parseInt(match[1]);
         const time2 = match[2] ? parseInt(match[2]) : null;
         const unit = match[3].toLowerCase();

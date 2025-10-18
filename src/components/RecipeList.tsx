@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { useNavigation } from '@react-navigation/native';
 import { useRecipeStore, Recipe } from '@store/store';
 import { FilterModal } from './FilterModal';
-import { getApplianceById } from '@types/chefiq';
+import { getApplianceById } from '~/types/chefiq';
 import RecipeCreatorScreen from '@screens/recipeCreator';
 import { theme } from '@theme/index';
 

@@ -15,7 +15,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { cookingFunctions as rj40Functions, getSmartCookerDefaultState } from '@utils/rj40CookingFunctions';
 import { cookingFunctions as cq50Functions } from '@utils/cq50CookingFunctions';
-import { CookingAction, getApplianceById } from '@types/chefiq';
+import { CookingAction, getApplianceById } from '~/types/chefiq';
 import { theme } from '@theme/index';
 import {
   TEMPERATURE_GUIDE,

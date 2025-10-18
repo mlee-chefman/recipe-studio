@@ -2,6 +2,8 @@ import axios from 'axios';
 import { decode } from 'html-entities';
 import { analyzeRecipeForChefIQ, RecipeAnalysisResult } from './recipeAnalyzer';
 import { processInstructions } from './helpers/instructionSplitter';
+import { Step } from '~/types/recipe';
+import { CookingAction } from '~/types/chefiq';
 
 // Decode HTML entities using the html-entities library
 const decodeHtmlEntities = (text: string): string => {
@@ -13,8 +15,7 @@ export interface ScrapedRecipe {
   title: string;
   description: string;
   ingredients: string[];
-  instructions: string[];
-  instructionImages?: (string | undefined)[]; // optional images for each instruction step
+  steps: Step[]; // Array of instruction objects
   cookTime: number;
   prepTime: number;
   servings: number;
@@ -121,7 +122,7 @@ const parseIngredients = (ingredients: any): string[] => {
 };
 
 // Parse instructions from various formats
-const parseInstructions = (instructions: any): string[] => {
+const parseSteps = (instructions: any): string[] => {
   if (!instructions) return [];
 
   if (Array.isArray(instructions)) {
@@ -138,7 +139,7 @@ const parseInstructions = (instructions: any): string[] => {
         if (inst.text) parsed.push(decodeHtmlEntities(inst.text.trim()));
         else if (inst.name) parsed.push(decodeHtmlEntities(inst.name.trim()));
       } else if (inst['@type'] === 'HowToSection' && inst.itemListElement) {
-        const sectionSteps = parseInstructions(inst.itemListElement);
+        const sectionSteps = parseSteps(inst.itemListElement);
         parsed.push(...sectionSteps);
       }
     });
@@ -151,14 +152,14 @@ const parseInstructions = (instructions: any): string[] => {
   }
 
   if (instructions.itemListElement) {
-    return parseInstructions(instructions.itemListElement);
+    return parseSteps(instructions.itemListElement);
   }
 
   return [];
 };
 
 // Parse instruction images from JSON-LD HowToStep format
-const parseInstructionImages = (instructions: any): (string | undefined)[] => {
+const parseStepImages = (instructions: any): (string | undefined)[] => {
   if (!instructions) return [];
 
   if (Array.isArray(instructions)) {
@@ -180,7 +181,7 @@ const parseInstructionImages = (instructions: any): (string | undefined)[] => {
         }
       } else if (inst['@type'] === 'HowToSection' && inst.itemListElement) {
         // Recursively handle sections
-        const sectionImages = parseInstructionImages(inst.itemListElement);
+        const sectionImages = parseStepImages(inst.itemListElement);
         images.push(...sectionImages);
       } else {
         // Default: no image
@@ -366,23 +367,23 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
 
   try {
     const ingredients = parseIngredients(data.recipeIngredient);
-    const rawInstructions = parseInstructions(data.recipeInstructions);
+    const rawSteps = parseSteps(data.recipeInstructions || data.recipeSteps);
 
     // Only return if we have meaningful data
-    if (!data.name || (ingredients.length === 0 && rawInstructions.length === 0)) {
+    if (!data.name || (ingredients.length === 0 && rawSteps.length === 0)) {
       return null;
     }
 
-    // Process instructions: decode HTML and split if needed using Gemini
-    const instructions = await processInstructions(rawInstructions);
+    // Process instruction texts: decode HTML and split if needed using Gemini
+    const instructionTexts = await processInstructions(rawSteps);
 
     // Extract instruction images if available
-    let instructionImages = parseInstructionImages(data.recipeInstructions);
+    let instructionImages = parseStepImages(data.recipeInstructions || data.recipeSteps);
 
     // Ensure instructionImages array matches instructions length
-    if (instructionImages.length > 0 && instructionImages.length !== instructions.length) {
+    if (instructionImages.length > 0 && instructionImages.length !== instructionTexts.length) {
       // If lengths don't match (e.g., due to splitting), pad or truncate
-      const targetLength = instructions.length;
+      const targetLength = instructionTexts.length;
       if (instructionImages.length < targetLength) {
         // Pad with undefined
         instructionImages = [...instructionImages, ...Array(targetLength - instructionImages.length).fill(undefined)];
@@ -392,6 +393,12 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
       }
     }
 
+    // Create Step objects combining text and images
+    const steps: Step[] = instructionTexts.map((text, index) => ({
+      text,
+      image: instructionImages[index] || undefined,
+    }));
+
     const title = decodeHtmlEntities(data.name || 'Untitled Recipe');
     const category = extractCategory(data, title, url);
     const image = extractImage(data, html);
@@ -400,13 +407,24 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
 
     // Analyze recipe for ChefIQ suggestions
     let chefiqSuggestions;
+    let stepsWithActions = steps;
     try {
       chefiqSuggestions = analyzeRecipeForChefIQ(
         title,
         description,
-        instructions,
+        steps,
         cookTime
       );
+
+      // Map cooking actions directly to their corresponding steps
+      if (chefiqSuggestions && chefiqSuggestions.suggestedActions.length > 0) {
+        stepsWithActions = steps.map((step, index) => {
+          const actionForThisStep = chefiqSuggestions!.suggestedActions.find(
+            (action: CookingAction) => action.stepIndex === index
+          );
+          return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+        });
+      }
     } catch (error) {
       console.error('ChefIQ analysis failed:', error);
       chefiqSuggestions = {
@@ -420,8 +438,7 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
       title,
       description,
       ingredients,
-      instructions,
-      instructionImages: instructionImages.length > 0 ? instructionImages : undefined,
+      steps: stepsWithActions,
       cookTime,
       prepTime: parseDuration(data.prepTime) || 15,
       servings: parseInt(data.recipeYield) || parseInt(data.yield) || 4,
@@ -440,7 +457,7 @@ const parseRecipeFromHtml = (html: string, url: string): ScrapedRecipe | null =>
     title: '',
     description: '',
     ingredients: [],
-    instructions: [],
+    steps: [],
     cookTime: 30,
     prepTime: 15,
     servings: 4,
@@ -483,7 +500,7 @@ const parseRecipeFromHtml = (html: string, url: string): ScrapedRecipe | null =>
   const instructionPatterns = [
     /<li[^>]*class="[^"]*instruction[^"]*"[^>]*>(.*?)<\/li>/gis,
     /<div[^>]*class="[^"]*direction[^"]*"[^>]*>(.*?)<\/div>/gis,
-    /<span[^>]*itemprop="recipeInstructions"[^>]*>(.*?)<\/span>/gis,
+    /<span[^>]*itemprop="recipeSteps"[^>]*>(.*?)<\/span>/gis,
   ];
 
   for (const pattern of instructionPatterns) {
@@ -491,14 +508,14 @@ const parseRecipeFromHtml = (html: string, url: string): ScrapedRecipe | null =>
     for (const match of matches) {
       const instruction = decodeHtmlEntities(match[1].trim().replace(/<[^>]*>/g, '').replace(/\s+/g, ' '));
       if (instruction && instruction.length > 10) {
-        recipe.instructions.push(instruction);
+        recipe.steps.push({ text: instruction });
       }
     }
-    if (recipe.instructions.length > 0) break;
+    if (recipe.steps.length > 0) break;
   }
 
   // Only return if we found something useful
-  if (recipe.title && (recipe.ingredients.length > 0 || recipe.instructions.length > 0)) {
+  if (recipe.title && (recipe.ingredients.length > 0 || recipe.steps.length > 0)) {
     // Extract category and image from title and URL
     recipe.category = extractCategory({}, recipe.title, url);
     recipe.image = extractImage({}, html);
@@ -564,7 +581,7 @@ export const scrapeRecipe = async (url: string): Promise<ScrapedRecipe> => {
     title: 'Recipe from ' + hostname,
     description: `Could not automatically extract recipe from: ${url}\n\nPlease copy the recipe details from the website and paste them into the fields below.`,
     ingredients: ['Copy and paste ingredients from the website'],
-    instructions: ['Copy and paste instructions from the website'],
+    steps: [{ text: 'Copy and paste instructions from the website' }],
     cookTime: 30,
     prepTime: 15,
     servings: 4,

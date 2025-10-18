@@ -1,15 +1,15 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CookingAction, InstructionSection } from '@types/chefiq';
+import { CookingAction, StepSection } from '~/types/chefiq';
+import { Step, migrateToSteps } from '~/types/recipe';
 
 export interface Recipe {
   id: string;
   title: string;
   description: string;
   ingredients: string[];
-  instructions: string[];
-  instructionImages?: (string | undefined)[]; // optional images for each instruction step
+  steps: Step[]; // Array of step objects with text, image, and cookingAction
   cookTime: number;
   servings: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';
@@ -18,8 +18,7 @@ export interface Recipe {
   image?: string;
   // ChefIQ Integration
   chefiqAppliance?: string; // appliance category_id
-  instructionSections?: InstructionSection[]; // grouped instructions with cooking actions
-  cookingActions?: CookingAction[]; // step-level cooking actions
+  stepSections?: StepSection[]; // grouped steps with cooking actions
   useProbe?: boolean; // whether to use thermometer probe (iQ MiniOven only)
 }
 
@@ -57,6 +56,42 @@ export const useStore = create<BearState>((set) => ({
   updateBears: (newBears) => set({ bears: newBears }),
 }));
 
+/**
+ * Migrates a recipe from old format to new format
+ * Converts separate instruction arrays to Step objects
+ */
+function migrateRecipe(recipe: any): Recipe {
+  // Check if recipe has old format with "instructions" field
+  if (recipe.instructions && Array.isArray(recipe.instructions)) {
+    // Check if first instruction is a string (old format)
+    if (typeof recipe.instructions[0] === 'string') {
+      // Migrate from old format
+      const migratedSteps = migrateToSteps(
+        recipe.instructions,
+        recipe.instructionImages,
+        recipe.cookingActions
+      );
+
+      const { instructions, instructionImages, cookingActions, ...recipeWithoutLegacy } = recipe;
+
+      return {
+        ...recipeWithoutLegacy,
+        steps: migratedSteps,
+      };
+    } else if (recipe.instructions[0] && typeof recipe.instructions[0] === 'object') {
+      // Already migrated to objects, but field is called "instructions" instead of "steps"
+      const { instructions, ...recipeWithoutInstructions } = recipe;
+      return {
+        ...recipeWithoutInstructions,
+        steps: instructions,
+      };
+    }
+  }
+
+  // Already in new format with "steps" field
+  return recipe;
+}
+
 // Sample recipe data
 const sampleRecipes: Recipe[] = [
   {
@@ -64,7 +99,12 @@ const sampleRecipes: Recipe[] = [
     title: 'Spaghetti Carbonara',
     description: 'Classic Italian pasta dish with eggs, cheese, and pancetta',
     ingredients: ['400g spaghetti', '200g pancetta', '4 eggs', '100g parmesan', 'Black pepper'],
-    instructions: ['Boil pasta', 'Cook pancetta', 'Mix eggs and cheese', 'Combine all ingredients'],
+    steps: [
+      { text: 'Boil pasta' },
+      { text: 'Cook pancetta' },
+      { text: 'Mix eggs and cheese' },
+      { text: 'Combine all ingredients' },
+    ],
     cookTime: 20,
     servings: 4,
     difficulty: 'Medium',
@@ -75,7 +115,13 @@ const sampleRecipes: Recipe[] = [
     title: 'Chicken Stir Fry',
     description: 'Quick and healthy Asian-inspired dish',
     ingredients: ['500g chicken breast', 'Mixed vegetables', 'Soy sauce', 'Garlic', 'Ginger'],
-    instructions: ['Cut chicken', 'Heat oil', 'Stir fry chicken', 'Add vegetables', 'Season and serve'],
+    steps: [
+      { text: 'Cut chicken' },
+      { text: 'Heat oil' },
+      { text: 'Stir fry chicken' },
+      { text: 'Add vegetables' },
+      { text: 'Season and serve' },
+    ],
     cookTime: 15,
     servings: 3,
     difficulty: 'Easy',
@@ -86,7 +132,12 @@ const sampleRecipes: Recipe[] = [
     title: 'Beef Wellington',
     description: 'Elegant beef dish wrapped in puff pastry',
     ingredients: ['1kg beef fillet', 'Puff pastry', 'Mushrooms', 'Prosciutto', 'Egg wash'],
-    instructions: ['Sear beef', 'Prepare mushroom duxelles', 'Wrap in pastry', 'Bake until golden'],
+    steps: [
+      { text: 'Sear beef' },
+      { text: 'Prepare mushroom duxelles' },
+      { text: 'Wrap in pastry' },
+      { text: 'Bake until golden' },
+    ],
     cookTime: 90,
     servings: 6,
     difficulty: 'Hard',
@@ -97,7 +148,12 @@ const sampleRecipes: Recipe[] = [
     title: 'Caesar Salad',
     description: 'Fresh romaine lettuce with classic Caesar dressing',
     ingredients: ['Romaine lettuce', 'Parmesan cheese', 'Croutons', 'Caesar dressing', 'Anchovies'],
-    instructions: ['Wash lettuce', 'Make dressing', 'Toss ingredients', 'Serve immediately'],
+    steps: [
+      { text: 'Wash lettuce' },
+      { text: 'Make dressing' },
+      { text: 'Toss ingredients' },
+      { text: 'Serve immediately' },
+    ],
     cookTime: 10,
     servings: 2,
     difficulty: 'Easy',
@@ -210,8 +266,11 @@ export const useRecipeStore = create<RecipeState>()(
         recipes: state.recipes
       }),
       onRehydrateStorage: () => (state) => {
-        // After loading from storage, update filtered recipes
-        if (state) {
+        // After loading from storage, migrate recipes and update filtered recipes
+        if (state && state.recipes) {
+          // Migrate all recipes from old format to new format
+          const migratedRecipes = state.recipes.map(migrateRecipe);
+          state.recipes = migratedRecipes;
           state.filterRecipes();
         }
       },
