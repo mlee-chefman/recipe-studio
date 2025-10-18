@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { decode } from 'html-entities';
 import { analyzeRecipeForChefIQ, RecipeAnalysisResult } from './recipeAnalyzer';
+import { processInstructions } from './helpers/instructionSplitter';
 
 // Decode HTML entities using the html-entities library
 const decodeHtmlEntities = (text: string): string => {
@@ -321,17 +322,20 @@ const inferCategoryFromUrl = (url: string): string => {
 };
 
 // Parse recipe from JSON-LD data
-const parseRecipeFromJsonLd = (data: any, url: string = '', html: string = ''): ScrapedRecipe | null => {
+const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string = ''): Promise<ScrapedRecipe | null> => {
   if (!data) return null;
 
   try {
     const ingredients = parseIngredients(data.recipeIngredient);
-    const instructions = parseInstructions(data.recipeInstructions);
+    const rawInstructions = parseInstructions(data.recipeInstructions);
 
     // Only return if we have meaningful data
-    if (!data.name || (ingredients.length === 0 && instructions.length === 0)) {
+    if (!data.name || (ingredients.length === 0 && rawInstructions.length === 0)) {
       return null;
     }
+
+    // Process instructions: decode HTML and split if needed using Gemini
+    const instructions = await processInstructions(rawInstructions);
 
     const title = decodeHtmlEntities(data.name || 'Untitled Recipe');
     const category = extractCategory(data, title, url);
@@ -470,7 +474,7 @@ export const scrapeRecipe = async (url: string): Promise<ScrapedRecipe> => {
       // First try JSON-LD extraction
       const jsonLdData = extractJsonLd(html);
       if (jsonLdData) {
-        const recipe = parseRecipeFromJsonLd(jsonLdData, url, html);
+        const recipe = await parseRecipeFromJsonLd(jsonLdData, url, html);
         if (recipe) {
           console.log('Successfully extracted recipe using JSON-LD');
           return recipe;
