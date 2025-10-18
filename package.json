@@ -29,6 +29,7 @@
     "expo-status-bar": "2.2.3",
     "html-entities": "^2.6.0",
     "nativewind": "4.1.23",
+    "pdf-lib": "^1.17.1",
     "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-draggable-flatlist": "^4.0.3",

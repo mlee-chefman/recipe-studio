@@ -23,6 +23,10 @@ export default function RecipeTextImportScreen() {
   const addRecipe = useRecipeStore((state) => state.addRecipe);
   const [importText, setImportText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState<string>('');
+  const [recipesFound, setRecipesFound] = useState<number>(0);
+  const [totalEstimate, setTotalEstimate] = useState<number>(0);
+  const [progressPercentage, setProgressPercentage] = useState<number>(0);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -68,9 +72,24 @@ export default function RecipeTextImportScreen() {
     }
 
     setIsProcessing(true);
+    setProcessingStep('Analyzing text...');
+    setRecipesFound(0);
+    setTotalEstimate(0);
+    setProgressPercentage(0);
 
     try {
-      const result = await parseMultipleRecipes(importText);
+      const result = await parseMultipleRecipes(importText, (status, found, estimate) => {
+        setProcessingStep(status);
+        if (found !== undefined) {
+          setRecipesFound(found);
+        }
+        if (estimate !== undefined && estimate > 0) {
+          setTotalEstimate(estimate);
+          // Calculate progress percentage
+          const progress = found !== undefined ? (found / estimate) * 100 : 0;
+          setProgressPercentage(progress);
+        }
+      });
 
       if (!result.success || result.recipes.length === 0) {
         Alert.alert(
@@ -196,9 +215,30 @@ Instructions:
         {isProcessing && (
           <View style={styles.processingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary[500]} />
+
+            {/* Progress Bar */}
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
+            </View>
+
+            {/* Progress Percentage */}
+            <Text style={styles.progressPercentage}>{Math.round(progressPercentage)}%</Text>
+
+            {/* Status Text */}
             <Text style={styles.processingText}>
-              Parsing recipes with AI...
+              {processingStep || 'Parsing recipes with AI...'}
             </Text>
+
+            {/* Recipe Count */}
+            {totalEstimate > 0 && (
+              <Text style={styles.recipeCount}>
+                {recipesFound > 0
+                  ? `Found ${recipesFound} of ~${totalEstimate} recipes`
+                  : `Estimated ${totalEstimate} recipes in text`
+                }
+              </Text>
+            )}
+
             <Text style={styles.processingSubtext}>
               This may take a moment for multiple recipes
             </Text>
@@ -311,16 +351,43 @@ const styles = StyleSheet.create({
     minHeight: 300,
     justifyContent: 'center',
   },
+  progressBarContainer: {
+    width: '100%',
+    height: 8,
+    backgroundColor: theme.colors.gray[200],
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: theme.spacing.md,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary[500],
+    borderRadius: 4,
+  },
+  progressPercentage: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.primary[600],
+    marginTop: theme.spacing.sm,
+  },
   processingText: {
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.medium as any,
     color: theme.colors.text.primary,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
+  },
+  recipeCount: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.success.main,
     textAlign: 'center',
   },
   processingSubtext: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.secondary,
     textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   bottomActions: {
     padding: theme.spacing.lg,
