@@ -1,17 +1,32 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Modal, StyleSheet, Alert } from 'react-native';
 import { Image } from 'expo-image';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { useRecipeStore, Recipe } from '@store/store';
 import { FilterModal } from './FilterModal';
+import { CompactRecipeCard } from './CompactRecipeCard';
+import { GridRecipeCard } from './GridRecipeCard';
 import { getApplianceById } from '~/types/chefiq';
 import RecipeCreatorScreen from '@screens/recipeCreator';
 import { theme } from '@theme/index';
 
-const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
+const RecipeCard = ({
+  recipe,
+  onPress,
+  isSelectionMode = false,
+  isSelected = false
+}: {
+  recipe: Recipe;
+  onPress: () => void;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+}) => {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <View className="bg-white rounded-lg mb-3 shadow-sm border border-gray-200 overflow-hidden">
+      <View className={`bg-white rounded-lg mb-3 shadow-sm border-2 overflow-hidden ${
+        isSelected ? 'border-green-500' : 'border-gray-200'
+      }`}>
         {/* Recipe Image */}
         {recipe.image ? (
           <Image
@@ -76,6 +91,17 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
             <Text className="text-xs text-gray-400">Tap for details →</Text>
           </View>
         </View>
+
+        {/* Selection Checkbox Overlay */}
+        {isSelectionMode && (
+          <View style={styles.checkboxOverlay}>
+            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+              {isSelected && (
+                <FontAwesome name="check" size={16} color="white" />
+              )}
+            </View>
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -116,11 +142,14 @@ export const RecipeList = () => {
     selectedDifficulty,
     selectedTags,
     selectedAppliance,
+    viewMode,
+    selectionMode,
     setSearchQuery,
     setSelectedCategory,
     setSelectedDifficulty,
     setSelectedTags,
     setSelectedAppliance,
+    deleteRecipes,
     recipes,
     filterRecipes
   } = useRecipeStore();
@@ -129,6 +158,23 @@ export const RecipeList = () => {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+
+  // Selection state
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set());
+
+  // Clear selection when exiting selection mode
+  useEffect(() => {
+    if (!selectionMode) {
+      setSelectedRecipeIds(new Set());
+    }
+  }, [selectionMode]);
+
+  // Exit selection mode when there are no recipes
+  useEffect(() => {
+    if (selectionMode && filteredRecipes.length === 0) {
+      useRecipeStore.getState().setSelectionMode(false);
+    }
+  }, [selectionMode, filteredRecipes.length]);
 
   // Ensure recipes are filtered on mount
   useEffect(() => {
@@ -157,8 +203,19 @@ export const RecipeList = () => {
   const appliances = Array.from(applianceMap.values());
 
   const handleRecipePress = (recipe: Recipe) => {
-    // @ts-ignore - Navigation typing issue with static navigation
-    navigation.navigate('RecipeDetail', { recipe });
+    if (selectionMode) {
+      // Toggle selection
+      const newSelected = new Set(selectedRecipeIds);
+      if (newSelected.has(recipe.id)) {
+        newSelected.delete(recipe.id);
+      } else {
+        newSelected.add(recipe.id);
+      }
+      setSelectedRecipeIds(newSelected);
+    } else {
+      // @ts-ignore - Navigation typing issue with static navigation
+      navigation.navigate('RecipeDetail', { recipe });
+    }
   };
 
   const handleEditComplete = () => {
@@ -182,6 +239,36 @@ export const RecipeList = () => {
     if (selectedTags.length > 0) count += selectedTags.length;
     if (selectedAppliance) count++;
     return count;
+  };
+
+  const handleSelectAll = () => {
+    const allIds = new Set(filteredRecipes.map(r => r.id));
+    setSelectedRecipeIds(allIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedRecipeIds(new Set());
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedRecipeIds.size === 0) return;
+
+    const count = selectedRecipeIds.size;
+    Alert.alert(
+      'Delete Recipes',
+      `Are you sure you want to delete ${count} recipe${count > 1 ? 's' : ''}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteRecipes(Array.from(selectedRecipeIds));
+            setSelectedRecipeIds(new Set());
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -262,20 +349,51 @@ export const RecipeList = () => {
       {/* Scrollable Recipe List */}
       <View className="flex-1 w-full">
         <FlatList
+          key={viewMode === 'grid' ? 'grid' : 'list'}
           data={filteredRecipes}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <RecipeCard 
-              recipe={item} 
-              onPress={() => handleRecipePress(item)} 
-            />
-          )}
+          numColumns={viewMode === 'grid' ? 2 : 1}
+          renderItem={({ item, index }) => {
+            const isSelected = selectedRecipeIds.has(item.id);
+
+            if (viewMode === 'grid') {
+              return (
+                <View style={{ flex: 1, margin: 4 }}>
+                  <GridRecipeCard
+                    recipe={item}
+                    onPress={() => handleRecipePress(item)}
+                    isSelectionMode={selectionMode}
+                    isSelected={isSelected}
+                  />
+                </View>
+              );
+            } else if (viewMode === 'compact') {
+              return (
+                <CompactRecipeCard
+                  recipe={item}
+                  onPress={() => handleRecipePress(item)}
+                  isSelectionMode={selectionMode}
+                  isSelected={isSelected}
+                />
+              );
+            } else {
+              return (
+                <RecipeCard
+                  recipe={item}
+                  onPress={() => handleRecipePress(item)}
+                  isSelectionMode={selectionMode}
+                  isSelected={isSelected}
+                />
+              );
+            }
+          }}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ 
-            paddingBottom: 20,
-            paddingHorizontal: 16,
+          contentContainerStyle={{
+            paddingBottom: selectionMode ? 100 : 20,
+            paddingHorizontal: viewMode === 'grid' ? 12 : 16,
             flexGrow: 1
           }}
+          columnWrapperStyle={viewMode === 'grid' ? { justifyContent: 'space-between' } : undefined}
           ListEmptyComponent={
             <View className="flex-1 items-center justify-center py-8 w-full">
               <Text className="text-gray-500 text-center">
@@ -285,6 +403,36 @@ export const RecipeList = () => {
           }
         />
       </View>
+
+      {/* Selection Mode Bottom Bar */}
+      {selectionMode && (
+        <View style={styles.selectionBottomBar}>
+          <View style={styles.selectionInfo}>
+            <Text style={styles.selectionText}>
+              {selectedRecipeIds.size} selected
+            </Text>
+            <View style={styles.selectionActions}>
+              {selectedRecipeIds.size === filteredRecipes.length ? (
+                <TouchableOpacity onPress={handleDeselectAll} style={styles.actionButton}>
+                  <Text style={styles.actionButtonText}>Deselect All</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={handleSelectAll} style={styles.actionButton}>
+                  <Text style={styles.actionButtonText}>Select All</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                onPress={handleDeleteSelected}
+                disabled={selectedRecipeIds.size === 0}
+                style={[styles.deleteButton, selectedRecipeIds.size === 0 && styles.deleteButtonDisabled]}
+              >
+                <FontAwesome name="trash" size={18} color="white" />
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       {/* Filter Modal */}
       <FilterModal
@@ -320,3 +468,90 @@ export const RecipeList = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  checkboxOverlay: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  selectionBottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    paddingBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  selectionInfo: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  selectionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  selectionActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#4CAF50',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#f44336',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  deleteButtonDisabled: {
+    backgroundColor: '#cccccc',
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+});
