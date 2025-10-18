@@ -153,15 +153,29 @@ const PROBE_KEYWORDS = [
   'cook until', 'temp probe', 'temperature probe'
 ];
 
-// Temperature ranges for different proteins
-const PROTEIN_TEMPERATURES: { [key: string]: number } = {
-  'chicken': 165,
-  'turkey': 165,
-  'pork': 145,
-  'beef': 135, // medium-rare
-  'lamb': 145,
-  'fish': 145,
+// Keywords for detecting remove temperature (carryover cooking/resting)
+const REMOVE_TEMP_KEYWORDS = [
+  'remove at', 'pull at', 'take out at', 'remove from heat at',
+  'pull from', 'rest', 'resting', 'carryover', 'carry over',
+  'let rest', 'allow to rest', 'remove when'
+];
+
+// Proteins that benefit from carryover cooking (large cuts)
+const CARRYOVER_PROTEINS = [
+  'steak', 'beef', 'roast', 'prime rib', 'brisket', 'pork loin',
+  'pork chop', 'lamb', 'turkey', 'whole chicken', 'chicken breast',
+  'duck breast', 'venison', 'tenderloin'
+];
+
+import { detectProteinType, getUsdaRecommendedTemp } from '@constants/temperatureGuide';
+
+// Legacy fallback temperatures for proteins not in temperature guide
+const FALLBACK_PROTEIN_TEMPERATURES: { [key: string]: number } = {
   'salmon': 145,
+  'tuna': 145,
+  'venison': 145,
+  'game': 165,
+  'duck': 165,
 };
 
 export interface RecipeAnalysisResult {
@@ -173,14 +187,68 @@ export interface RecipeAnalysisResult {
   reasoning: string[];
 }
 
-// Helper function to get protein temperature
+// Helper function to get protein temperature using temperature guide
 const getProteinTemperature = (text: string): number => {
-  for (const [protein, temp] of Object.entries(PROTEIN_TEMPERATURES)) {
-    if (text.includes(protein)) {
+  // Try to detect protein using temperature guide
+  const detectedProtein = detectProteinType(text);
+  if (detectedProtein) {
+    return getUsdaRecommendedTemp(detectedProtein);
+  }
+
+  // Fallback to legacy protein detection
+  const textLower = text.toLowerCase();
+  for (const [protein, temp] of Object.entries(FALLBACK_PROTEIN_TEMPERATURES)) {
+    if (textLower.includes(protein)) {
       return temp;
     }
   }
+
   return 145; // Default safe temperature
+};
+
+// Helper function to detect if recipe needs remove temperature (carryover cooking)
+const shouldUseRemoveTemp = (text: string): boolean => {
+  const textLower = text.toLowerCase();
+
+  // Check for explicit remove temp keywords
+  const hasRemoveTempKeywords = REMOVE_TEMP_KEYWORDS.some(keyword => textLower.includes(keyword));
+
+  // Check for carryover cooking proteins
+  const hasCarryoverProtein = CARRYOVER_PROTEINS.some(protein => textLower.includes(protein));
+
+  return hasRemoveTempKeywords || hasCarryoverProtein;
+};
+
+// Helper function to extract remove temperature from text
+const extractRemoveTemperature = (text: string, targetTemp: number): number | null => {
+  const textLower = text.toLowerCase();
+
+  // Look for patterns like "remove at 160°F" or "pull at 160 degrees"
+  const removeTempPatterns = [
+    /(?:remove|pull|take out)(?:\s+(?:at|when|from\s+(?:heat|oven)\s+at))\s+(\d{2,3})\s*(?:°\s*F|degrees\s*F?|°)/gi,
+    /(\d{2,3})\s*(?:°\s*F|degrees\s*F?).*?(?:remove|pull|take out)/gi,
+  ];
+
+  for (const pattern of removeTempPatterns) {
+    pattern.lastIndex = 0;
+    let match;
+    while ((match = pattern.exec(textLower)) !== null) {
+      const temp = parseInt(match[1]);
+      // Valid remove temp: should be lower than target and within reasonable range
+      if (temp >= 100 && temp < targetTemp && temp >= targetTemp - 15) {
+        return temp;
+      }
+    }
+  }
+
+  // If no explicit remove temp found but recipe needs it, calculate default
+  if (shouldUseRemoveTemp(textLower)) {
+    // Default: 5-10°F below target for carryover cooking
+    const defaultOffset = targetTemp >= 160 ? 10 : 5;
+    return Math.max(100, targetTemp - defaultOffset);
+  }
+
+  return null;
 };
 
 export const analyzeRecipeForChefIQ = (
@@ -311,6 +379,13 @@ export const analyzeRecipeForChefIQ = (
           grillKeywords.some(keyword => instruction.toLowerCase().includes(keyword))
         );
 
+        // Check for remove temp in grilled protein recipes
+        let grillRemoveTemp: number | null = null;
+        if (hasTemperatureCheck && shouldUseRemoveTemp(allText)) {
+          const targetTemp = getProteinTemperature(allText);
+          grillRemoveTemp = extractRemoveTemperature(allText, targetTemp);
+        }
+
         const action: CookingAction = {
           id: `auto_${Date.now()}`,
           applianceId: ovenAppliance.category_id,
@@ -321,7 +396,9 @@ export const analyzeRecipeForChefIQ = (
           parameters: {
             ...methodPattern.defaultParams,
             ...(extractedTemp && suggestedOvenMethod === OvenMethod.Bake ? { target_cavity_temp: extractedTemp } : {}),
-            ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allTextLower) } : {}),
+            ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allText) } : {}),
+            ...(hasTemperatureCheck && grillRemoveTemp && grillRemoveTemp !== getProteinTemperature(allText)
+                ? { remove_probe_temp: grillRemoveTemp } : {}),
             cooking_time: cookTime * 60 || methodPattern.estimatedTime! * 60,
           },
           ...(grillStepIndex >= 0 ? { stepIndex: grillStepIndex } : {}),
@@ -394,6 +471,7 @@ export const analyzeRecipeForChefIQ = (
   // Check for probe usage (oven only)
   let useProbe = false;
   let probeTemp = 160; // default
+  let removeProbeTemp: number | null = null;
 
   if (bestMethod.method.applianceType === 'oven') {
     const hasProbeKeywords = PROBE_KEYWORDS.some(keyword => allTextLower.includes(keyword));
@@ -402,12 +480,23 @@ export const analyzeRecipeForChefIQ = (
       useProbe = true;
       reasoning.push('Detected temperature-based cooking instructions, suggesting probe use.');
 
-      // Try to find specific protein and temperature
-      for (const [protein, temp] of Object.entries(PROTEIN_TEMPERATURES)) {
-        if (allTextLower.includes(protein)) {
-          probeTemp = temp;
-          reasoning.push(`Found "${protein}" in recipe, suggesting ${temp}°F target temperature.`);
-          break;
+      // Get protein temperature using temperature guide
+      probeTemp = getProteinTemperature(allText);
+
+      const detectedProtein = detectProteinType(allText);
+      if (detectedProtein) {
+        reasoning.push(`Detected ${detectedProtein} protein, suggesting ${probeTemp}°F target temperature.`);
+      }
+
+      // Check if recipe needs remove temperature (carryover cooking)
+      if (shouldUseRemoveTemp(allText)) {
+        removeProbeTemp = extractRemoveTemperature(allText, probeTemp);
+
+        if (removeProbeTemp && removeProbeTemp !== probeTemp) {
+          reasoning.push(
+            `Recipe involves large protein or resting - suggesting remove temp at ${removeProbeTemp}°F ` +
+            `(${probeTemp - removeProbeTemp}°F carryover cooking).`
+          );
         }
       }
     }
@@ -643,6 +732,8 @@ export const analyzeRecipeForChefIQ = (
     parameters: {
       ...primaryParams,
       ...(useProbe ? { target_probe_temp: probeTemp } : {}),
+      // Only add remove_probe_temp if it's different from target
+      ...(useProbe && removeProbeTemp && removeProbeTemp !== probeTemp ? { remove_probe_temp: removeProbeTemp } : {}),
       // Use extracted cooking time from instructions, fall back to passed cookTime, then default
       cooking_time: (extractedCookingTime ? extractedCookingTime * 60 : null) ||
                    (cookTime * 60) ||
@@ -839,10 +930,19 @@ export const extractCookingTimeFromInstructions = (instructions: string[]): numb
 // Helper function to extract temperature from text
 export const extractTemperature = (text: string, preferInitial: boolean = true): number | null => {
   // Look for temperature patterns like "350°F", "350 degrees F", "350 degrees", etc.
-  // Also handle "preheat oven to 350", "increase temperature to 350"
-  const tempPatterns = [
+  // Also handle Celsius temperatures and convert them to Fahrenheit
+  const fahrenheitPatterns = [
     /(\d{2,3})\s*°\s*F/gi,
-    /(\d{2,3})\s*degrees\s*(?:F|Fahrenheit)?/gi,
+    /(\d{2,3})\s*degrees\s*F(?:ahrenheit)?/gi,
+  ];
+
+  const celsiusPatterns = [
+    /(\d{2,3})\s*°\s*C/gi,
+    /(\d{2,3})\s*degrees\s*C(?:elsius)?/gi,
+  ];
+
+  const ambiguousPatterns = [
+    /(\d{2,3})\s*degrees/gi,  // No unit specified
     /preheat\s+(?:oven\s+)?(?:to\s+)?(\d{2,3})/gi,
     /temperature\s+(?:to\s+)?(\d{2,3})/gi,
     /heat\s+(?:to\s+)?(\d{2,3})/gi,
@@ -852,14 +952,49 @@ export const extractTemperature = (text: string, preferInitial: boolean = true):
 
   let temperatures: number[] = [];
 
-  for (const pattern of tempPatterns) {
+  // Check for Celsius temperatures first
+  for (const pattern of celsiusPatterns) {
+    let match;
+    pattern.lastIndex = 0; // Reset regex
+    while ((match = pattern.exec(text)) !== null) {
+      const tempC = parseInt(match[1]);
+      // Valid oven temperature range in Celsius (65-290°C)
+      if (tempC >= 65 && tempC <= 290) {
+        // Convert to Fahrenheit: F = (C × 9/5) + 32
+        const tempF = Math.round((tempC * 9 / 5) + 32);
+        temperatures.push(tempF);
+      }
+    }
+  }
+
+  // Check for explicit Fahrenheit temperatures
+  for (const pattern of fahrenheitPatterns) {
     let match;
     pattern.lastIndex = 0; // Reset regex
     while ((match = pattern.exec(text)) !== null) {
       const temp = parseInt(match[1]);
-      // Valid oven temperature range
+      // Valid oven temperature range in Fahrenheit
       if (temp >= 150 && temp <= 550) {
         temperatures.push(temp);
+      }
+    }
+  }
+
+  // Check ambiguous patterns (assume Fahrenheit if in valid F range, otherwise try Celsius)
+  for (const pattern of ambiguousPatterns) {
+    let match;
+    pattern.lastIndex = 0; // Reset regex
+    while ((match = pattern.exec(text)) !== null) {
+      const temp = parseInt(match[1]);
+
+      // If it's in valid Fahrenheit range (150-550°F), assume Fahrenheit
+      if (temp >= 150 && temp <= 550) {
+        temperatures.push(temp);
+      }
+      // If it's in Celsius range (65-290°C) but not Fahrenheit, convert it
+      else if (temp >= 65 && temp <= 290) {
+        const tempF = Math.round((temp * 9 / 5) + 32);
+        temperatures.push(tempF);
       }
     }
   }

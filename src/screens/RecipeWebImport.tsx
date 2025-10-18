@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Styl
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { theme } from '@theme/index';
 import { RECIPE_DETECTION_SCRIPT, DEBUG_LOGGING_SCRIPT } from '@constants/webViewScripts';
 import { isExcludedUrl, formatAndValidateUrl } from '@utils/helpers/urlHelpers';
@@ -15,9 +16,10 @@ export default function RecipeWebImportScreen() {
   const route = useRoute<RecipeWebImportRouteProp>();
   const webViewRef = useRef<WebView>(null);
   const insets = useSafeAreaInsets();
+  const isEditingUrlRef = useRef(false);
 
-  const [currentUrl, setCurrentUrl] = useState(route.params?.initialUrl || 'https://www.google.com');
-  const [urlInput, setUrlInput] = useState(route.params?.initialUrl || 'https://www.google.com');
+  const [currentUrl, setCurrentUrl] = useState(route.params?.initialUrl || 'https://duckduckgo.com');
+  const [urlInput, setUrlInput] = useState(route.params?.initialUrl || 'https://duckduckgo.com');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,13 +72,13 @@ export default function RecipeWebImportScreen() {
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ paddingLeft: theme.spacing.md, paddingRight: theme.spacing.xs }}
+          style={{
+            paddingLeft: theme.spacing.lg,
+            paddingRight: theme.spacing.md,
+            paddingVertical: theme.spacing.sm,
+          }}
         >
-          <Text style={{
-            color: theme.colors.info.main,
-            fontSize: 24,
-            fontWeight: '300'
-          }}>×</Text>
+          <Feather name="x" size={28} color={theme.colors.text.secondary} />
         </TouchableOpacity>
       ),
       headerTitle: '',
@@ -87,12 +89,21 @@ export default function RecipeWebImportScreen() {
   const handleNavigationStateChange = (navState: any) => {
     console.log('Navigation state changed:', navState.url, 'loading:', navState.loading);
 
+    // Block Google's redirect loop (detected by no_sw_cr parameter)
+    if (navState.url && navState.url.includes('no_sw_cr=1')) {
+      console.log('Blocking Google redirect loop');
+      return;
+    }
+
     // Don't update currentUrl to about:blank
     if (navState.url && navState.url !== 'about:blank') {
-      setCurrentUrl(navState.url);
-      // Update URL input if not currently editing
-      if (!isEditingUrl) {
-        setUrlInput(navState.url);
+      // Only update currentUrl if it's actually different to prevent unnecessary re-renders
+      if (navState.url !== currentUrl) {
+        setCurrentUrl(navState.url);
+        // Only update URL input if not currently editing (use ref for immediate check)
+        if (!isEditingUrlRef.current) {
+          setUrlInput(navState.url);
+        }
       }
     }
 
@@ -114,6 +125,7 @@ export default function RecipeWebImportScreen() {
       console.log('Setting URL to:', validatedUrl);
       setCurrentUrl(validatedUrl);
       setIsEditingUrl(false);
+      isEditingUrlRef.current = false;
       Keyboard.dismiss();
     } else {
       Alert.alert('Invalid URL', 'Please enter a valid URL');
@@ -148,8 +160,14 @@ export default function RecipeWebImportScreen() {
             style={styles.searchInput}
             value={urlInput}
             onChangeText={setUrlInput}
-            onFocus={() => setIsEditingUrl(true)}
-            onBlur={() => setIsEditingUrl(false)}
+            onFocus={() => {
+              setIsEditingUrl(true);
+              isEditingUrlRef.current = true;
+            }}
+            onBlur={() => {
+              setIsEditingUrl(false);
+              isEditingUrlRef.current = false;
+            }}
             onSubmitEditing={handleUrlSubmit}
             placeholder="Search or enter URL"
             autoCapitalize="none"
@@ -172,6 +190,14 @@ export default function RecipeWebImportScreen() {
         style={styles.webview}
         source={{ uri: currentUrl }}
         onNavigationStateChange={handleNavigationStateChange}
+        onShouldStartLoadWithRequest={(request) => {
+          // Block Google's redirect loop
+          if (request.url.includes('no_sw_cr=1')) {
+            console.log('Blocking redirect to:', request.url);
+            return false;
+          }
+          return true;
+        }}
         onMessage={handleMessage}
         onError={handleError}
         onLoadStart={handleLoadStart}

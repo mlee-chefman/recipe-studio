@@ -28,6 +28,7 @@ export interface ChefIQAppliance {
   icon: string;
   picture: string;
   order: number;
+  supports_probe?: boolean;
   cookingMethods: CookingMethod[];
 }
 
@@ -186,6 +187,7 @@ export const CHEFIQ_APPLIANCES: ChefIQAppliance[] = [
     icon: 'https://assets.chefiq.com/icons/devices/iQMiniOven.png',
     picture: 'https://assets.chefiq.com/images/devices/iq-mini-oven-CQ50/cover-photo.png',
     order: 3,
+    supports_probe: true,
     cookingMethods: [
       {
         id: 'bake',

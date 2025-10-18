@@ -94,7 +94,12 @@ export const formatKeyParameters = (action: CookingAction): string => {
   } else if (params.target_cavity_temp) {
     keyParams.push(`${params.target_cavity_temp}°F`);
   } else if (params.target_probe_temp) {
-    keyParams.push(`Probe: ${params.target_probe_temp}°F`);
+    // If remove_probe_temp is different from target, show both
+    if (params.remove_probe_temp && params.remove_probe_temp !== params.target_probe_temp) {
+      keyParams.push(`Probe: ${params.target_probe_temp}°F (remove at ${params.remove_probe_temp}°F)`);
+    } else {
+      keyParams.push(`Probe: ${params.target_probe_temp}°F`);
+    }
   } else if (params.internalTemp) {
     keyParams.push(`Internal: ${params.internalTemp}°F`);
   } else if (params.targetTemperature) {
