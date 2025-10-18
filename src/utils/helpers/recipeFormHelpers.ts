@@ -93,3 +93,43 @@ export function updateInstruction(
   newInstructions[index] = value;
   return newInstructions;
 }
+
+/**
+ * Updates an instruction image at the specified index
+ * Ensures the array is properly sized to match instructions
+ */
+export function updateInstructionImage(
+  currentImages: (string | undefined)[],
+  index: number,
+  imageUri: string | undefined,
+  instructionsLength: number
+): (string | undefined)[] {
+  // Ensure array is properly sized
+  const images = [...currentImages];
+  while (images.length < instructionsLength) {
+    images.push(undefined);
+  }
+
+  images[index] = imageUri;
+  return images;
+}
+
+/**
+ * Removes an instruction image when an instruction is removed
+ * Keeps array in sync with instructions
+ */
+export function removeInstructionImage(
+  currentImages: (string | undefined)[],
+  index: number
+): (string | undefined)[] {
+  return currentImages.filter((_, i) => i !== index);
+}
+
+/**
+ * Adds an undefined slot for a new instruction's image
+ */
+export function addInstructionImageSlot(
+  currentImages: (string | undefined)[]
+): (string | undefined)[] {
+  return [...currentImages, undefined];
+}

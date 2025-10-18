@@ -14,6 +14,7 @@ export interface ScrapedRecipe {
   description: string;
   ingredients: string[];
   instructions: string[];
+  instructionImages?: (string | undefined)[]; // optional images for each instruction step
   cookTime: number;
   prepTime: number;
   servings: number;
@@ -153,6 +154,44 @@ const parseInstructions = (instructions: any): string[] => {
     return parseInstructions(instructions.itemListElement);
   }
 
+  return [];
+};
+
+// Parse instruction images from JSON-LD HowToStep format
+const parseInstructionImages = (instructions: any): (string | undefined)[] => {
+  if (!instructions) return [];
+
+  if (Array.isArray(instructions)) {
+    const images: (string | undefined)[] = [];
+
+    instructions.forEach(inst => {
+      if (typeof inst === 'string') {
+        // No image for string instructions
+        images.push(undefined);
+      } else if (inst['@type'] === 'HowToStep') {
+        // Extract image from HowToStep
+        const image = inst.image;
+        if (typeof image === 'string') {
+          images.push(image);
+        } else if (image && typeof image === 'object') {
+          images.push(image.url || image.contentUrl || undefined);
+        } else {
+          images.push(undefined);
+        }
+      } else if (inst['@type'] === 'HowToSection' && inst.itemListElement) {
+        // Recursively handle sections
+        const sectionImages = parseInstructionImages(inst.itemListElement);
+        images.push(...sectionImages);
+      } else {
+        // Default: no image
+        images.push(undefined);
+      }
+    });
+
+    return images;
+  }
+
+  // For non-array formats, return empty array
   return [];
 };
 
@@ -337,6 +376,22 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
     // Process instructions: decode HTML and split if needed using Gemini
     const instructions = await processInstructions(rawInstructions);
 
+    // Extract instruction images if available
+    let instructionImages = parseInstructionImages(data.recipeInstructions);
+
+    // Ensure instructionImages array matches instructions length
+    if (instructionImages.length > 0 && instructionImages.length !== instructions.length) {
+      // If lengths don't match (e.g., due to splitting), pad or truncate
+      const targetLength = instructions.length;
+      if (instructionImages.length < targetLength) {
+        // Pad with undefined
+        instructionImages = [...instructionImages, ...Array(targetLength - instructionImages.length).fill(undefined)];
+      } else {
+        // Truncate
+        instructionImages = instructionImages.slice(0, targetLength);
+      }
+    }
+
     const title = decodeHtmlEntities(data.name || 'Untitled Recipe');
     const category = extractCategory(data, title, url);
     const image = extractImage(data, html);
@@ -366,6 +421,7 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
       description,
       ingredients,
       instructions,
+      instructionImages: instructionImages.length > 0 ? instructionImages : undefined,
       cookTime,
       prepTime: parseDuration(data.prepTime) || 15,
       servings: parseInt(data.recipeYield) || parseInt(data.yield) || 4,

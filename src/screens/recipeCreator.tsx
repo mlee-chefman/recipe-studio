@@ -19,6 +19,7 @@ import { useImagePicker } from '@hooks/useImagePicker';
 import { useAIRecipeGenerator } from '@hooks/useAIRecipeGenerator';
 import { useCookingActions } from '@hooks/useCookingActions';
 import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
+import StepImage from '@components/StepImage';
 import {
   ServingsPickerModal,
   CookTimePickerModal,
@@ -272,7 +273,11 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const addInstruction = () => {
     const result = recipeHelpers.addInstruction(formData.instructions);
     if (result.success) {
-      updateFormData({ instructions: result.value });
+      const newImages = recipeHelpers.addInstructionImageSlot(formData.instructionImages);
+      updateFormData({
+        instructions: result.value,
+        instructionImages: newImages
+      });
     } else {
       Alert.alert('Validation Error', result.error);
     }
@@ -280,7 +285,11 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
   const removeInstruction = (index: number) => {
     const newInstructions = recipeHelpers.removeInstruction(formData.instructions, index);
-    updateFormData({ instructions: newInstructions });
+    const newImages = recipeHelpers.removeInstructionImage(formData.instructionImages, index);
+    updateFormData({
+      instructions: newInstructions,
+      instructionImages: newImages
+    });
   };
 
   const updateIngredient = (index: number, value: string) => {
@@ -291,6 +300,16 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const updateInstruction = (index: number, value: string) => {
     const newInstructions = recipeHelpers.updateInstruction(formData.instructions, index, value);
     updateFormData({ instructions: newInstructions });
+  };
+
+  const updateInstructionImage = (index: number, imageUri: string | undefined) => {
+    const newImages = recipeHelpers.updateInstructionImage(
+      formData.instructionImages,
+      index,
+      imageUri,
+      formData.instructions.length
+    );
+    updateFormData({ instructionImages: newImages });
   };
 
   // Refs for managing focus
@@ -812,6 +831,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                     )}
                     {!isReorderMode && (
                       <View className="flex-row gap-1 items-center">
+                        {/* Step Image Button */}
+                        <StepImage
+                          imageUri={formData.instructionImages[index]}
+                          onImageChange={(uri) => updateInstructionImage(index, uri)}
+                          editable={true}
+                          compact={true}
+                        />
+
                         {/* Add Cooking Method Button - Only show if appliance is selected */}
                         {formData.selectedAppliance && (
                           <TouchableOpacity

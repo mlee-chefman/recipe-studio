@@ -159,6 +159,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
         difficulty: editingRecipe.difficulty,
         ingredients: editingRecipe.ingredients.length > 0 ? editingRecipe.ingredients : [''],
         instructions: editingRecipe.instructions.length > 0 ? editingRecipe.instructions : [''],
+        instructionImages: editingRecipe.instructionImages || [],
         notes: editingRecipe.description,
         selectedAppliance: editingRecipe.chefiqAppliance || '',
         cookingActions: editingRecipe.cookingActions || [],
@@ -186,11 +187,17 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       return;
     }
 
+    // Filter instruction images to match valid instructions
+    const validInstructionImages = formData.instructionImages
+      .slice(0, validInstructions.length)
+      .filter((_, index) => formData.instructions[index].trim() !== '');
+
     const recipe = {
       title: formData.title.trim(),
       description: formData.notes.trim() || 'No description provided',
       ingredients: validIngredients,
       instructions: validInstructions,
+      instructionImages: validInstructionImages.some(img => img) ? validInstructionImages : undefined,
       cookTime: formData.cookTime,
       servings: formData.servings,
       difficulty: formData.difficulty,
