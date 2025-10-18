@@ -9,6 +9,7 @@ export interface Recipe {
   description: string;
   ingredients: string[];
   instructions: string[];
+  instructionImages?: (string | undefined)[]; // optional images for each instruction step
   cookTime: number;
   servings: number;
   difficulty: 'Easy' | 'Medium' | 'Hard';

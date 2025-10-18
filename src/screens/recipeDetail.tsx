@@ -7,6 +7,7 @@ import { Recipe, useRecipeStore } from '@store/store';
 import { getApplianceById, formatCookingAction, CookingAction } from '@types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { theme } from '@theme/index';
+import StepImage from '@components/StepImage';
 
 type RootStackParamList = {
   RecipeDetail: { recipe: Recipe };
@@ -154,13 +155,24 @@ export default function RecipeDetailScreen() {
             <View className="bg-gray-50 p-4 rounded-lg">
               {recipe.instructions.map((instruction, index) => {
                 const cookingAction = recipe.cookingActions?.find(action => action.stepIndex === index);
+                const stepImage = recipe.instructionImages?.[index];
+
                 return (
                   <View key={index} className="mb-4">
                     <View className="flex-row mb-2">
                       <View className="rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5" style={{ backgroundColor: theme.colors.primary[500] }}>
                         <Text className="text-white text-sm font-bold">{index + 1}</Text>
                       </View>
-                      <Text className="text-base text-gray-700 flex-1 leading-6">{instruction}</Text>
+                      <View className="flex-1">
+                        <Text className="text-base text-gray-700 leading-6 mb-2">{instruction}</Text>
+
+                        {/* Step Image */}
+                        {stepImage && (
+                          <View className="mt-2">
+                            <StepImage imageUri={stepImage} editable={false} />
+                          </View>
+                        )}
+                      </View>
                     </View>
 
                     {/* Cooking Action for this step */}

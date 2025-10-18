@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { decode } from 'html-entities';
 import { analyzeRecipeForChefIQ, RecipeAnalysisResult } from './recipeAnalyzer';
+import { processInstructions } from './helpers/instructionSplitter';
 
 // Decode HTML entities using the html-entities library
 const decodeHtmlEntities = (text: string): string => {
@@ -13,6 +14,7 @@ export interface ScrapedRecipe {
   description: string;
   ingredients: string[];
   instructions: string[];
+  instructionImages?: (string | undefined)[]; // optional images for each instruction step
   cookTime: number;
   prepTime: number;
   servings: number;
@@ -152,6 +154,44 @@ const parseInstructions = (instructions: any): string[] => {
     return parseInstructions(instructions.itemListElement);
   }
 
+  return [];
+};
+
+// Parse instruction images from JSON-LD HowToStep format
+const parseInstructionImages = (instructions: any): (string | undefined)[] => {
+  if (!instructions) return [];
+
+  if (Array.isArray(instructions)) {
+    const images: (string | undefined)[] = [];
+
+    instructions.forEach(inst => {
+      if (typeof inst === 'string') {
+        // No image for string instructions
+        images.push(undefined);
+      } else if (inst['@type'] === 'HowToStep') {
+        // Extract image from HowToStep
+        const image = inst.image;
+        if (typeof image === 'string') {
+          images.push(image);
+        } else if (image && typeof image === 'object') {
+          images.push(image.url || image.contentUrl || undefined);
+        } else {
+          images.push(undefined);
+        }
+      } else if (inst['@type'] === 'HowToSection' && inst.itemListElement) {
+        // Recursively handle sections
+        const sectionImages = parseInstructionImages(inst.itemListElement);
+        images.push(...sectionImages);
+      } else {
+        // Default: no image
+        images.push(undefined);
+      }
+    });
+
+    return images;
+  }
+
+  // For non-array formats, return empty array
   return [];
 };
 
@@ -321,16 +361,35 @@ const inferCategoryFromUrl = (url: string): string => {
 };
 
 // Parse recipe from JSON-LD data
-const parseRecipeFromJsonLd = (data: any, url: string = '', html: string = ''): ScrapedRecipe | null => {
+const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string = ''): Promise<ScrapedRecipe | null> => {
   if (!data) return null;
 
   try {
     const ingredients = parseIngredients(data.recipeIngredient);
-    const instructions = parseInstructions(data.recipeInstructions);
+    const rawInstructions = parseInstructions(data.recipeInstructions);
 
     // Only return if we have meaningful data
-    if (!data.name || (ingredients.length === 0 && instructions.length === 0)) {
+    if (!data.name || (ingredients.length === 0 && rawInstructions.length === 0)) {
       return null;
+    }
+
+    // Process instructions: decode HTML and split if needed using Gemini
+    const instructions = await processInstructions(rawInstructions);
+
+    // Extract instruction images if available
+    let instructionImages = parseInstructionImages(data.recipeInstructions);
+
+    // Ensure instructionImages array matches instructions length
+    if (instructionImages.length > 0 && instructionImages.length !== instructions.length) {
+      // If lengths don't match (e.g., due to splitting), pad or truncate
+      const targetLength = instructions.length;
+      if (instructionImages.length < targetLength) {
+        // Pad with undefined
+        instructionImages = [...instructionImages, ...Array(targetLength - instructionImages.length).fill(undefined)];
+      } else {
+        // Truncate
+        instructionImages = instructionImages.slice(0, targetLength);
+      }
     }
 
     const title = decodeHtmlEntities(data.name || 'Untitled Recipe');
@@ -362,6 +421,7 @@ const parseRecipeFromJsonLd = (data: any, url: string = '', html: string = ''): 
       description,
       ingredients,
       instructions,
+      instructionImages: instructionImages.length > 0 ? instructionImages : undefined,
       cookTime,
       prepTime: parseDuration(data.prepTime) || 15,
       servings: parseInt(data.recipeYield) || parseInt(data.yield) || 4,
@@ -470,7 +530,7 @@ export const scrapeRecipe = async (url: string): Promise<ScrapedRecipe> => {
       // First try JSON-LD extraction
       const jsonLdData = extractJsonLd(html);
       if (jsonLdData) {
-        const recipe = parseRecipeFromJsonLd(jsonLdData, url, html);
+        const recipe = await parseRecipeFromJsonLd(jsonLdData, url, html);
         if (recipe) {
           console.log('Successfully extracted recipe using JSON-LD');
           return recipe;

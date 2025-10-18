@@ -191,6 +191,7 @@ export interface RecipeFormState {
   // Arrays
   ingredients: string[];
   instructions: string[];
+  instructionImages: (string | undefined)[];
 
   // ChefIQ Settings
   selectedAppliance: string;
@@ -226,6 +227,7 @@ export const getInitialFormState = (): RecipeFormState => ({
   difficulty: RECIPE_DEFAULTS.DIFFICULTY,
   ingredients: [...RECIPE_DEFAULTS.INGREDIENTS],
   instructions: [...RECIPE_DEFAULTS.INSTRUCTIONS],
+  instructionImages: [],
   notes: RECIPE_DEFAULTS.NOTES,
   importUrl: RECIPE_DEFAULTS.IMPORT_URL,
   selectedAppliance: RECIPE_DEFAULTS.SELECTED_APPLIANCE,
