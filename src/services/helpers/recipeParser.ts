@@ -1,5 +1,6 @@
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { analyzeRecipeForChefIQ } from '@utils/recipeAnalyzer';
+import { Step } from '~/types/recipe';
 
 /**
  * Clean ingredient quantities by rounding decimals to 2 places
@@ -43,16 +44,38 @@ function buildRecipeObject(parsed: any, imageUri?: string): ScrapedRecipe {
   if (!Array.isArray(parsed.ingredients)) {
     parsed.ingredients = [];
   }
-  if (!Array.isArray(parsed.instructions)) {
-    parsed.instructions = [];
+  if (!Array.isArray(parsed.steps)) {
+    parsed.steps = [];
   }
+
+  // Convert instructions to Step objects (handle both old string format and new object format)
+  const steps: Step[] = parsed.steps
+    .filter((inst: any) => {
+      // Handle both string format and object format
+      if (typeof inst === 'string') {
+        return inst && inst.trim();
+      } else if (inst && typeof inst === 'object' && inst.text) {
+        return inst.text.trim();
+      }
+      return false;
+    })
+    .map((inst: any) => {
+      // If already an object with text field, use it; otherwise convert string to object
+      if (typeof inst === 'string') {
+        return { text: inst };
+      } else {
+        return { text: inst.text, image: inst.image, cookingAction: inst.cookingAction };
+      }
+    });
 
   // Build the ScrapedRecipe object
   const recipe: ScrapedRecipe = {
     title: parsed.title || 'Untitled Recipe',
     description: parsed.description || parsed.notes || '',
-    ingredients: cleanIngredientQuantities(parsed.ingredients.filter((ing: any) => ing && ing.trim())),
-    instructions: parsed.instructions.filter((inst: any) => inst && inst.trim()),
+    ingredients: cleanIngredientQuantities(
+      parsed.ingredients.filter((ing: any) => ing && ing.trim())
+    ),
+    steps,
     cookTime: parseInt(parsed.cookTime) || 30,
     prepTime: parseInt(parsed.prepTime) || 15,
     servings: parseInt(parsed.servings) || 4,
@@ -84,8 +107,8 @@ export function parseGeminiResponse(
     const recipe = buildRecipeObject(parsed, imageUri);
 
     // Validate that we have at least some content
-    if (recipe.ingredients.length === 0 && recipe.instructions.length === 0) {
-      console.warn('Parsed recipe has no ingredients or instructions');
+    if (recipe.ingredients.length === 0 && recipe.steps.length === 0) {
+      console.warn('Parsed recipe has no ingredients or steps');
       return null;
     }
 
@@ -94,12 +117,21 @@ export function parseGeminiResponse(
       const chefiqAnalysis = analyzeRecipeForChefIQ(
         recipe.title,
         recipe.description,
-        recipe.instructions,
+        recipe.steps,
         recipe.cookTime
       );
 
       // Attach ChefIQ suggestions to the recipe
       if (chefiqAnalysis && chefiqAnalysis.suggestedActions.length > 0) {
+        // Map cooking actions directly to their corresponding steps
+        const stepsWithActions = recipe.steps.map((step, index) => {
+          const actionForThisStep = chefiqAnalysis.suggestedActions.find(
+            action => action.stepIndex === index
+          );
+          return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+        });
+
+        recipe.steps = stepsWithActions;
         recipe.chefiqSuggestions = chefiqAnalysis;
         console.log('ChefIQ Analysis:', chefiqAnalysis);
       }
@@ -138,18 +170,27 @@ export function parseMultiRecipeResponse(responseText: string): ScrapedRecipe[] 
       const recipe = buildRecipeObject(parsed);
 
       // Validate that we have at least some content
-      if (recipe.ingredients.length > 0 || recipe.instructions.length > 0) {
+      if (recipe.ingredients.length > 0 || recipe.steps.length > 0) {
         // Analyze recipe for ChefIQ appliance suggestions
         try {
           const chefiqAnalysis = analyzeRecipeForChefIQ(
             recipe.title,
             recipe.description,
-            recipe.instructions,
+            recipe.steps,
             recipe.cookTime
           );
 
           // Attach ChefIQ suggestions to the recipe
           if (chefiqAnalysis && chefiqAnalysis.suggestedActions.length > 0) {
+            // Map cooking actions directly to their corresponding steps
+            const stepsWithActions = recipe.steps.map((step, index) => {
+              const actionForThisStep = chefiqAnalysis.suggestedActions.find(
+                action => action.stepIndex === index
+              );
+              return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+            });
+
+            recipe.steps = stepsWithActions;
             recipe.chefiqSuggestions = chefiqAnalysis;
           }
         } catch (error) {
@@ -159,7 +200,7 @@ export function parseMultiRecipeResponse(responseText: string): ScrapedRecipe[] 
 
         recipes.push(recipe);
       } else {
-        console.warn(`Skipping recipe ${i + 1} - no ingredients or instructions`);
+        console.warn(`Skipping recipe ${i + 1} - no ingredients or steps`);
       }
     }
 

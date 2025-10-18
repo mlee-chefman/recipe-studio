@@ -24,6 +24,12 @@ import {
   CookerMethod,
   OvenMethod
 } from '~/types/cookingEnums';
+import { Step } from '~/types/recipe';
+
+// Helper function to convert string arrays to Step arrays for testing
+const toSteps = (instructions: string[]): Step[] => {
+  return instructions.map(text => ({ text }));
+};
 
 describe('Recipe Analyzer', () => {
   describe('Temperature Extraction', () => {
@@ -204,7 +210,7 @@ describe('Recipe Analyzer', () => {
         const result = analyzeRecipeForChefIQ(
           'Baked BBQ Baby Back Ribs',
           'These baked BBQ baby back ribs are fall-off-the-bone delicious',
-          bbqRibsInstructions,
+          toSteps(bbqRibsInstructions),
           30 // Should be overridden by extracted time
         );
 
@@ -229,7 +235,7 @@ describe('Recipe Analyzer', () => {
         const result = analyzeRecipeForChefIQ(
           'Sausage, Peppers, Onions, and Potato Bake',
           'A hearty one-pan meal',
-          sausageBakeInstructions,
+          toSteps(sausageBakeInstructions),
           30 // Should be overridden by extracted time
         );
 
@@ -253,7 +259,7 @@ describe('Recipe Analyzer', () => {
         const result = analyzeRecipeForChefIQ(
           'Simple Salad',
           'A quick salad recipe',
-          instructions,
+          toSteps(instructions),
           0
         );
 
@@ -272,7 +278,7 @@ describe('Recipe Analyzer', () => {
         const result = analyzeRecipeForChefIQ(
           'Grilled Chicken',
           'Juicy grilled chicken breast',
-          grillingInstructions,
+          toSteps(grillingInstructions),
           15
         );
 
@@ -291,7 +297,7 @@ describe('Recipe Analyzer', () => {
         const result = analyzeRecipeForChefIQ(
           'Test Recipe',
           'Test description',
-          instructions,
+          toSteps(instructions),
           60
         );
 

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Recipe, useRecipeStore } from '@store/store';
-import { getApplianceById, formatCookingAction } from '@types/chefiq';
+import { getApplianceById, formatCookingAction } from '~/types/chefiq';
 import { theme } from '@theme/index';
 
 interface RecipeDetailModalProps {
@@ -166,15 +166,15 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Instructions</Text>
             <View className="bg-gray-50 p-4 rounded-lg">
-              {recipe.instructions.map((instruction, index) => {
-                const cookingAction = recipe.cookingActions?.find(action => action.stepIndex === index);
+              {recipe.steps.map((step, index) => {
+                const cookingAction = step.cookingAction;
                 return (
                   <View key={index} className="mb-4">
                     <View className="flex-row mb-2">
                       <View className="rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5" style={{ backgroundColor: theme.colors.primary[500] }}>
                         <Text className="text-white text-sm font-bold">{index + 1}</Text>
                       </View>
-                      <Text className="text-base text-gray-700 flex-1 leading-6">{instruction}</Text>
+                      <Text className="text-base text-gray-700 flex-1 leading-6">{step.text}</Text>
                     </View>
 
                     {/* Cooking Action for this step */}

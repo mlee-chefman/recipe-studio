@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, Image } from 'react-native';
-import { CHEFIQ_APPLIANCES, ChefIQAppliance } from '@types/chefiq';
+import { CHEFIQ_APPLIANCES, ChefIQAppliance } from '~/types/chefiq';
 import { theme } from '@theme/index';
 
 interface ApplianceDropdownProps {

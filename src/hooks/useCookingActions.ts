@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { CookingAction } from '@types/chefiq';
+import { CookingAction } from '~/types/chefiq';
+import { Step } from '~/types/recipe';
+import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
 
 interface FormData {
-  cookingActions: CookingAction[];
+  steps: Step[];
   currentStepIndex: number | null;
   [key: string]: any;
 }
@@ -47,25 +49,21 @@ export function useCookingActions({
   const handleCookingActionSelect = (action: CookingAction) => {
     if (editingCookingAction) {
       // Update existing action
-      const newActions = formData.cookingActions.map((a) =>
-        a.stepIndex === editingCookingAction.stepIndex
-          ? { ...action, stepIndex: editingCookingAction.stepIndex, id: a.id }
-          : a
+      const newSteps = recipeHelpers.updateStepCookingAction(
+        formData.steps,
+        editingCookingAction.stepIndex,
+        action
       );
-      updateFormData({ cookingActions: newActions });
+      updateFormData({ steps: newSteps });
       setEditingCookingAction(null);
     } else if (formData.currentStepIndex !== null) {
-      // Remove any existing action for this step
-      const newActions = formData.cookingActions.filter(
-        (a) => a.stepIndex !== formData.currentStepIndex
+      // Add/replace the action for the current step
+      const newSteps = recipeHelpers.updateStepCookingAction(
+        formData.steps,
+        formData.currentStepIndex,
+        action
       );
-      // Add the new action
-      newActions.push({
-        ...action,
-        stepIndex: formData.currentStepIndex,
-        id: `step_${formData.currentStepIndex}_${Date.now()}`,
-      });
-      updateFormData({ cookingActions: newActions });
+      updateFormData({ steps: newSteps });
     }
     updateModalStates({ showCookingSelector: false });
     updateFormData({ currentStepIndex: null });
@@ -87,7 +85,7 @@ export function useCookingActions({
    * Retrieves the cooking action for a specific step index
    */
   const getCookingActionForStep = (stepIndex: number): CookingAction | undefined => {
-    return formData.cookingActions.find((action) => action.stepIndex === stepIndex);
+    return recipeHelpers.getCookingActionForStep(formData.steps, stepIndex);
   };
 
   return {
