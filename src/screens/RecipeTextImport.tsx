@@ -85,8 +85,8 @@ export default function RecipeTextImportScreen() {
         }
         if (estimate !== undefined && estimate > 0) {
           setTotalEstimate(estimate);
-          // Calculate progress percentage
-          const progress = found !== undefined ? (found / estimate) * 100 : 0;
+          // Calculate progress percentage (cap at 100%)
+          const progress = found !== undefined ? Math.min((found / estimate) * 100, 100) : 0;
           setProgressPercentage(progress);
         }
       });

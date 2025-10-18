@@ -21,6 +21,7 @@ import StepImage from '@components/StepImage';
 import {
   ServingsPickerModal,
   CookTimePickerModal,
+  CategoryPickerModal,
   TagsPickerModal,
   ConfirmationModal,
 } from '~/components/modals';
@@ -295,16 +296,15 @@ export default function RecipeEditScreen() {
         </View>
 
         {/* Category */}
-        <TouchableOpacity className="mb-4 border-b border-gray-200 pb-3">
+        <TouchableOpacity
+          className="mb-4 border-b border-gray-200 pb-3"
+          onPress={() => updateModalStates({ showCategoryPicker: true })}
+        >
           <View className="flex-row items-center justify-between">
             <Text className="text-lg text-gray-800">Category</Text>
-            <TextInput
-              className="text-lg text-gray-500 text-right flex-1 ml-4"
-              placeholder="Uncategorized"
-              value={formData.category}
-              onChangeText={(value) => updateFormData({ category: value })}
-              textAlign="right"
-            />
+            <Text className="text-lg text-gray-500">
+              {formData.category || 'Uncategorized'}
+            </Text>
           </View>
         </TouchableOpacity>
 
@@ -653,6 +653,14 @@ export default function RecipeEditScreen() {
         onHoursChange={(value) => updateFormData({ cookTimeHours: value })}
         onMinutesChange={(value) => updateFormData({ cookTimeMinutes: value })}
         onClose={() => updateModalStates({ showCookTimePicker: false })}
+      />
+
+      {/* Category Picker Modal */}
+      <CategoryPickerModal
+        visible={modalStates.showCategoryPicker}
+        selectedValue={formData.category}
+        onValueChange={(value) => updateFormData({ category: value })}
+        onClose={() => updateModalStates({ showCategoryPicker: false })}
       />
 
       {/* Tags Picker Modal */}

@@ -125,6 +125,20 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
             </View>
           </View>
 
+          {/* Tags */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <View className="mb-6">
+              <Text className="text-lg font-semibold text-gray-800 mb-2">Tags</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {recipe.tags.map((tag, index) => (
+                  <View key={index} className="px-3 py-1.5 rounded-full bg-gray-100">
+                    <Text className="text-sm text-gray-700">{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* ChefIQ Appliance Info */}
           {recipe.chefiqAppliance && (
             <View className="mb-6">
