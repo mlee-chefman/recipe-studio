@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import { HeaderButton } from '@components/HeaderButton';
+import { ViewToggleButton, ViewMode } from '@components/ViewToggleButton';
+import { SelectModeButton } from '@components/SelectModeButton';
 import { TabBarIcon } from '@components/TabBarIcon';
 import Home from '@screens/home';
 import Settings from '@screens/settings';
 import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
+import { useRecipeStore } from '@store/store';
 import { theme } from '@theme/index';
 
 // Custom Tab Bar Component with centered + button
@@ -127,6 +129,35 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
+// Header Right Component with Selection and View Toggle Buttons
+function HeaderRightButtons() {
+  const { viewMode, setViewMode, selectionMode, setSelectionMode, filteredRecipes } = useRecipeStore();
+
+  const toggleViewMode = () => {
+    const modes: ViewMode[] = ['detailed', 'compact', 'grid'];
+    const currentIndex = modes.indexOf(viewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setViewMode(modes[nextIndex]);
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+  };
+
+  const hasRecipes = filteredRecipes.length > 0;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <SelectModeButton
+        isSelectionMode={selectionMode}
+        onToggle={toggleSelectionMode}
+        disabled={!hasRecipes}
+      />
+      <ViewToggleButton viewMode={viewMode} onToggle={toggleViewMode} />
+    </View>
+  );
+}
+
 const Tab = createBottomTabNavigator({
   screenOptions: function ScreenOptions() {
     return {
@@ -137,10 +168,10 @@ const Tab = createBottomTabNavigator({
   screens: {
     Home: {
       screen: Home,
-      options: ({ navigation }) => ({
+      options: () => ({
         title: 'Recipes',
         tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
-        headerRight: () => <HeaderButton onPress={() => navigation.navigate('Modal')} />,
+        headerRight: () => <HeaderRightButtons />,
       }),
     },
     Settings: {

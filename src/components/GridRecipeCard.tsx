@@ -1,0 +1,113 @@
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+import { Recipe } from '@store/store';
+import { getApplianceById } from '~/types/chefiq';
+import { theme } from '@theme/index';
+
+interface GridRecipeCardProps {
+  recipe: Recipe;
+  onPress: () => void;
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+}
+
+export const GridRecipeCard = ({
+  recipe,
+  onPress,
+  isSelectionMode = false,
+  isSelected = false
+}: GridRecipeCardProps) => {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} className="flex-1">
+      <View className={`bg-white rounded-lg shadow-sm border-2 overflow-hidden ${
+        isSelected ? 'border-green-500' : 'border-gray-200'
+      }`}>
+        {/* Recipe Image */}
+        {recipe.image ? (
+          <Image
+            source={{ uri: recipe.image }}
+            style={{ width: '100%', height: 120 }}
+            contentFit="cover"
+          />
+        ) : (
+          <View className="w-full h-[120px] bg-gray-100 items-center justify-center">
+            <Text className="text-3xl text-gray-400">🍽️</Text>
+          </View>
+        )}
+
+        {/* Recipe Content */}
+        <View className="p-2">
+          <Text className="text-sm font-bold text-gray-800 mb-1" numberOfLines={2}>
+            {recipe.title}
+          </Text>
+
+          {/* Quick Info */}
+          <View className="flex-row items-center mb-1">
+            <Text className="text-xs text-gray-500 mr-2">⏱️ {recipe.cookTime}m</Text>
+            <Text className="text-xs text-gray-500">👥 {recipe.servings}</Text>
+          </View>
+
+          {/* Category & Appliance */}
+          <View className="flex-row items-center flex-wrap gap-1">
+            <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: theme.colors.primary[100] }}>
+              <Text className="text-xs font-medium" style={{ color: theme.colors.primary[600] }}>
+                {recipe.category}
+              </Text>
+            </View>
+            {recipe.chefiqAppliance && (
+              <View className="px-1.5 py-0.5 rounded-full flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
+                <Text className="text-xs mr-0.5">🍳</Text>
+                <Text className="text-xs font-medium" style={{ color: theme.colors.primary[500] }}>
+                  {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* First tag only */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <View className="mt-1">
+              <Text className="text-xs text-gray-500" numberOfLines={1}>
+                {recipe.tags[0]}{recipe.tags.length > 1 ? ` +${recipe.tags.length - 1}` : ''}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Selection Checkbox Overlay */}
+        {isSelectionMode && (
+          <View style={styles.checkboxOverlay}>
+            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+              {isSelected && (
+                <FontAwesome name="check" size={14} color="white" />
+              )}
+            </View>
+          </View>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  checkboxOverlay: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#4CAF50',
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxSelected: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+});

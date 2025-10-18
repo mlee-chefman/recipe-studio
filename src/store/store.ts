@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CookingAction, StepSection } from '~/types/chefiq';
 import { Step, migrateToSteps } from '~/types/recipe';
 
+export type ViewMode = 'detailed' | 'compact' | 'grid';
+
 export interface Recipe {
   id: string;
   title: string;
@@ -37,14 +39,19 @@ export interface RecipeState {
   selectedDifficulty: string;
   selectedTags: string[];
   selectedAppliance: string;
+  viewMode: ViewMode;
+  selectionMode: boolean;
   setSearchQuery: (query: string) => void;
+  setSelectionMode: (mode: boolean) => void;
   setSelectedCategory: (category: string) => void;
   setSelectedDifficulty: (difficulty: string) => void;
   setSelectedTags: (tags: string[]) => void;
   setSelectedAppliance: (appliance: string) => void;
+  setViewMode: (mode: ViewMode) => void;
   filterRecipes: () => void;
   addRecipe: (recipe: Omit<Recipe, 'id'>) => void;
   deleteRecipe: (id: string) => void;
+  deleteRecipes: (ids: string[]) => void;
   updateRecipe: (id: string, recipe: Partial<Omit<Recipe, 'id'>>) => void;
   clearAllRecipes: () => void;
 }
@@ -171,6 +178,8 @@ export const useRecipeStore = create<RecipeState>()(
       selectedDifficulty: '',
       selectedTags: [],
       selectedAppliance: '',
+      viewMode: 'detailed',
+      selectionMode: false,
       setSearchQuery: (query: string) => {
         set({ searchQuery: query });
         get().filterRecipes();
@@ -190,6 +199,12 @@ export const useRecipeStore = create<RecipeState>()(
       setSelectedAppliance: (appliance: string) => {
         set({ selectedAppliance: appliance });
         get().filterRecipes();
+      },
+      setViewMode: (mode: ViewMode) => {
+        set({ viewMode: mode });
+      },
+      setSelectionMode: (mode: boolean) => {
+        set({ selectionMode: mode });
       },
       filterRecipes: () => {
         const { recipes, searchQuery, selectedCategory, selectedDifficulty, selectedTags, selectedAppliance } = get();
@@ -235,9 +250,11 @@ export const useRecipeStore = create<RecipeState>()(
         set({ filteredRecipes: filtered });
       },
       addRecipe: (recipe: Omit<Recipe, 'id'>) => {
+        // Generate a unique ID using timestamp + random number to avoid collisions
+        const uniqueId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         const newRecipe: Recipe = {
           ...recipe,
-          id: Date.now().toString(),
+          id: uniqueId,
         };
         const updatedRecipes = [...get().recipes, newRecipe];
         set({ recipes: updatedRecipes });
@@ -245,6 +262,12 @@ export const useRecipeStore = create<RecipeState>()(
       },
       deleteRecipe: (id: string) => {
         const updatedRecipes = get().recipes.filter(recipe => recipe.id !== id);
+        set({ recipes: updatedRecipes });
+        get().filterRecipes();
+      },
+      deleteRecipes: (ids: string[]) => {
+        const idsSet = new Set(ids);
+        const updatedRecipes = get().recipes.filter(recipe => !idsSet.has(recipe.id));
         set({ recipes: updatedRecipes });
         get().filterRecipes();
       },
@@ -263,7 +286,8 @@ export const useRecipeStore = create<RecipeState>()(
       name: 'recipe-storage',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
-        recipes: state.recipes
+        recipes: state.recipes,
+        viewMode: state.viewMode
       }),
       onRehydrateStorage: () => (state) => {
         // After loading from storage, migrate recipes and update filtered recipes
