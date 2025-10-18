@@ -25,6 +25,9 @@ export default function RecipePDFImportScreen() {
   const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
+  const [recipesFound, setRecipesFound] = useState<number>(0);
+  const [totalEstimate, setTotalEstimate] = useState<number>(0);
+  const [progressPercentage, setProgressPercentage] = useState<number>(0);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -76,10 +79,21 @@ export default function RecipePDFImportScreen() {
 
     setIsProcessing(true);
     setProcessingStep(IMPORT_MESSAGES.PDF.EXTRACTING);
+    setRecipesFound(0);
+    setTotalEstimate(0);
+    setProgressPercentage(0);
 
     try {
-      // Step 1: Extract text from PDF
-      const textResult = await extractTextFromPDF(selectedFile.uri);
+      // Step 1: Extract text from PDF with progress tracking
+      const textResult = await extractTextFromPDF(
+        selectedFile.uri,
+        (status, current, total) => {
+          setProcessingStep(status);
+          // PDF extraction = 0-20% of total progress
+          const extractionProgress = total > 0 ? (current / total) * 20 : 0;
+          setProgressPercentage(extractionProgress);
+        }
+      );
 
       if (!textResult.success || !textResult.text) {
         Alert.alert(
@@ -90,9 +104,21 @@ export default function RecipePDFImportScreen() {
         return;
       }
 
-      // Step 2: Parse recipes from extracted text
-      setProcessingStep(IMPORT_MESSAGES.PDF.PARSING);
-      const parseResult = await parseMultipleRecipes(textResult.text);
+      setProgressPercentage(20); // Text extraction done
+
+      // Step 2: Parse recipes from extracted text with progress tracking
+      const parseResult = await parseMultipleRecipes(textResult.text, (status, found, estimate) => {
+        setProcessingStep(status);
+        if (found !== undefined) {
+          setRecipesFound(found);
+        }
+        if (estimate !== undefined && estimate > 0) {
+          setTotalEstimate(estimate);
+          // Calculate progress: 20% for extraction, 80% for parsing
+          const parseProgress = found !== undefined ? (found / estimate) * 80 : 0;
+          setProgressPercentage(20 + parseProgress);
+        }
+      });
 
       if (!parseResult.success || parseResult.recipes.length === 0) {
         Alert.alert(
@@ -223,9 +249,30 @@ export default function RecipePDFImportScreen() {
         {isProcessing && (
           <View style={styles.processingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary[500]} />
+
+            {/* Progress Bar */}
+            <View style={styles.progressBarContainer}>
+              <View style={[styles.progressBarFill, { width: `${progressPercentage}%` }]} />
+            </View>
+
+            {/* Progress Percentage */}
+            <Text style={styles.progressPercentage}>{Math.round(progressPercentage)}%</Text>
+
+            {/* Status Text */}
             <Text style={styles.processingText}>
               {processingStep || IMPORT_MESSAGES.PDF.PROCESSING}
             </Text>
+
+            {/* Recipe Count */}
+            {totalEstimate > 0 && (
+              <Text style={styles.recipeCount}>
+                {recipesFound > 0
+                  ? `Found ${recipesFound} of ~${totalEstimate} recipes`
+                  : `Estimated ${totalEstimate} recipes in document`
+                }
+              </Text>
+            )}
+
             <Text style={styles.processingSubtext}>
               {IMPORT_MESSAGES.PDF.PROCESSING_LONG}
             </Text>
@@ -375,16 +422,43 @@ const styles = StyleSheet.create({
     minHeight: 300,
     justifyContent: 'center',
   },
+  progressBarContainer: {
+    width: '100%',
+    height: 8,
+    backgroundColor: theme.colors.gray[200],
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginTop: theme.spacing.md,
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: theme.colors.primary[500],
+    borderRadius: 4,
+  },
+  progressPercentage: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold as any,
+    color: theme.colors.primary[600],
+    marginTop: theme.spacing.sm,
+  },
   processingText: {
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.medium as any,
     color: theme.colors.text.primary,
+    textAlign: 'center',
+    marginTop: theme.spacing.sm,
+  },
+  recipeCount: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.success.main,
     textAlign: 'center',
   },
   processingSubtext: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.secondary,
     textAlign: 'center',
+    marginTop: theme.spacing.xs,
   },
   bottomActions: {
     padding: theme.spacing.lg,

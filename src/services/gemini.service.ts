@@ -32,6 +32,10 @@ export interface MultiRecipeResult {
   totalFound: number;
 }
 
+export interface ProgressCallback {
+  (status: string, recipesFound?: number, totalEstimate?: number): void;
+}
+
 /**
  * Generates a complete recipe from a simple description using Google Gemini
  * @param description - Simple description like "simple pork chop" or "easy chicken pasta"
@@ -294,11 +298,14 @@ export async function parseRecipeWithGemini(
 
 /**
  * Parses text containing multiple recipes (from PDF cookbooks or notes) using Gemini
+ * Uses batch processing for large documents to ensure all recipes are extracted
  * @param text - Large text block that may contain multiple recipes
+ * @param onProgress - Optional callback to report progress
  * @returns MultiRecipeResult with array of parsed recipes
  */
 export async function parseMultipleRecipes(
-  text: string
+  text: string,
+  onProgress?: ProgressCallback
 ): Promise<MultiRecipeResult> {
   try {
     if (!GEMINI_API_KEY) {
@@ -319,63 +326,164 @@ export async function parseMultipleRecipes(
       };
     }
 
-    // Prepare the prompt for Gemini to identify and parse multiple recipes
-    const prompt = createMultiRecipeParsingPrompt(text);
+    // Log total text length to debug extraction issues
+    console.log(`Total text length from PDF: ${text.length} characters`);
+    console.log(`First 500 chars: ${text.substring(0, 500).replace(/\n/g, ' ')}`);
+    console.log(`Last 500 chars: ${text.substring(text.length - 500).replace(/\n/g, ' ')}`);
 
-    // Call Gemini API with higher token limit for multiple recipes
-    const response = await axios.post(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
+    // Estimate number of recipes based on text patterns
+    const estimatedRecipes = estimateRecipeCount(text);
+
+    onProgress?.('Analyzing cookbook structure...', 0, estimatedRecipes);
+
+    // Split text into chunks for batch processing
+    // This ensures we don't miss recipes due to token limits
+    // Use smaller chunks to ensure even distribution and prevent any single chunk from being too large
+    const chunks = splitTextIntoChunks(text, 6000); // ~6k chars per chunk for better coverage
+    const totalChunks = chunks.length;
+
+    console.log(`Split cookbook into ${totalChunks} chunks for processing`);
+    console.log(`Estimated ${estimatedRecipes} recipes total`);
+    chunks.forEach((chunk, i) => {
+      console.log(`Chunk ${i + 1}: ${chunk.length} characters, preview: ${chunk.substring(0, 100).replace(/\n/g, ' ')}...`);
+    });
+
+    onProgress?.(`Processing ${totalChunks} section${totalChunks > 1 ? 's' : ''}...`, 0, estimatedRecipes);
+
+    const allRecipes: ScrapedRecipe[] = [];
+
+    // Process each chunk
+    for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+      const chunk = chunks[chunkIndex];
+      const chunkNum = chunkIndex + 1;
+
+      onProgress?.(
+        `Processing section ${chunkNum}/${totalChunks}...`,
+        allRecipes.length,
+        estimatedRecipes
+      );
+
+      try {
+        console.log(`\n=== Processing Chunk ${chunkNum}/${totalChunks} ===`);
+        console.log(`Chunk size: ${chunk.length} characters`);
+
+        // Prepare the prompt for this chunk
+        const prompt = createMultiRecipeParsingPrompt(chunk);
+
+        // Call Gemini API
+        const response = await axios.post(
+          `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
           {
-            parts: [
+            contents: [
               {
-                text: prompt,
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
               },
             ],
+            generationConfig: {
+              temperature: 0.1, // Very low temperature for thorough, complete extraction
+              maxOutputTokens: 16384, // Reasonable limit per chunk
+              topP: 0.95,
+              topK: 40,
+            },
           },
-        ],
-        generationConfig: {
-          temperature: 0.3, // Lower temperature for more consistent parsing
-          maxOutputTokens: 8192, // Higher limit for multiple recipes
-        },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 60000, // Longer timeout for processing multiple recipes
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 120000, // 2 minutes per chunk
+          }
+        );
+
+        const data: GeminiResponse = response.data;
+
+        // Check for API errors
+        if (data.error) {
+          console.error(`Error processing chunk ${chunkNum}:`, data.error.message);
+          continue; // Skip this chunk and continue with others
+        }
+
+        // Extract the generated text
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!generatedText) {
+          console.warn(`No response for chunk ${chunkNum}`);
+          continue;
+        }
+
+        // Parse the JSON array response from Gemini
+        const chunkRecipes = parseMultiRecipeResponse(generatedText);
+
+        console.log(`Chunk ${chunkNum} found ${chunkRecipes.length} recipes`);
+        if (chunkRecipes.length > 0) {
+          console.log(`Recipe titles in chunk ${chunkNum}:`, chunkRecipes.map(r => r.title).join(', '));
+        } else {
+          console.log(`Chunk ${chunkNum} had no recipes - might be storage guides or other content`);
+          console.log(`First 200 chars of chunk: ${chunk.substring(0, 200).replace(/\n/g, ' ')}`);
+        }
+
+        // Add recipes from this chunk
+        allRecipes.push(...chunkRecipes);
+
+        onProgress?.(
+          `Found ${allRecipes.length} recipes so far...`,
+          allRecipes.length,
+          Math.max(estimatedRecipes, allRecipes.length)
+        );
+
+        // Delay between chunks to avoid rate limiting
+        if (chunkIndex < chunks.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+        }
+
+      } catch (chunkError) {
+        console.error(`Error processing chunk ${chunkNum}:`, chunkError);
+
+        // Handle rate limiting with retry
+        if (axios.isAxiosError(chunkError) && chunkError.response?.status === 429) {
+          console.log(`Rate limit hit on chunk ${chunkNum}, waiting 10 seconds before retry...`);
+          await new Promise(resolve => setTimeout(resolve, 10000));
+
+          // Retry once
+          try {
+            console.log(`Retrying chunk ${chunkNum}...`);
+            const prompt = createMultiRecipeParsingPrompt(chunk);
+            const retryResponse = await axios.post(
+              `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+              {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                  temperature: 0.1,
+                  maxOutputTokens: 16384,
+                  topP: 0.95,
+                  topK: 40,
+                },
+              },
+              {
+                headers: { 'Content-Type': 'application/json' },
+                timeout: 120000,
+              }
+            );
+
+            const data: GeminiResponse = retryResponse.data;
+            if (!data.error && data.candidates?.[0]?.content?.parts?.[0]?.text) {
+              const chunkRecipes = parseMultiRecipeResponse(data.candidates[0].content.parts[0].text);
+              console.log(`Retry successful: Chunk ${chunkNum} found ${chunkRecipes.length} recipes`);
+              allRecipes.push(...chunkRecipes);
+            }
+          } catch (retryError) {
+            console.error(`Retry failed for chunk ${chunkNum}:`, retryError);
+          }
+        }
+
+        continue;
       }
-    );
-
-    const data: GeminiResponse = response.data;
-
-    // Check for API errors
-    if (data.error) {
-      return {
-        recipes: [],
-        success: false,
-        error: `Gemini API error: ${data.error.message}`,
-        totalFound: 0,
-      };
     }
 
-    // Extract the generated text
-    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-
-    if (!generatedText) {
-      return {
-        recipes: [],
-        success: false,
-        error: 'No response from Gemini API',
-        totalFound: 0,
-      };
-    }
-
-    // Parse the JSON array response from Gemini
-    const recipes = parseMultiRecipeResponse(generatedText);
-
-    if (recipes.length === 0) {
+    if (allRecipes.length === 0) {
       return {
         recipes: [],
         success: false,
@@ -384,10 +492,17 @@ export async function parseMultipleRecipes(
       };
     }
 
+    // Remove duplicate recipes (can happen with overlapping chunks)
+    const uniqueRecipes = deduplicateRecipes(allRecipes);
+    console.log(`Total recipes before deduplication: ${allRecipes.length}`);
+    console.log(`Total unique recipes: ${uniqueRecipes.length}`);
+
+    onProgress?.('Completed!', uniqueRecipes.length, uniqueRecipes.length);
+
     return {
-      recipes,
+      recipes: uniqueRecipes,
       success: true,
-      totalFound: recipes.length,
+      totalFound: uniqueRecipes.length,
     };
   } catch (error) {
     console.error('Multi-recipe parsing error:', error);
@@ -533,15 +648,18 @@ Return the parsed recipe as JSON:`;
 function createMultiRecipeParsingPrompt(text: string): string {
   return `You are a recipe parsing assistant specialized in extracting multiple recipes from text blocks, PDF cookbooks, or personal notes.
 
+CRITICAL: You MUST extract EVERY SINGLE RECIPE in the text. Do not stop early. Count all recipes first, then extract all of them.
+
 Your task is to:
-1. Identify all recipes in the text below
-2. Parse each recipe into a structured format
-3. Return an array of recipe objects
+1. Carefully scan the ENTIRE text to identify ALL recipes (look for recipe titles, ingredients lists, instructions)
+2. Parse EVERY recipe into a structured format - don't stop at 10 or 15, continue until you've processed the entire text
+3. Return an array containing ALL recipe objects found
 
 The text may contain:
-- Multiple recipes from a cookbook
+- Multiple recipes from a cookbook (could be 20, 30, or more recipes)
 - Recipes with informal formatting from personal notes
-- Mixed content (stories, tips) - extract only the recipes
+- Mixed content (stories, tips, storage guides) - extract only the recipes
+- Table of contents - use this to verify you found all recipes
 
 For each recipe found, return a JSON object with this structure:
 
@@ -573,17 +691,116 @@ Important:
 - Return an array of recipe objects: [recipe1, recipe2, ...]
 - If only one recipe is found, return an array with one item
 - Clean up formatting errors and fix obvious mistakes
-- Skip non-recipe content (introductions, stories, etc.)
+- Skip non-recipe content (introductions, stories, storage guides, cooking tools lists, etc.)
 - If a recipe is incomplete, fill in reasonable defaults
 - Return ONLY valid JSON array, no additional text
 - Make sure the JSON is properly formatted
+- DO NOT STOP until you have processed the ENTIRE text and extracted ALL recipes
+- If you see a table of contents with 27 recipes, you must return 27 recipes in the array
 
 Text to parse:
 """
 ${text}
 """
 
+IMPORTANT: Extract ALL recipes from the text above. Do not stop after 10-15 recipes. Continue processing until you reach the end of the text.
+
 Return the recipes as a JSON array:`;
+}
+
+/**
+ * Estimates the number of recipes in text based on common patterns
+ */
+function estimateRecipeCount(text: string): number {
+  const textLower = text.toLowerCase();
+
+  // Count occurrences of common recipe headers
+  const ingredientMatches = textLower.match(/\b(ingredients?|what you need)\b/gi);
+  const instructionMatches = textLower.match(/\b(instructions?|directions?|method|steps?|how to make)\b/gi);
+
+  // Use the higher count as estimate
+  const estimate = Math.max(
+    ingredientMatches?.length || 0,
+    instructionMatches?.length || 0,
+    1 // Minimum 1 recipe
+  );
+
+  return estimate;
+}
+
+/**
+ * Splits text into chunks for batch processing of large cookbooks
+ * Uses simple overlapping windows to ensure no recipes are missed
+ */
+function splitTextIntoChunks(text: string, maxChunkSize: number = 6000): string[] {
+  // If text is small enough, return as single chunk
+  if (text.length <= maxChunkSize) {
+    console.log(`Text is small (${text.length} chars), using single chunk`);
+    return [text];
+  }
+
+  const chunks: string[] = [];
+  const overlapSize = 1000; // Smaller overlap for smaller chunks
+
+  console.log(`Text is ${text.length} characters, splitting into chunks of ${maxChunkSize} with ${overlapSize} char overlap`);
+
+  // Simple approach: split into overlapping windows
+  let startIndex = 0;
+
+  while (startIndex < text.length) {
+    const endIndex = Math.min(startIndex + maxChunkSize, text.length);
+    const chunk = text.substring(startIndex, endIndex);
+
+    chunks.push(chunk);
+    console.log(`Created chunk ${chunks.length}: starts at char ${startIndex}, length ${chunk.length}`);
+
+    // Move forward by chunk size minus overlap
+    // This ensures recipes near boundaries are captured in both chunks
+    startIndex += (maxChunkSize - overlapSize);
+
+    // If we're near the end, just take the rest
+    if (text.length - startIndex <= maxChunkSize) {
+      // Add final chunk and break
+      if (startIndex < text.length) {
+        const finalChunk = text.substring(startIndex);
+        if (finalChunk.length > 500) { // Only add if substantial
+          chunks.push(finalChunk);
+          console.log(`Created final chunk ${chunks.length}: starts at char ${startIndex}, length ${finalChunk.length}`);
+        }
+      }
+      break;
+    }
+  }
+
+  console.log(`Created ${chunks.length} overlapping chunks`);
+  return chunks;
+}
+
+/**
+ * Removes duplicate recipes that may have been captured in overlapping chunks
+ * Uses title similarity to detect duplicates
+ */
+function deduplicateRecipes(recipes: ScrapedRecipe[]): ScrapedRecipe[] {
+  const uniqueRecipes: ScrapedRecipe[] = [];
+  const seenTitles = new Set<string>();
+
+  for (const recipe of recipes) {
+    // Normalize title for comparison (lowercase, remove extra spaces/punctuation)
+    const normalizedTitle = recipe.title
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!seenTitles.has(normalizedTitle)) {
+      seenTitles.add(normalizedTitle);
+      uniqueRecipes.push(recipe);
+    } else {
+      console.log(`Skipping duplicate recipe: ${recipe.title}`);
+    }
+  }
+
+  return uniqueRecipes;
 }
 
 /**
@@ -692,7 +909,7 @@ function parseGeminiResponse(
 /**
  * Parses Gemini's multi-recipe response into an array of ScrapedRecipe objects
  */
-function parseMultiRecipeResponse(responseText: string): ScrapedRecipe[] {
+function parseMultiRecipeResponse(responseText: string, onProgress?: ProgressCallback): ScrapedRecipe[] {
   try {
     // Extract JSON from the response (handle markdown code blocks)
     let jsonText = responseText.trim();
@@ -714,9 +931,13 @@ function parseMultiRecipeResponse(responseText: string): ScrapedRecipe[] {
     }
 
     const recipes: ScrapedRecipe[] = [];
+    const totalRecipes = parsedArray.length;
+
+    onProgress?.(`Processing ${totalRecipes} recipes...`, 0, totalRecipes);
 
     // Process each recipe
-    for (const parsed of parsedArray) {
+    for (let i = 0; i < parsedArray.length; i++) {
+      const parsed = parsedArray[i];
       // Validate required fields
       if (!parsed.title) {
         parsed.title = 'Untitled Recipe';
@@ -753,6 +974,8 @@ function parseMultiRecipeResponse(responseText: string): ScrapedRecipe[] {
 
       // Only add recipes with some content
       if (recipe.ingredients.length > 0 || recipe.instructions.length > 0) {
+        onProgress?.(`Processing recipe ${i + 1}/${totalRecipes}: ${recipe.title}`, i + 1, totalRecipes);
+
         // Analyze recipe for ChefIQ appliance suggestions
         try {
           const chefiqAnalysis = analyzeRecipeForChefIQ(
