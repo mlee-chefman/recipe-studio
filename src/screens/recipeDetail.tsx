@@ -112,6 +112,20 @@ export default function RecipeDetailScreen() {
             </View>
           </View>
 
+          {/* Tags */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <View className="mb-6">
+              <Text className="text-lg font-semibold text-gray-800 mb-2">Tags</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {recipe.tags.map((tag, index) => (
+                  <View key={index} className="px-3 py-1.5 rounded-full bg-gray-100">
+                    <Text className="text-sm text-gray-700">{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* ChefIQ Appliance Info */}
           {recipe.chefiqAppliance && (
             <View className="mb-6">
@@ -163,16 +177,14 @@ export default function RecipeDetailScreen() {
                       <View className="rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5" style={{ backgroundColor: theme.colors.primary[500] }}>
                         <Text className="text-white text-sm font-bold">{index + 1}</Text>
                       </View>
-                      <View className="flex-1">
-                        <Text className="text-base text-gray-700 leading-6 mb-2">{step.text}</Text>
+                      <Text className="text-base text-gray-700 leading-6 flex-1">{step.text}</Text>
 
-                        {/* Step Image */}
-                        {stepImage && (
-                          <View className="mt-2">
-                            <StepImage imageUri={stepImage} editable={false} />
-                          </View>
-                        )}
-                      </View>
+                      {/* Step Image - inline */}
+                      {stepImage && (
+                        <View className="ml-2">
+                          <StepImage imageUri={stepImage} editable={false} compact={true} />
+                        </View>
+                      )}
                     </View>
 
                     {/* Cooking Action for this step */}

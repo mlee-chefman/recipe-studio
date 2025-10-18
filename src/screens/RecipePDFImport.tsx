@@ -115,8 +115,8 @@ export default function RecipePDFImportScreen() {
         if (estimate !== undefined && estimate > 0) {
           setTotalEstimate(estimate);
           // Calculate progress: 20% for extraction, 80% for parsing
-          const parseProgress = found !== undefined ? (found / estimate) * 80 : 0;
-          setProgressPercentage(20 + parseProgress);
+          const parseProgress = found !== undefined ? Math.min((found / estimate) * 80, 80) : 0;
+          setProgressPercentage(Math.min(20 + parseProgress, 100));
         }
       });
 
