@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { Image } from 'expo-image';
-import { Recipe, useRecipeStore } from '@store/store';
+import { Recipe, useRecipeStore, useAuthStore } from '@store/store';
 import { getApplianceById, formatCookingAction } from '@types/chefiq';
 import { theme } from '@theme/index';
 
@@ -14,10 +14,16 @@ interface RecipeDetailModalProps {
 
 export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDetailModalProps) => {
   const { deleteRecipe } = useRecipeStore();
+  const { user } = useAuthStore();
 
   if (!recipe) return null;
 
   const handleDelete = () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to delete a recipe.');
+      return;
+    }
+
     Alert.alert(
       'Delete Recipe',
       `Are you sure you want to delete "${recipe.title}"?`,
@@ -30,7 +36,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            deleteRecipe(recipe.id);
+            deleteRecipe(recipe.id, user.uid);
             onClose();
           }
         }

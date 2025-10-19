@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation, StackActions } from '@react-navigation/native';
-import { Recipe, useRecipeStore } from '@store/store';
+import { Recipe, useRecipeStore, useAuthStore } from '@store/store';
 import {
   RECIPE_DEFAULTS,
   RecipeFormState,
@@ -22,6 +22,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   const navigation = useNavigation();
   const { editingRecipe, onComplete = () => navigation?.goBack() } = props;
   const { addRecipe, updateRecipe, deleteRecipe } = useRecipeStore();
+  const { user } = useAuthStore();
 
   // Form state
   const [formData, setFormData] = useState<RecipeFormState>(getInitialFormState());
@@ -169,6 +170,11 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   }, [editingRecipe]);
 
   const handleSave = () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to save a recipe.');
+      return;
+    }
+
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Recipe title is required');
       return;
@@ -204,12 +210,12 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
     };
 
     if (editingRecipe) {
-      updateRecipe(editingRecipe.id, recipe);
+      updateRecipe(editingRecipe.id, recipe, user.uid);
       Alert.alert('Success', 'Recipe updated!', [
         { text: 'OK', onPress: onComplete }
       ]);
     } else {
-      addRecipe(recipe);
+      addRecipe(recipe, user.uid);
       Alert.alert('Success', 'Recipe created!', [
         {
           text: 'OK',
@@ -243,7 +249,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   };
 
   const handleDelete = () => {
-    if (!editingRecipe) return;
+    if (!editingRecipe || !user) return;
 
     Alert.alert(
       'Delete Recipe',
@@ -257,7 +263,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            deleteRecipe(editingRecipe.id);
+            deleteRecipe(editingRecipe.id, user.uid);
             navigation?.dispatch(StackActions.popToTop());
           }
         }
