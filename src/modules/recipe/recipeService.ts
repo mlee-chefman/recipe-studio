@@ -197,7 +197,7 @@ export const updateRecipe = async (
     const recipeRef = doc(db, 'recipes', recipeId);
     const updateData = {
       ...data,
-      updatedAt: new Date()
+      updatedAt: new Date().toUTCString()
     };
     
     await updateDoc(recipeRef, updateData);
