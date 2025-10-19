@@ -201,12 +201,12 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       servings: formData.servings,
       difficulty: formData.difficulty,
       category: formData.category.trim() || 'Uncategorized',
-      tags: formData.tags.length > 0 ? formData.tags : undefined,
-      image: formData.imageUrl.trim() || undefined,
-      chefiqAppliance: formData.selectedAppliance || undefined,
-      cookingActions: formData.cookingActions.length > 0 ? formData.cookingActions : undefined,
-      instructionSections: instructionSections.length > 0 ? instructionSections : undefined,
-      useProbe: formData.useProbe || undefined,
+      tags: formData.tags.length > 0 ? formData.tags : [],
+      image: formData.imageUrl.trim() || "",
+      chefiqAppliance: formData.selectedAppliance || "",
+      cookingActions: formData.cookingActions.length > 0 ? formData.cookingActions : [],
+      instructionSections: instructionSections.length > 0 ? instructionSections : [],
+      useProbe: formData.useProbe || false,
     };
 
     if (editingRecipe) {
