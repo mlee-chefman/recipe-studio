@@ -30,6 +30,7 @@ export interface Recipe {
   instructionSections?: InstructionSection[]; // grouped instructions with cooking actions
   cookingActions?: CookingAction[]; // step-level cooking actions
   useProbe?: boolean; // whether to use thermometer probe (iQ MiniOven only)
+  published: boolean; // whether the recipe is published
 }
 
 export interface BearState {
@@ -216,6 +217,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         instructionSections: recipe.instructionSections,
         cookingActions: recipe.cookingActions,
         useProbe: recipe.useProbe,
+        published: recipe.published,
       }));
       
       set({ recipes, isLoading: false });
@@ -248,6 +250,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         instructionSections: recipe.instructionSections,
         cookingActions: recipe.cookingActions,
         useProbe: recipe.useProbe,
+        published: recipe.published,
       };
       
       await createRecipe(createData);

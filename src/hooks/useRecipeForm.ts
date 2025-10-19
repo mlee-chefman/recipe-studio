@@ -163,7 +163,8 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
         notes: editingRecipe.description,
         selectedAppliance: editingRecipe.chefiqAppliance || '',
         cookingActions: editingRecipe.cookingActions || [],
-        useProbe: editingRecipe.useProbe || false
+        useProbe: editingRecipe.useProbe || false,
+        published: editingRecipe.published || false
       });
       setInstructionSections(editingRecipe.instructionSections || []);
     }
@@ -207,6 +208,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       cookingActions: formData.cookingActions.length > 0 ? formData.cookingActions : [],
       instructionSections: instructionSections.length > 0 ? instructionSections : [],
       useProbe: formData.useProbe || false,
+      published: formData.published || false,
     };
 
     if (editingRecipe) {

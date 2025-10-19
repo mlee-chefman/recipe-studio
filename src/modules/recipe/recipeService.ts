@@ -33,6 +33,7 @@ export interface Recipe {
   cookingActions?: CookingAction[];
   instructionSections?: InstructionSection[];
   useProbe?: boolean;
+  published: boolean;
   createdAt: String;
   updatedAt: String;
 }
@@ -53,6 +54,7 @@ export interface CreateRecipeData {
   cookingActions?: CookingAction[];
   instructionSections?: InstructionSection[];
   useProbe?: boolean;
+  published?: boolean;
 }
 
 export interface UpdateRecipeData {
@@ -70,6 +72,7 @@ export interface UpdateRecipeData {
   cookingActions?: CookingAction[];
   instructionSections?: InstructionSection[];
   useProbe?: boolean;
+  published?: boolean;
 }
 
 // Create a new recipe in Firestore
@@ -95,6 +98,7 @@ export const createRecipe = async (data: CreateRecipeData): Promise<string> => {
       cookingActions: data.cookingActions,
       instructionSections: data.instructionSections ?? [],
       useProbe: data.useProbe ?? false,
+      published: data.published ?? false,
       createdAt: now,
       updatedAt: now
     };
@@ -132,6 +136,7 @@ export const getRecipe = async (recipeId: string): Promise<Recipe | null> => {
         cookingActions: data.cookingActions,
         instructionSections: data.instructionSections,
         useProbe: data.useProbe,
+        published: data.published ?? false,
         createdAt: data.createdAt,
         updatedAt: data.updatedAt
       };
@@ -176,6 +181,7 @@ export const getRecipes = async (userId: string): Promise<Recipe[]> => {
         cookingActions: data.cookingActions,
         instructionSections: data.instructionSections,
         useProbe: data.useProbe,
+        published: data.published ?? false,
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
         updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
       });
@@ -263,6 +269,7 @@ export const getRecipesByCategory = async (userId: string, category: string): Pr
         cookingActions: data.cookingActions,
         instructionSections: data.instructionSections,
         useProbe: data.useProbe,
+        published: data.published ?? false,
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
         updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
       });
@@ -309,6 +316,7 @@ export const searchRecipesByTitle = async (userId: string, searchTerm: string): 
           cookingActions: data.cookingActions,
           instructionSections: data.instructionSections,
           useProbe: data.useProbe,
+          published: data.published ?? false,
           createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
           updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
         });

@@ -26,6 +26,9 @@ export const RECIPE_DEFAULTS = {
   USE_PROBE: false,
   COOKING_ACTIONS: [] as any[],
 
+  // Publishing
+  PUBLISHED: false,
+
   // UI States
   SHOW_IMPORT_SECTION: false,
   IS_IMPORTING: false,
@@ -154,6 +157,7 @@ export const hasFormChanges = (formData: RecipeFormState, originalRecipe: any) =
   if (formData.difficulty !== originalRecipe.difficulty) return true;
   if (formData.selectedAppliance !== (originalRecipe.chefiqAppliance || '')) return true;
   if (formData.useProbe !== (originalRecipe.useProbe || false)) return true;
+  if (formData.published !== (originalRecipe.published || false)) return true;
 
   // Compare arrays
   const originalIngredients = originalRecipe.ingredients || [];
@@ -197,6 +201,9 @@ export interface RecipeFormState {
   useProbe: boolean;
   cookingActions: any[];
 
+  // Publishing
+  published: boolean;
+
   // Import
   importUrl: string;
   isImporting: boolean;
@@ -231,6 +238,7 @@ export const getInitialFormState = (): RecipeFormState => ({
   selectedAppliance: RECIPE_DEFAULTS.SELECTED_APPLIANCE,
   useProbe: RECIPE_DEFAULTS.USE_PROBE,
   cookingActions: [...RECIPE_DEFAULTS.COOKING_ACTIONS],
+  published: RECIPE_DEFAULTS.PUBLISHED,
   showImportSection: RECIPE_DEFAULTS.SHOW_IMPORT_SECTION,
   isImporting: RECIPE_DEFAULTS.IS_IMPORTING,
   currentStepIndex: RECIPE_DEFAULTS.CURRENT_STEP_INDEX,
