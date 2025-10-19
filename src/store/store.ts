@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CookingAction, InstructionSection } from '@types/chefiq';
+import { AuthUser } from '../modules/user/userAuth';
+import { UserProfile } from '../modules/user/userService';
 
 export interface Recipe {
   id: string;
@@ -27,6 +29,17 @@ export interface BearState {
   increasePopulation: () => void;
   removeAllBears: () => void;
   updateBears: (newBears: number) => void;
+}
+
+export interface AuthState {
+  user: AuthUser | null;
+  userProfile: UserProfile | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  setUser: (user: AuthUser | null) => void;
+  setUserProfile: (profile: UserProfile | null) => void;
+  setLoading: (loading: boolean) => void;
+  signOut: () => void;
 }
 
 export interface RecipeState {
@@ -55,6 +68,48 @@ export const useStore = create<BearState>((set) => ({
   removeAllBears: () => set({ bears: 0 }),
   updateBears: (newBears) => set({ bears: newBears }),
 }));
+
+// Auth store
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      userProfile: null,
+      isLoading: true,
+      isAuthenticated: false,
+      setUser: (user: AuthUser | null) => {
+        set({ 
+          user, 
+          isAuthenticated: !!user,
+          isLoading: false 
+        });
+      },
+      setUserProfile: (profile: UserProfile | null) => {
+        set({ userProfile: profile });
+      },
+      setLoading: (loading: boolean) => {
+        set({ isLoading: loading });
+      },
+      signOut: () => {
+        set({ 
+          user: null, 
+          userProfile: null, 
+          isAuthenticated: false,
+          isLoading: false 
+        });
+      },
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({
+        user: state.user,
+        userProfile: state.userProfile,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
+  )
+);
 
 // Sample recipe data
 const sampleRecipes: Recipe[] = [
