@@ -9,7 +9,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { Feather } from '@expo/vector-icons';
-import { CookingAction, getApplianceById } from '@types/chefiq';
+import { CookingAction, getApplianceById } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { theme } from '@theme/index';
 

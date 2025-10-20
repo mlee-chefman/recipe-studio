@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { analyzeRecipeForChefIQ } from '@utils/recipeAnalyzer';
+import { Step } from '~/types/recipe';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
@@ -562,7 +563,7 @@ Return a JSON object with the following structure:
   "title": "Recipe title",
   "description": "A brief, appetizing description of the dish (1-2 sentences)",
   "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity", ...],
-  "instructions": ["step 1", "step 2", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
   "cookTime": 30,
   "prepTime": 15,
   "servings": 4,
@@ -575,7 +576,7 @@ Guidelines:
 1. **Title**: Create a clear, appetizing title that matches the request
 2. **Description**: Write 1-2 sentences describing the dish and why it's delicious
 3. **Ingredients**: List all ingredients with specific quantities and units (e.g., "2 cups flour", "1 lb pork chops", "1/3 cup milk"). Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements
-4. **Instructions**: Write clear, numbered steps in chronological order. Be specific about temperatures, times, and techniques. For meat dishes (especially steaks, roasts, or large cuts), include internal temperature targets and mention if the meat should be removed at a lower temperature to rest (e.g., "Cook until internal temperature reaches 130°F, then remove and let rest 5-10 minutes")
+4. **Steps**: Write clear, numbered steps in chronological order. Be specific about temperatures, times, and techniques. For meat dishes (especially steaks, roasts, or large cuts), include internal temperature targets and mention if the meat should be removed at a lower temperature to rest (e.g., "Cook until internal temperature reaches 130°F, then remove and let rest 5-10 minutes")
 5. **Times**: Provide realistic prep time and cook time in minutes
 6. **Servings**: Specify number of servings (typically 4-6)
 7. **Category**: Choose the most appropriate category (e.g., Main Course, Dessert, Appetizer, etc.)
@@ -607,7 +608,7 @@ Please parse this text and return a JSON object with the following structure:
   "title": "Recipe title",
   "description": "Brief description or summary (if available, otherwise empty string)",
   "ingredients": ["ingredient 1", "ingredient 2", ...],
-  "instructions": ["step 1", "step 2", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
   "cookTime": 30,
   "prepTime": 15,
   "servings": 4,
@@ -620,16 +621,16 @@ Guidelines:
 1. **Title**: Extract the recipe name. If unclear, use "Untitled Recipe"
 2. **Description**: Include any description, intro text, or summary about the dish
 3. **Ingredients**: Parse into a clean array. Include quantities and units. Each ingredient should be a separate string. Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements (e.g., "1/3 cup" not "0.33 cup")
-4. **Instructions**: Parse into numbered steps. Each step should be a separate string. Organize chronologically. Preserve any mentions of internal temperatures, remove temperatures, or resting times (e.g., "remove at 160°F", "let rest 10 minutes")
+4. **Steps**: Parse into numbered steps. Each step should be a separate string. Organize chronologically. Preserve any mentions of internal temperatures, remove temperatures, or resting times (e.g., "remove at 160°F", "let rest 10 minutes")
 5. **Times**: Extract prep time and cook time in minutes. If not specified, use reasonable defaults (prepTime: 15, cookTime: 30)
 6. **Servings**: Extract number of servings. If not specified, default to 4
 7. **Category**: Infer category from the recipe (e.g., "Dessert", "Main Course", "Appetizer", "Soup", "Salad", "Breakfast", etc.)
 8. **Tags**: Infer 2-5 relevant tags based on the recipe (e.g., "Quick", "Vegetarian", "Italian", "Spicy", "Kid-Friendly", "Healthy", etc.)
-9. **Notes**: Include any tips, variations, storage instructions, or additional notes. Preserve any mentions of resting time or carryover cooking for meat dishes
+9. **Notes**: Include any tips, variations, storage notes, or additional notes. Preserve any mentions of resting time or carryover cooking for meat dishes
 
 Important:
 - Fix obvious OCR errors (e.g., "1 cuρ" → "1 cup")
-- Organize instructions as clear, sequential steps
+- Organize steps as clear, sequential steps
 - If information is missing, use reasonable defaults
 - Return ONLY valid JSON, no additional text
 - Make sure the JSON is properly formatted and can be parsed
@@ -667,7 +668,7 @@ For each recipe found, return a JSON object with this structure:
   "title": "Recipe title",
   "description": "Brief description (if available)",
   "ingredients": ["ingredient 1", "ingredient 2", ...],
-  "instructions": ["step 1", "step 2", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
   "cookTime": 30,
   "prepTime": 15,
   "servings": 4,
@@ -680,7 +681,7 @@ Guidelines:
 1. **Identify recipe boundaries**: Look for recipe titles, "Ingredients", "Instructions" headers
 2. **Title**: Extract or create a descriptive title for each recipe
 3. **Ingredients**: Parse into clean array with quantities and units. Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements (e.g., "1/3 cup" not "0.33 cup")
-4. **Instructions**: Break into clear, sequential steps. Preserve any mentions of internal temperatures, remove temperatures, or resting times for meat dishes
+4. **Steps**: Break into clear, sequential steps. Preserve any mentions of internal temperatures, remove temperatures, or resting times for meat dishes
 5. **Times**: Extract or estimate reasonable times in minutes
 6. **Servings**: Extract or default to 4
 7. **Category**: Infer from recipe type (e.g., "Main Course", "Dessert", "Appetizer")
@@ -847,16 +848,36 @@ function parseGeminiResponse(
     if (!Array.isArray(parsed.ingredients)) {
       parsed.ingredients = [];
     }
-    if (!Array.isArray(parsed.instructions)) {
-      parsed.instructions = [];
+    if (!Array.isArray(parsed.steps)) {
+      parsed.steps = [];
     }
+
+    // Convert instructions to Step objects (handle both old string format and new object format)
+    const steps: Step[] = parsed.steps
+      .filter((inst: any) => {
+        // Handle both string format and object format
+        if (typeof inst === 'string') {
+          return inst && inst.trim();
+        } else if (inst && typeof inst === 'object' && inst.text) {
+          return inst.text.trim();
+        }
+        return false;
+      })
+      .map((inst: any) => {
+        // If already an object with text field, use it; otherwise convert string to object
+        if (typeof inst === 'string') {
+          return { text: inst };
+        } else {
+          return { text: inst.text, image: inst.image, cookingAction: inst.cookingAction };
+        }
+      });
 
     // Build the ScrapedRecipe object
     const recipe: ScrapedRecipe = {
       title: parsed.title || 'Untitled Recipe',
       description: parsed.description || parsed.notes || '',
       ingredients: cleanIngredientQuantities(parsed.ingredients.filter((ing: any) => ing && ing.trim())),
-      instructions: parsed.instructions.filter((inst: any) => inst && inst.trim()),
+      steps,
       cookTime: parseInt(parsed.cookTime) || 30,
       prepTime: parseInt(parsed.prepTime) || 15,
       servings: parseInt(parsed.servings) || 4,
@@ -873,7 +894,7 @@ function parseGeminiResponse(
     }
 
     // Validate that we have at least some content
-    if (recipe.ingredients.length === 0 && recipe.instructions.length === 0) {
+    if (recipe.ingredients.length === 0 && recipe.steps.length === 0) {
       console.warn('Parsed recipe has no ingredients or instructions');
       return null;
     }
@@ -884,12 +905,21 @@ function parseGeminiResponse(
       const chefiqAnalysis = analyzeRecipeForChefIQ(
         recipe.title,
         recipe.description,
-        recipe.instructions,
+        recipe.steps,
         recipe.cookTime
       );
 
       // Attach ChefIQ suggestions to the recipe
       if (chefiqAnalysis && chefiqAnalysis.suggestedActions.length > 0) {
+        // Map cooking actions directly to their corresponding steps
+        const stepsWithActions = recipe.steps.map((step, index) => {
+          const actionForThisStep = chefiqAnalysis.suggestedActions.find(
+            action => action.stepIndex === index
+          );
+          return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+        });
+
+        recipe.steps = stepsWithActions;
         recipe.chefiqSuggestions = chefiqAnalysis;
         console.log('ChefIQ Analysis:', chefiqAnalysis);
       }
@@ -947,16 +977,36 @@ function parseMultiRecipeResponse(responseText: string, onProgress?: ProgressCal
       if (!Array.isArray(parsed.ingredients)) {
         parsed.ingredients = [];
       }
-      if (!Array.isArray(parsed.instructions)) {
-        parsed.instructions = [];
+      if (!Array.isArray(parsed.steps)) {
+        parsed.steps = [];
       }
+
+      // Convert instructions to Step objects (handle both old string format and new object format)
+      const steps: Step[] = parsed.steps
+        .filter((inst: any) => {
+          // Handle both string format and object format
+          if (typeof inst === 'string') {
+            return inst && inst.trim();
+          } else if (inst && typeof inst === 'object' && inst.text) {
+            return inst.text.trim();
+          }
+          return false;
+        })
+        .map((inst: any) => {
+          // If already an object with text field, use it; otherwise convert string to object
+          if (typeof inst === 'string') {
+            return { text: inst };
+          } else {
+            return { text: inst.text, image: inst.image, cookingAction: inst.cookingAction };
+          }
+        });
 
       // Build the ScrapedRecipe object
       const recipe: ScrapedRecipe = {
         title: parsed.title || 'Untitled Recipe',
         description: parsed.description || parsed.notes || '',
         ingredients: cleanIngredientQuantities(parsed.ingredients.filter((ing: any) => ing && ing.trim())),
-        instructions: parsed.instructions.filter((inst: any) => inst && inst.trim()),
+        steps,
         cookTime: parseInt(parsed.cookTime) || 30,
         prepTime: parseInt(parsed.prepTime) || 15,
         servings: parseInt(parsed.servings) || 4,
@@ -973,7 +1023,7 @@ function parseMultiRecipeResponse(responseText: string, onProgress?: ProgressCal
       }
 
       // Only add recipes with some content
-      if (recipe.ingredients.length > 0 || recipe.instructions.length > 0) {
+      if (recipe.ingredients.length > 0 || recipe.steps.length > 0) {
         onProgress?.(`Processing recipe ${i + 1}/${totalRecipes}: ${recipe.title}`, i + 1, totalRecipes);
 
         // Analyze recipe for ChefIQ appliance suggestions
@@ -981,11 +1031,20 @@ function parseMultiRecipeResponse(responseText: string, onProgress?: ProgressCal
           const chefiqAnalysis = analyzeRecipeForChefIQ(
             recipe.title,
             recipe.description,
-            recipe.instructions,
+            recipe.steps,
             recipe.cookTime
           );
 
           if (chefiqAnalysis && chefiqAnalysis.suggestedActions.length > 0) {
+            // Map cooking actions directly to their corresponding steps
+            const stepsWithActions = recipe.steps.map((step, index) => {
+              const actionForThisStep = chefiqAnalysis.suggestedActions.find(
+                action => action.stepIndex === index
+              );
+              return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+            });
+
+            recipe.steps = stepsWithActions;
             recipe.chefiqSuggestions = chefiqAnalysis;
           }
         } catch (error) {

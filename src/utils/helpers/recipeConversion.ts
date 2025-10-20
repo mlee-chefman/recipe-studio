@@ -29,14 +29,15 @@ export function convertScrapedToRecipe(
 ): Omit<Recipe, 'id'> {
   const difficulty = estimateRecipeDifficulty(
     scrapedRecipe.cookTime,
-    scrapedRecipe.instructions.length
+    scrapedRecipe.steps.length
   );
 
   return {
+    userId: '', // Will be set when the recipe is added to the store
     title: scrapedRecipe.title,
     description: scrapedRecipe.description || '',
     ingredients: scrapedRecipe.ingredients,
-    instructions: scrapedRecipe.instructions,
+    steps: scrapedRecipe.steps,
     cookTime: scrapedRecipe.cookTime,
     servings: scrapedRecipe.servings,
     difficulty,
@@ -45,7 +46,8 @@ export function convertScrapedToRecipe(
     image: scrapedRecipe.image,
     // ChefIQ data if available
     chefiqAppliance: scrapedRecipe.chefiqSuggestions?.suggestedAppliance,
-    cookingActions: scrapedRecipe.chefiqSuggestions?.suggestedActions,
     useProbe: scrapedRecipe.chefiqSuggestions?.useProbe,
+    published: false, // New recipes are drafts by default
+    status: 'Draft',
   };
 }

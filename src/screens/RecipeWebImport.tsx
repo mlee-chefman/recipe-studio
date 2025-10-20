@@ -1,5 +1,5 @@
 import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Platform, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Platform, Keyboard, Animated } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -24,6 +24,8 @@ export default function RecipeWebImportScreen() {
   const [canGoForward, setCanGoForward] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditingUrl, setIsEditingUrl] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
   // WebView import hook
   const { isImportable, isImporting, handleMessage, handleImport, resetImportable } = useWebViewImport({
@@ -48,6 +50,15 @@ export default function RecipeWebImportScreen() {
     console.log('currentUrl changed to:', currentUrl);
   }, [currentUrl]);
 
+  // Animate progress bar
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: loadProgress,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [loadProgress]);
+
   const handleError = (syntheticEvent: any) => {
     const { nativeEvent } = syntheticEvent;
     console.error('WebView error: ', nativeEvent);
@@ -55,10 +66,22 @@ export default function RecipeWebImportScreen() {
 
   const handleLoadStart = () => {
     console.log('WebView started loading:', currentUrl);
+    setLoadProgress(0.1); // Start with a small progress
   };
 
   const handleLoadEnd = () => {
     console.log('WebView finished loading:', currentUrl);
+    setLoadProgress(1); // Complete the progress
+    // Hide progress bar after a short delay
+    setTimeout(() => {
+      setLoadProgress(0);
+    }, 300);
+  };
+
+  const handleLoadProgress = ({ nativeEvent }: any) => {
+    const progress = nativeEvent.progress;
+    // Ensure progress is at least 0.1 when loading starts
+    setLoadProgress(Math.max(0.1, progress));
   };
 
   // Configure navigation header
@@ -66,25 +89,65 @@ export default function RecipeWebImportScreen() {
     navigation.setOptions({
       headerShown: true,
       headerStyle: {
-        backgroundColor: theme.colors.background.primary,
+        backgroundColor: theme.colors.background.secondary,
+        borderBottomWidth: 1,
+        borderBottomColor: theme.colors.gray[200],
       },
       headerTintColor: theme.colors.text.primary,
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={{
-            paddingLeft: theme.spacing.lg,
-            paddingRight: theme.spacing.md,
-            paddingVertical: theme.spacing.sm,
+            paddingLeft: theme.spacing.md,
+            paddingRight: theme.spacing.sm,
           }}
         >
-          <Feather name="x" size={28} color={theme.colors.text.secondary} />
+          <Feather name="x" size={24} color={theme.colors.text.secondary} />
         </TouchableOpacity>
       ),
-      headerTitle: '',
-      headerRight: () => null,
+      headerTitle: () => (
+        <View style={styles.headerSearchContainer}>
+          <View style={styles.headerInputContainer}>
+            <TextInput
+              style={styles.headerInput}
+              value={urlInput}
+              onChangeText={setUrlInput}
+              onFocus={() => {
+                setIsEditingUrl(true);
+                isEditingUrlRef.current = true;
+              }}
+              onBlur={() => {
+                setIsEditingUrl(false);
+                isEditingUrlRef.current = false;
+              }}
+              onSubmitEditing={handleUrlSubmit}
+              placeholder="Search or enter URL"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              returnKeyType="go"
+              selectTextOnFocus
+            />
+            <TouchableOpacity
+              onPress={() => webViewRef.current?.reload()}
+              style={styles.refreshButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Text style={styles.refreshButtonText}>↻</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ),
+      headerTitleContainerStyle: {
+        flex: 1,
+        paddingHorizontal: 0,
+        marginHorizontal: 0,
+        left: 0,
+        right: 0,
+      },
+      headerRight: () => <View style={{ width: theme.spacing.md }} />,
     });
-  }, [navigation]);
+  }, [navigation, canGoBack, canGoForward, urlInput]);
 
   const handleNavigationStateChange = (navState: any) => {
     console.log('Navigation state changed:', navState.url, 'loading:', navState.loading);
@@ -135,54 +198,6 @@ export default function RecipeWebImportScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchBarContainer}>
-        <TouchableOpacity
-          onPress={() => webViewRef.current?.goBack()}
-          disabled={!canGoBack}
-          style={[styles.navIconButton, !canGoBack && styles.navIconButtonDisabled]}>
-          <Text style={[styles.navIconText, !canGoBack && styles.navIconTextDisabled]}>←</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => webViewRef.current?.goForward()}
-          disabled={!canGoForward}
-          style={[styles.navIconButton, !canGoForward && styles.navIconButtonDisabled]}>
-          <Text style={[styles.navIconText, !canGoForward && styles.navIconTextDisabled]}>→</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => webViewRef.current?.reload()} style={styles.navIconButton}>
-          <Text style={styles.navIconText}>↻</Text>
-        </TouchableOpacity>
-
-        <View style={styles.searchInputContainer}>
-          <TextInput
-            style={styles.searchInput}
-            value={urlInput}
-            onChangeText={setUrlInput}
-            onFocus={() => {
-              setIsEditingUrl(true);
-              isEditingUrlRef.current = true;
-            }}
-            onBlur={() => {
-              setIsEditingUrl(false);
-              isEditingUrlRef.current = false;
-            }}
-            onSubmitEditing={handleUrlSubmit}
-            placeholder="Search or enter URL"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
-            returnKeyType="go"
-            selectTextOnFocus
-          />
-        </View>
-
-        <TouchableOpacity onPress={handleUrlSubmit} style={styles.goButton}>
-          <Text style={styles.goButtonText}>Go</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* WebView */}
       {currentUrl && (
       <WebView
@@ -202,6 +217,7 @@ export default function RecipeWebImportScreen() {
         onError={handleError}
         onLoadStart={handleLoadStart}
         onLoadEnd={handleLoadEnd}
+        onLoadProgress={handleLoadProgress}
         onHttpError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
           console.error('HTTP error:', nativeEvent);
@@ -221,21 +237,39 @@ export default function RecipeWebImportScreen() {
         mixedContentMode="always"
       />
       )}
-      {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary[500]} />
-          <Text style={{ marginTop: 10, color: theme.colors.text.secondary }}>
-            Loading {currentUrl}...
-          </Text>
+
+      {/* Progress Bar - like modern browsers */}
+      {loadProgress > 0 && loadProgress < 1 && (
+        <View style={styles.progressBarContainer}>
+          <Animated.View
+            style={[
+              styles.progressBar,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
         </View>
       )}
 
-      {/* Floating Import Button */}
+      {/* Bottom Navigation Bar */}
       <View
         style={[
-          styles.floatingButtonContainer,
-          { bottom: Math.max(insets.bottom + theme.spacing.lg, theme.spacing.xl) },
+          styles.bottomNavContainer,
+          { paddingBottom: Math.max(insets.bottom, theme.spacing.sm) },
         ]}>
+        {/* Back Button */}
+        <TouchableOpacity
+          onPress={() => webViewRef.current?.goBack()}
+          disabled={!canGoBack}
+          style={[styles.bottomNavButton, !canGoBack && styles.bottomNavButtonDisabled]}>
+          <Text style={[styles.bottomNavText, !canGoBack && styles.bottomNavTextDisabled]}>←</Text>
+        </TouchableOpacity>
+
+        {/* Import Button */}
         <TouchableOpacity
           onPress={() => handleImport(currentUrl)}
           disabled={!isImportable || isImporting}
@@ -248,6 +282,14 @@ export default function RecipeWebImportScreen() {
               {isImportable ? 'Import Recipe' : 'Browse to a Recipe'}
             </Text>
           )}
+        </TouchableOpacity>
+
+        {/* Forward Button */}
+        <TouchableOpacity
+          onPress={() => webViewRef.current?.goForward()}
+          disabled={!canGoForward}
+          style={[styles.bottomNavButton, !canGoForward && styles.bottomNavButtonDisabled]}>
+          <Text style={[styles.bottomNavText, !canGoForward && styles.bottomNavTextDisabled]}>→</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -265,106 +307,108 @@ const styles = StyleSheet.create({
     height: '100%',
     // backgroundColor: 'white',
   },
-  loadingContainer: {
+  progressBarContainer: {
     position: 'absolute',
-    top: 0,
+    top: 0, // Position at the very top, right below the header
     left: 0,
     right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: theme.colors.background.primary,
+    height: 3,
+    backgroundColor: 'transparent',
+    zIndex: 1000,
   },
-  searchBarContainer: {
+  progressBar: {
+    height: '100%',
+    backgroundColor: theme.colors.primary[500],
+    borderRadius: 2,
+  },
+  // Header search bar styles
+  headerSearchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.background.secondary,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.gray[200],
-    gap: theme.spacing.xs,
-  },
-  navIconButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: theme.colors.gray[100],
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navIconButtonDisabled: {
-    backgroundColor: theme.colors.gray[50],
-  },
-  navIconText: {
-    fontSize: 16,
-    color: theme.colors.text.primary,
-    fontWeight: '600',
-  },
-  navIconTextDisabled: {
-    color: theme.colors.gray[300],
-  },
-  searchInputContainer: {
     flex: 1,
+    paddingRight: 0,
+  },
+  headerInputContainer: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: theme.colors.background.primary,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: theme.colors.gray[200],
-    height: 36,
+    height: 34,
+    paddingRight: 4,
   },
-  searchInput: {
+  headerInput: {
     flex: 1,
     paddingHorizontal: theme.spacing.sm,
-    fontSize: 14,
+    fontSize: 13,
     color: theme.colors.text.primary,
   },
-  goButton: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    backgroundColor: theme.colors.primary[500],
-    borderRadius: 6,
+  refreshButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: theme.colors.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
-    height: 36,
+    marginRight: 2,
   },
-  goButtonText: {
-    fontSize: 14,
-    color: 'white',
+  refreshButtonText: {
+    fontSize: 16,
+    color: theme.colors.text.primary,
     fontWeight: '600',
   },
-  floatingButtonContainer: {
+  // Bottom navigation
+  bottomNavContainer: {
     position: 'absolute',
-    // bottom is set dynamically with safe area insets
-    left: theme.spacing.lg,
-    right: theme.spacing.lg,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.md,
+    backgroundColor: theme.colors.background.primary,
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.gray[200],
+    gap: theme.spacing.sm,
+  },
+  bottomNavButton: {
+    width: 50,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: theme.colors.gray[100],
+    justifyContent: 'center',
     alignItems: 'center',
   },
+  bottomNavButtonDisabled: {
+    backgroundColor: theme.colors.gray[50],
+  },
+  bottomNavText: {
+    fontSize: 20,
+    color: theme.colors.text.primary,
+    fontWeight: '600',
+  },
+  bottomNavTextDisabled: {
+    color: theme.colors.gray[300],
+  },
   importButton: {
+    flex: 1,
     backgroundColor: theme.colors.primary[500],
-    paddingVertical: theme.spacing.lg,
-    paddingHorizontal: theme.spacing.xl,
-    borderRadius: theme.borderRadius.full,
-    minWidth: 200,
+    paddingVertical: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    ...Platform.select({
-      ios: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-    }),
+    height: 48,
   },
   importButtonDisabled: {
     backgroundColor: theme.colors.gray[400],
   },
   importButtonText: {
     color: 'white',
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.bold as any,
+    fontSize: theme.typography.fontSize.md,
+    fontWeight: theme.typography.fontWeight.semibold as any,
   },
 });

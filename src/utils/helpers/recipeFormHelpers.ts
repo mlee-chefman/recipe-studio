@@ -1,5 +1,7 @@
+import { Step } from '~/types/recipe';
+
 /**
- * Helper functions for managing recipe form ingredients and instructions
+ * Helper functions for managing recipe form ingredients and steps
  * These are pure functions that return validation results or new arrays
  */
 
@@ -53,43 +55,85 @@ export function updateIngredient(
 }
 
 /**
- * Adds a new empty instruction to the list
- * Validates that the last instruction is not empty before adding
+ * Adds a new empty step to the list
+ * Validates that the last step is not empty before adding
  */
-export function addInstruction(currentInstructions: string[]): ValidationResult<string[]> {
-  const lastInstruction = currentInstructions[currentInstructions.length - 1];
+export function addStep(currentSteps: Step[]): ValidationResult<Step[]> {
+  const lastStep = currentSteps[currentSteps.length - 1];
 
-  if (lastInstruction && lastInstruction.trim() === '') {
+  if (lastStep && lastStep.text.trim() === '') {
     return {
       success: false,
-      error: 'Please fill in the current instruction before adding a new one.',
+      error: 'Please fill in the current step before adding a new one.',
     };
   }
 
   return {
     success: true,
-    value: [...currentInstructions, ''],
+    value: [...currentSteps, { text: '' }],
   };
 }
 
 /**
- * Removes an instruction at the specified index
- * Always maintains at least one empty instruction in the list
+ * Removes a step at the specified index
+ * Always maintains at least one empty step in the list
  */
-export function removeInstruction(currentInstructions: string[], index: number): string[] {
-  const newInstructions = currentInstructions.filter((_, i) => i !== index);
-  return newInstructions.length > 0 ? newInstructions : [''];
+export function removeStep(currentSteps: Step[], index: number): Step[] {
+  const newSteps = currentSteps.filter((_, i) => i !== index);
+  return newSteps.length > 0 ? newSteps : [{ text: '' }];
 }
 
 /**
- * Updates an instruction at the specified index
+ * Updates a step text at the specified index
  */
-export function updateInstruction(
-  currentInstructions: string[],
+export function updateStepText(
+  currentSteps: Step[],
   index: number,
-  value: string
-): string[] {
-  const newInstructions = [...currentInstructions];
-  newInstructions[index] = value;
-  return newInstructions;
+  text: string
+): Step[] {
+  const newSteps = [...currentSteps];
+  newSteps[index] = {
+    ...newSteps[index],
+    text,
+  };
+  return newSteps;
+}
+
+/**
+ * Updates a step image at the specified index
+ */
+export function updateStepImage(
+  currentSteps: Step[],
+  index: number,
+  imageUri: string | undefined
+): Step[] {
+  const newSteps = [...currentSteps];
+  newSteps[index] = {
+    ...newSteps[index],
+    image: imageUri,
+  };
+  return newSteps;
+}
+
+/**
+ * Updates a cooking action for a step at the specified index
+ */
+export function updateStepCookingAction(
+  currentSteps: Step[],
+  index: number,
+  cookingAction: any | undefined
+): Step[] {
+  const newSteps = [...currentSteps];
+  newSteps[index] = {
+    ...newSteps[index],
+    cookingAction,
+  };
+  return newSteps;
+}
+
+/**
+ * Gets the cooking action for a specific step
+ */
+export function getCookingActionForStep(steps: Step[], index: number): any | undefined {
+  return steps[index]?.cookingAction;
 }

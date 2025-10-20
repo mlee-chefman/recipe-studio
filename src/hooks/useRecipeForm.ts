@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation, StackActions } from '@react-navigation/native';
-import { Recipe, useRecipeStore, useAuthStore } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import {
   RECIPE_DEFAULTS,
   RecipeFormState,
@@ -11,7 +12,7 @@ import {
   hasFormData,
   hasFormChanges
 } from '@constants/recipeDefaults';
-import { CookingAction, InstructionSection } from '~/types/chefiq';
+import { CookingAction, StepSection } from '~/types/chefiq';
 
 export interface UseRecipeFormProps {
   editingRecipe?: Recipe;
@@ -27,9 +28,9 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   // Form state
   const [formData, setFormData] = useState<RecipeFormState>(getInitialFormState());
   const [modalStates, setModalStates] = useState<RecipeModalState>(getInitialModalState());
-  const [instructionSections, setInstructionSections] = useState<InstructionSection[]>([]);
+  const [stepSections, setStepSections] = useState<StepSection[]>([]);
   const [isIngredientsReorderMode, setIsIngredientsReorderMode] = useState(false);
-  const [isInstructionsReorderMode, setIsInstructionsReorderMode] = useState(false);
+  const [isStepsReorderMode, setIsStepsReorderMode] = useState(false);
   const [isDraggingCookingAction, setIsDraggingCookingAction] = useState(false);
   const [draggingCookingAction, setDraggingCookingAction] = useState<{ action: any; fromStepIndex: number } | null>(null);
 
@@ -57,45 +58,34 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
     updateFormData({ ingredients: newIngredients });
   };
 
-  const reorderInstructions = (newInstructions: string[]) => {
-    // Also need to update cooking action indices
-    const oldToNewIndexMap: { [key: number]: number } = {};
-    formData.instructions.forEach((instruction, oldIndex) => {
-      const newIndex = newInstructions.findIndex(inst => inst === instruction);
-      if (newIndex !== -1) {
-        oldToNewIndexMap[oldIndex] = newIndex;
-      }
-    });
-
-    // Update cooking actions with new step indices
-    const updatedCookingActions = formData.cookingActions.map(action => ({
-      ...action,
-      stepIndex: oldToNewIndexMap[action.stepIndex] !== undefined ?
-        oldToNewIndexMap[action.stepIndex] : action.stepIndex
-    }));
-
+  const reorderSteps = (newSteps: any[]) => {
+    // Steps are now Step objects, they maintain their own cooking actions
     updateFormData({
-      instructions: newInstructions,
-      cookingActions: updatedCookingActions
+      steps: newSteps
     });
   };
 
   const moveCookingAction = (fromStepIndex: number, toStepIndex: number) => {
-    const action = formData.cookingActions.find(a => a.stepIndex === fromStepIndex);
-    if (action) {
-      const updatedActions = formData.cookingActions.map(a => {
-        if (a.stepIndex === fromStepIndex) {
-          return { ...a, stepIndex: toStepIndex };
-        }
-        return a;
-      });
-      updateFormData({ cookingActions: updatedActions });
+    const fromAction = formData.steps[fromStepIndex]?.cookingAction;
+    if (fromAction) {
+      const newSteps = [...formData.steps];
+      // Remove from source
+      newSteps[fromStepIndex] = {
+        ...newSteps[fromStepIndex],
+        cookingAction: undefined,
+      };
+      // Add to target (removing any existing action there)
+      newSteps[toStepIndex] = {
+        ...newSteps[toStepIndex],
+        cookingAction: fromAction,
+      };
+      updateFormData({ steps: newSteps });
     }
   };
 
   // Cooking Action Drag and Drop handlers
   const handleCookingActionDragStart = (fromStepIndex: number) => {
-    const action = formData.cookingActions.find(a => a.stepIndex === fromStepIndex);
+    const action = formData.steps[fromStepIndex]?.cookingAction;
     if (action) {
       setDraggingCookingAction({ action, fromStepIndex });
       setIsDraggingCookingAction(true);
@@ -103,31 +93,31 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   };
 
   const handleCookingActionDragEnd = (fromStepIndex: number, toStepIndex: number) => {
-    console.log('Drag end:', { fromStepIndex, toStepIndex, totalInstructions: formData.instructions.length });
+    console.log('Drag end:', { fromStepIndex, toStepIndex, totalSteps: formData.steps.length });
 
     // Ensure target step is valid
-    const maxStepIndex = Math.max(0, formData.instructions.length - 1);
+    const maxStepIndex = Math.max(0, formData.steps.length - 1);
     const validToStepIndex = Math.min(Math.max(0, toStepIndex), maxStepIndex);
 
     if (fromStepIndex !== validToStepIndex) {
-      const action = formData.cookingActions.find(a => a.stepIndex === fromStepIndex);
+      const action = formData.steps[fromStepIndex]?.cookingAction;
 
       if (action) {
         console.log('Moving action from step', fromStepIndex, 'to step', validToStepIndex);
 
-        // Create new actions array by updating the step index
-        const updatedActions = formData.cookingActions.map(a => {
-          if (a.stepIndex === fromStepIndex) {
-            return { ...a, stepIndex: validToStepIndex };
-          }
-          // Remove any existing action on target step (if different from source)
-          if (a.stepIndex === validToStepIndex && validToStepIndex !== fromStepIndex) {
-            return null;
-          }
-          return a;
-        }).filter(Boolean); // Remove nulls
+        const newSteps = [...formData.steps];
+        // Remove from source
+        newSteps[fromStepIndex] = {
+          ...newSteps[fromStepIndex],
+          cookingAction: undefined,
+        };
+        // Add to target (replacing any existing action)
+        newSteps[validToStepIndex] = {
+          ...newSteps[validToStepIndex],
+          cookingAction: action,
+        };
 
-        updateFormData({ cookingActions: updatedActions });
+        updateFormData({ steps: newSteps });
       }
     }
 
@@ -136,15 +126,18 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   };
 
   const removeCookingAction = (stepIndex: number) => {
-    updateFormData({
-      cookingActions: formData.cookingActions.filter(action => action.stepIndex !== stepIndex)
-    });
+    const newSteps = [...formData.steps];
+    newSteps[stepIndex] = {
+      ...newSteps[stepIndex],
+      cookingAction: undefined,
+    };
+    updateFormData({ steps: newSteps });
   };
 
   const resetForm = () => {
     setFormData(getInitialFormState());
     setModalStates(getInitialModalState());
-    setInstructionSections([]);
+    setStepSections([]);
   };
 
   // Populate form when editing
@@ -159,18 +152,17 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
         servings: editingRecipe.servings || RECIPE_DEFAULTS.SERVINGS,
         difficulty: editingRecipe.difficulty,
         ingredients: editingRecipe.ingredients.length > 0 ? editingRecipe.ingredients : [''],
-        instructions: editingRecipe.instructions.length > 0 ? editingRecipe.instructions : [''],
+        steps: editingRecipe.steps.length > 0 ? editingRecipe.steps : [{ text: '' }],
         notes: editingRecipe.description,
         selectedAppliance: editingRecipe.chefiqAppliance || '',
-        cookingActions: editingRecipe.cookingActions || [],
         useProbe: editingRecipe.useProbe || false,
         published: editingRecipe.published || false
       });
-      setInstructionSections(editingRecipe.instructionSections || []);
+      setStepSections(editingRecipe.stepSections || []);
     }
   }, [editingRecipe]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!user) {
       Alert.alert('Error', 'You must be logged in to save a recipe.');
       return;
@@ -187,9 +179,9 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       return;
     }
 
-    const validInstructions = formData.instructions.filter(i => i.trim() !== '');
-    if (validInstructions.length === 0) {
-      Alert.alert('Error', 'At least one instruction is required');
+    const validSteps = formData.steps.filter(s => s.text.trim() !== '');
+    if (validSteps.length === 0) {
+      Alert.alert('Error', 'At least one step is required');
       return;
     }
 
@@ -197,33 +189,45 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       title: formData.title.trim(),
       description: formData.notes.trim() || 'No description provided',
       ingredients: validIngredients,
-      instructions: validInstructions,
+      steps: validSteps,
       cookTime: formData.cookTime,
       servings: formData.servings,
       difficulty: formData.difficulty,
       category: formData.category.trim() || 'Uncategorized',
-      tags: formData.tags.length > 0 ? formData.tags : [],
-      image: formData.imageUrl.trim() || "",
-      chefiqAppliance: formData.selectedAppliance || "",
-      cookingActions: formData.cookingActions.length > 0 ? formData.cookingActions : [],
-      instructionSections: instructionSections.length > 0 ? instructionSections : [],
-      useProbe: formData.useProbe || false,
+      tags: formData.tags.length > 0 ? formData.tags : undefined,
+      image: formData.imageUrl.trim() || undefined,
+      chefiqAppliance: formData.selectedAppliance || undefined,
+      stepSections: stepSections.length > 0 ? stepSections : undefined,
+      useProbe: formData.useProbe || undefined,
       published: formData.published || false,
     };
 
-    if (editingRecipe) {
-      updateRecipe(editingRecipe.id, recipe, user.uid);
-      Alert.alert('Success', 'Recipe updated!', [
-        { text: 'OK', onPress: onComplete }
-      ]);
-    } else {
-      addRecipe(recipe, user.uid);
-      Alert.alert('Success', 'Recipe created!', [
-        {
-          text: 'OK',
-          onPress: onComplete
-        }
-      ]);
+    try {
+      if (editingRecipe) {
+        await updateRecipe(editingRecipe.id, recipe, user.uid);
+        const publishStatus = formData.published ? 'published' : 'saved as draft';
+        Alert.alert('Success', `Recipe updated and ${publishStatus}!`, [
+          { text: 'OK', onPress: onComplete }
+        ]);
+      } else {
+        await addRecipe(recipe, user.uid);
+        const publishStatus = formData.published ? 'created and published' : 'created as draft';
+        Alert.alert('Success', `Recipe ${publishStatus}!`, [
+          {
+            text: 'OK',
+            onPress: onComplete
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      const action = editingRecipe ? 'updating' : 'creating';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert(
+        'Error',
+        `Failed to ${action} recipe: ${errorMessage}. Please try again.`,
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -276,8 +280,8 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   return {
     formData,
     modalStates,
-    instructionSections,
-    setInstructionSections,
+    stepSections,
+    setStepSections,
     updateFormData,
     updateModalStates,
     setCookTimeFromMinutes,
@@ -288,12 +292,12 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
     handleDelete,
     isEditing: !!editingRecipe,
     reorderIngredients,
-    reorderInstructions,
+    reorderSteps,
     moveCookingAction,
     isIngredientsReorderMode,
     setIsIngredientsReorderMode,
-    isInstructionsReorderMode,
-    setIsInstructionsReorderMode,
+    isStepsReorderMode,
+    setIsStepsReorderMode,
     isDraggingCookingAction,
     draggingCookingAction,
     handleCookingActionDragStart,

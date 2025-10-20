@@ -7,7 +7,7 @@ import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ScrapedRecipe } from '@utils/recipeScraper';
-import { CookingAction, getApplianceById } from '@types/chefiq';
+import { CookingAction, getApplianceById } from '~/types/chefiq';
 import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '@components/ApplianceDropdown';
 import { TemperatureInfoModal } from '@components/TemperatureInfoModal';
@@ -19,6 +19,7 @@ import { useImagePicker } from '@hooks/useImagePicker';
 import { useAIRecipeGenerator } from '@hooks/useAIRecipeGenerator';
 import { useCookingActions } from '@hooks/useCookingActions';
 import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
+import StepImage from '@components/StepImage';
 import {
   ServingsPickerModal,
   CookTimePickerModal,
@@ -44,8 +45,8 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const {
     formData,
     modalStates,
-    instructionSections,
-    setInstructionSections,
+    stepSections,
+    setStepSections,
     updateFormData,
     updateModalStates,
     setCookTimeFromMinutes,
@@ -53,12 +54,12 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     handleCancel,
     confirmCancel,
     reorderIngredients,
-    reorderInstructions,
+    reorderSteps,
     moveCookingAction,
     isIngredientsReorderMode,
     setIsIngredientsReorderMode,
-    isInstructionsReorderMode,
-    setIsInstructionsReorderMode,
+    isStepsReorderMode,
+    setIsStepsReorderMode,
     isDraggingCookingAction,
     draggingCookingAction,
     handleCookingActionDragStart,
@@ -82,7 +83,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     onRecipeGenerated: (generatedRecipe) => {
       // Estimate difficulty based on cook time and number of steps
       const totalTime = generatedRecipe.cookTime;
-      const numSteps = generatedRecipe.instructions.length;
+      const numSteps = generatedRecipe.steps.length;
       let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
       if (totalTime < 30 && numSteps < 5) {
         difficulty = 'Easy';
@@ -96,7 +97,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         title: generatedRecipe.title,
         notes: generatedRecipe.description,
         ingredients: generatedRecipe.ingredients.length > 0 ? generatedRecipe.ingredients : [''],
-        instructions: generatedRecipe.instructions.length > 0 ? generatedRecipe.instructions : [''],
+        steps: generatedRecipe.steps.length > 0 ? generatedRecipe.steps : [{ text: '' }],
         servings: generatedRecipe.servings,
         category: generatedRecipe.category || '',
         difficulty
@@ -109,17 +110,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           selectedAppliance: suggestions.suggestedAppliance || formData.selectedAppliance,
           useProbe: suggestions.useProbe || formData.useProbe
         });
-
-        try {
-          const autoAssignedActions = autoAssignCookingActions(
-            generatedRecipe.instructions,
-            suggestions.suggestedActions
-          );
-          updateFormData({ cookingActions: autoAssignedActions });
-        } catch (error) {
-          console.error('Error in auto-assigning cooking actions:', error);
-          updateFormData({ cookingActions: suggestions.suggestedActions });
-        }
+        // Note: Cooking actions can be manually assigned to steps using the ChefIQ selector
       }
 
       // Hide the AI helper after successful generation
@@ -142,7 +133,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
       // Estimate difficulty based on cook time and number of steps
       const totalTime = scrapedRecipe.cookTime;
-      const numSteps = scrapedRecipe.instructions.length;
+      const numSteps = scrapedRecipe.steps.length;
       let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
       if (totalTime < 30 && numSteps < 5) {
         difficulty = 'Easy';
@@ -156,7 +147,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         title: scrapedRecipe.title,
         notes: scrapedRecipe.description,
         ingredients: scrapedRecipe.ingredients.length > 0 ? scrapedRecipe.ingredients : [''],
-        instructions: scrapedRecipe.instructions.length > 0 ? scrapedRecipe.instructions : [''],
+        steps: scrapedRecipe.steps.length > 0 ? scrapedRecipe.steps : [{ text: '' }],
         servings: scrapedRecipe.servings,
         category: scrapedRecipe.category || '',
         imageUrl: scrapedRecipe.image || '',
@@ -172,18 +163,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           useProbe: suggestions.useProbe || formData.useProbe
         });
 
-        // Automatically assign cooking actions to appropriate steps
-        try {
-          const autoAssignedActions = autoAssignCookingActions(
-            scrapedRecipe.instructions,
-            suggestions.suggestedActions
-          );
-          updateFormData({ cookingActions: autoAssignedActions });
-        } catch (error) {
-          console.error('Error in auto-assigning cooking actions:', error);
-          // Fallback: just use the suggested actions without step assignment
-          updateFormData({ cookingActions: suggestions.suggestedActions });
-        }
+        // Note: Cooking actions can be manually assigned to steps using the ChefIQ selector
       }
 
       // Clear the route params to prevent re-triggering
@@ -269,18 +249,18 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     updateFormData({ ingredients: newIngredients });
   };
 
-  const addInstruction = () => {
-    const result = recipeHelpers.addInstruction(formData.instructions);
+  const addStep = () => {
+    const result = recipeHelpers.addStep(formData.steps);
     if (result.success) {
-      updateFormData({ instructions: result.value });
+      updateFormData({ steps: result.value });
     } else {
       Alert.alert('Validation Error', result.error);
     }
   };
 
-  const removeInstruction = (index: number) => {
-    const newInstructions = recipeHelpers.removeInstruction(formData.instructions, index);
-    updateFormData({ instructions: newInstructions });
+  const removeStep = (index: number) => {
+    const newInstructions = recipeHelpers.removeStep(formData.steps, index);
+    updateFormData({ steps: newInstructions });
   };
 
   const updateIngredient = (index: number, value: string) => {
@@ -288,9 +268,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     updateFormData({ ingredients: newIngredients });
   };
 
-  const updateInstruction = (index: number, value: string) => {
-    const newInstructions = recipeHelpers.updateInstruction(formData.instructions, index, value);
-    updateFormData({ instructions: newInstructions });
+  const updateStep = (index: number, value: string) => {
+    const newSteps = recipeHelpers.updateStepText(formData.steps, index, value);
+    updateFormData({ steps: newSteps });
+  };
+
+  const updateStepImage = (index: number, imageUri: string | undefined) => {
+    const newSteps = recipeHelpers.updateStepImage(formData.steps, index, imageUri);
+    updateFormData({ steps: newSteps });
   };
 
   // Refs for managing focus
@@ -370,13 +355,13 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         });
 
         // Boost score for temperature mentions if action has temperature
-        if (action.temperature && instructionLower.includes('temperature') ||
-            instructionLower.includes('degrees') || instructionLower.includes('°f')) {
+        if ((action.parameters.target_cavity_temp || action.parameters.target_probe_temp || action.parameters.cooking_temp) &&
+            (instructionLower.includes('temperature') || instructionLower.includes('degrees') || instructionLower.includes('°f'))) {
           score += 2;
         }
 
-        // Boost score for time mentions if action has duration
-        if (action.duration && (instructionLower.includes('minutes') ||
+        // Boost score for time mentions if action has cooking time
+        if (action.parameters.cooking_time && (instructionLower.includes('minutes') ||
             instructionLower.includes('min') || instructionLower.includes('hours'))) {
           score += 2;
         }
@@ -771,60 +756,68 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         <View className="mb-4">
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-lg font-semibold text-gray-800">INSTRUCTIONS</Text>
-            {formData.instructions.length >= 3 && (
+            {formData.steps.length >= 3 && (
               <TouchableOpacity
-                onPress={() => setIsInstructionsReorderMode(!isInstructionsReorderMode)}
+                onPress={() => setIsStepsReorderMode(!isStepsReorderMode)}
                 className="px-3 py-1 rounded-lg"
                 style={{
-                  backgroundColor: isInstructionsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
+                  backgroundColor: isStepsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
                 }}
               >
                 <Text style={{
-                  color: isInstructionsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
+                  color: isStepsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
                   fontSize: theme.typography.fontSize.sm,
                   fontWeight: theme.typography.fontWeight.medium
                 }}>
-                  {isInstructionsReorderMode ? 'Done' : 'Reorder'}
+                  {isStepsReorderMode ? 'Done' : 'Reorder'}
                 </Text>
               </TouchableOpacity>
             )}
           </View>
           <SimpleDraggableList
-            data={formData.instructions}
-            onReorder={reorderInstructions}
+            data={formData.steps}
+            onReorder={reorderSteps}
             keyExtractor={(item, index) => `instruction-${index}`}
-            isReorderMode={isInstructionsReorderMode}
-            renderItem={(instruction, index, isReorderMode) => {
+            isReorderMode={isStepsReorderMode}
+            renderItem={(step, index, isReorderMode) => {
               const cookingAction = getCookingActionForStep(index);
               return (
                 <View>
                   <View className="flex-row items-center mb-1">
                     {isReorderMode ? (
                       <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={{ minHeight: 40 }}>
-                        <Text className="text-base">{instruction || `Step ${index + 1}`}</Text>
+                        <Text className="text-base">{step.text || `Step ${index + 1}`}</Text>
                       </View>
                     ) : (
                       <MultilineInstructionInput
                         ref={(ref) => (instructionRefs.current[index] = ref)}
                         className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
                         placeholder={`Step ${index + 1}`}
-                        value={instruction}
-                        onChangeText={(value) => updateInstruction(index, value)}
+                        value={step.text}
+                        onChangeText={(value) => updateStep(index, value)}
                         onAddNewStep={() => {
-                          addInstruction();
+                          addStep();
                           // Focus on the new instruction field after a brief delay
                           setTimeout(() => {
-                            const newIndex = formData.instructions.length;
+                            const newIndex = formData.steps.length;
                             instructionRefs.current[newIndex]?.focus();
                           }, 100);
                         }}
                         onFocusNext={() => instructionRefs.current[index + 1]?.focus()}
-                        isLastStep={index === formData.instructions.length - 1}
+                        isLastStep={index === formData.steps.length - 1}
                         keyboardShouldPersistTaps="handled"
                       />
                     )}
                     {!isReorderMode && (
                       <View className="flex-row gap-1 items-center">
+                        {/* Step Image Button */}
+                        <StepImage
+                          imageUri={step.image}
+                          onImageChange={(uri) => updateStepImage(index, uri)}
+                          editable={true}
+                          compact={true}
+                        />
+
                         {/* Add Cooking Method Button - Only show if appliance is selected */}
                         {formData.selectedAppliance && (
                           <TouchableOpacity
@@ -854,9 +847,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                         )}
 
                         {/* Remove Instruction Button */}
-                        {formData.instructions.length > 1 && (
+                        {formData.steps.length > 1 && (
                           <TouchableOpacity
-                            onPress={() => removeInstruction(index)}
+                            onPress={() => removeStep(index)}
                             className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
                           >
                             <Text className="text-red-600 font-bold">×</Text>
@@ -881,7 +874,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                           setShowTempInfo(true);
                         }}
                         selectedAppliance={formData.selectedAppliance}
-                        isReorderMode={isInstructionsReorderMode}
+                        isReorderMode={isStepsReorderMode}
                       />
                     </View>
                   )}
@@ -902,10 +895,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                 const textToAdd = newInstructionText.trim();
                 if (textToAdd) {
                   // Add new instruction and focus on it
-                  updateFormData({ instructions: [...formData.instructions, textToAdd] });
+                  updateFormData({ steps: [...formData.steps, { text: textToAdd }] });
                   setNewInstructionText('');
                   setTimeout(() => {
-                    const newIndex = formData.instructions.length;
+                    const newIndex = formData.steps.length;
                     instructionRefs.current[newIndex]?.focus();
                   }, 100);
                 }
@@ -1010,23 +1003,27 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             setTempInfoStepIndex(null);
           }}
           currentTemperature={
-            formData.cookingActions.find(a => a.stepIndex === tempInfoStepIndex)?.parameters.target_probe_temp || 165
+            formData.steps[tempInfoStepIndex]?.cookingAction?.parameters.target_probe_temp || 165
           }
-          recipeText={`${formData.title} ${formData.instructions.join(' ')}`}
+          recipeText={`${formData.title} ${formData.steps.map(i => i.text).join(' ')}`}
           onTemperatureChange={(newTemp, doneness, removeTemp) => {
-            const updatedActions = formData.cookingActions.map(action =>
-              action.stepIndex === tempInfoStepIndex
-                ? {
-                    ...action,
-                    parameters: {
-                      ...action.parameters,
-                      target_probe_temp: newTemp,
-                      remove_probe_temp: removeTemp || newTemp
-                    }
-                  }
-                : action
-            );
-            updateFormData({ cookingActions: updatedActions });
+            const cookingAction = formData.steps[tempInfoStepIndex]?.cookingAction;
+            if (cookingAction) {
+              const updatedAction = {
+                ...cookingAction,
+                parameters: {
+                  ...cookingAction.parameters,
+                  target_probe_temp: newTemp,
+                  remove_probe_temp: removeTemp || newTemp
+                }
+              };
+              const newInstructions = recipeHelpers.updateStepCookingAction(
+                formData.steps,
+                tempInfoStepIndex,
+                updatedAction
+              );
+              updateFormData({ steps: newInstructions });
+            }
             setShowTempInfo(false);
             setTempInfoStepIndex(null);
           }}

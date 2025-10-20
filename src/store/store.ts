@@ -1,40 +1,20 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CookingAction, InstructionSection } from '../types/chefiq';
+import { migrateToSteps, Recipe } from '~/types/recipe';
 import { AuthUser } from '../modules/user/userAuth';
 import { UserProfile } from '../modules/user/userService';
-import { 
-  createRecipe, 
-  getRecipes, 
+import {
+  createRecipe,
+  getRecipes,
   getRecipesByUserId,
-  updateRecipe as updateRecipeService, 
+  updateRecipe as updateRecipeService,
   deleteRecipe as deleteRecipeService,
-  Recipe as FirebaseRecipe,
-  CreateRecipeData 
+  CreateRecipeData,
+  Recipe as FirebaseRecipe
 } from '../modules/recipe/recipeService';
 
-export interface Recipe {
-  id: string;
-  userId: string; // ID of the user who created the recipe
-  title: string;
-  description: string;
-  ingredients: string[];
-  instructions: string[];
-  cookTime: number;
-  servings: number;
-  difficulty: 'Easy' | 'Medium' | 'Hard';
-  category: string;
-  tags?: string[]; // Multiple keywords for detailed searching
-  image?: string;
-  // ChefIQ Integration
-  chefiqAppliance?: string; // appliance category_id
-  instructionSections?: InstructionSection[]; // grouped instructions with cooking actions
-  cookingActions?: CookingAction[]; // step-level cooking actions
-  useProbe?: boolean; // whether to use thermometer probe (iQ MiniOven only)
-  published: boolean; // whether the recipe is published
-  status: 'Published' | 'Draft'; // display status based on published field
-}
+export type ViewMode = 'detailed' | 'compact' | 'grid';
 
 export interface BearState {
   bears: number;
@@ -69,18 +49,22 @@ export interface RecipeState {
   allRecipesSelectedDifficulty: string;
   allRecipesSelectedTags: string[];
   allRecipesSelectedAppliance: string;
+  allRecipesViewMode: ViewMode;
   // Search and filter state for MyRecipes tab
   userRecipesSearchQuery: string;
   userRecipesSelectedCategory: string;
   userRecipesSelectedDifficulty: string;
   userRecipesSelectedTags: string[];
   userRecipesSelectedAppliance: string;
+  userRecipesViewMode: ViewMode;
+  selectionMode: boolean;
   // Actions for Home tab
   setAllRecipesSearchQuery: (query: string) => void;
   setAllRecipesSelectedCategory: (category: string) => void;
   setAllRecipesSelectedDifficulty: (difficulty: string) => void;
   setAllRecipesSelectedTags: (tags: string[]) => void;
   setAllRecipesSelectedAppliance: (appliance: string) => void;
+  setAllRecipesViewMode: (mode: ViewMode) => void;
   filterAllRecipes: () => void;
   // Actions for MyRecipes tab
   setUserRecipesSearchQuery: (query: string) => void;
@@ -88,12 +72,15 @@ export interface RecipeState {
   setUserRecipesSelectedDifficulty: (difficulty: string) => void;
   setUserRecipesSelectedTags: (tags: string[]) => void;
   setUserRecipesSelectedAppliance: (appliance: string) => void;
+  setUserRecipesViewMode: (mode: ViewMode) => void;
+  setSelectionMode: (mode: boolean) => void;
   filterUserRecipes: () => void;
   // Data fetching
   fetchRecipes: (userId: string) => Promise<void>;
   fetchUserRecipes: (userId: string) => Promise<void>;
   addRecipe: (recipe: Omit<Recipe, 'id'>, userId: string) => Promise<void>;
   deleteRecipe: (id: string, userId: string) => Promise<void>;
+  deleteRecipes: (ids: string[], userId: string) => Promise<void>;
   updateRecipe: (id: string, recipe: Partial<Omit<Recipe, 'id'>>, userId: string) => Promise<void>;
 }
 
@@ -113,10 +100,10 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
       isAuthenticated: false,
       setUser: (user: AuthUser | null) => {
-        set({ 
-          user, 
+        set({
+          user,
           isAuthenticated: !!user,
-          isLoading: false 
+          isLoading: false
         });
       },
       setUserProfile: (profile: UserProfile | null) => {
@@ -126,11 +113,11 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: loading });
       },
       signOut: () => {
-        set({ 
-          user: null, 
-          userProfile: null, 
+        set({
+          user: null,
+          userProfile: null,
           isAuthenticated: false,
-          isLoading: false 
+          isLoading: false
         });
       },
     }),
@@ -167,6 +154,10 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   userRecipesSelectedDifficulty: '',
   userRecipesSelectedTags: [],
   userRecipesSelectedAppliance: '',
+  // View mode for both tabs
+  allRecipesViewMode: 'detailed' as ViewMode,
+  userRecipesViewMode: 'detailed' as ViewMode,
+  selectionMode: false,
   // Actions for Home tab
   setAllRecipesSearchQuery: (query: string) => {
     set({ allRecipesSearchQuery: query });
@@ -309,39 +300,60 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
 
     set({ filteredUserRecipes: filtered });
   },
+  // View mode actions
+  setAllRecipesViewMode: (mode: ViewMode) => {
+    set({ allRecipesViewMode: mode });
+  },
+  setUserRecipesViewMode: (mode: ViewMode) => {
+    set({ userRecipesViewMode: mode });
+  },
+  setSelectionMode: (mode: boolean) => {
+    set({ selectionMode: mode });
+  },
+  // Data fetching
   fetchRecipes: async (userId: string) => {
     try {
       set({ isLoading: true, error: null });
       const firebaseRecipes = await getRecipes(userId);
-      
+
       // Convert Firebase recipes to store Recipe format
-      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => ({
-        id: recipe.id,
-        userId: recipe.userId,
-        title: recipe.title,
-        description: recipe.description,
-        ingredients: recipe.ingredients,
-        instructions: recipe.instructions,
-        cookTime: recipe.cookTime,
-        servings: recipe.servings,
-        difficulty: recipe.difficulty as 'Easy' | 'Medium' | 'Hard',
-        category: recipe.category,
-        tags: recipe.tags,
-        image: recipe.image,
-        chefiqAppliance: recipe.chefiqAppliance,
-        instructionSections: recipe.instructionSections,
-        cookingActions: recipe.cookingActions,
-        useProbe: recipe.useProbe,
-        published: recipe.published,
-        status: recipe.published ? 'Published' : 'Draft',
-      }));
-      
+      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => {
+        // Migrate old format to new format if needed
+        const steps = (recipe as any).steps
+          ? (recipe as any).steps
+          : migrateToSteps(
+              (recipe as any).instructions || [],
+              (recipe as any).instructionImages,
+              (recipe as any).cookingActions
+            );
+
+        return {
+          id: recipe.id,
+          userId: recipe.userId,
+          title: recipe.title,
+          description: recipe.description,
+          ingredients: recipe.ingredients,
+          steps: steps,
+          cookTime: recipe.cookTime,
+          servings: recipe.servings,
+          difficulty: recipe.difficulty as 'Easy' | 'Medium' | 'Hard',
+          category: recipe.category,
+          tags: recipe.tags,
+          image: recipe.image,
+          chefiqAppliance: recipe.chefiqAppliance,
+          stepSections: (recipe as any).stepSections || (recipe as any).instructionSections,
+          useProbe: recipe.useProbe,
+          published: recipe.published,
+          status: recipe.published ? 'Published' : 'Draft',
+        };
+      });
+
       set({ allRecipes: recipes, isLoading: false });
       get().filterAllRecipes();
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to fetch recipes',
-        isLoading: false 
+        isLoading: false
       });
     }
   },
@@ -349,102 +361,160 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       const firebaseRecipes = await getRecipesByUserId(userId);
-      
+
       // Convert Firebase recipes to store Recipe format
-      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => ({
-        id: recipe.id,
-        userId: recipe.userId,
-        title: recipe.title,
-        description: recipe.description,
-        ingredients: recipe.ingredients,
-        instructions: recipe.instructions,
-        cookTime: recipe.cookTime,
-        servings: recipe.servings,
-        difficulty: recipe.difficulty as 'Easy' | 'Medium' | 'Hard',
-        category: recipe.category,
-        tags: recipe.tags,
-        image: recipe.image,
-        chefiqAppliance: recipe.chefiqAppliance,
-        instructionSections: recipe.instructionSections,
-        cookingActions: recipe.cookingActions,
-        useProbe: recipe.useProbe,
-        published: recipe.published,
-        status: recipe.published ? 'Published' : 'Draft',
-      }));
-      
+      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => {
+        // Migrate old format to new format if needed
+        const steps = (recipe as any).steps
+          ? (recipe as any).steps
+          : migrateToSteps(
+              (recipe as any).instructions || [],
+              (recipe as any).instructionImages,
+              (recipe as any).cookingActions
+            );
+
+        return {
+          id: recipe.id,
+          userId: recipe.userId,
+          title: recipe.title,
+          description: recipe.description,
+          ingredients: recipe.ingredients,
+          steps: steps,
+          cookTime: recipe.cookTime,
+          servings: recipe.servings,
+          difficulty: recipe.difficulty as 'Easy' | 'Medium' | 'Hard',
+          category: recipe.category,
+          tags: recipe.tags,
+          image: recipe.image,
+          chefiqAppliance: recipe.chefiqAppliance,
+          stepSections: (recipe as any).stepSections || (recipe as any).instructionSections,
+          useProbe: recipe.useProbe,
+          published: recipe.published,
+          status: recipe.published ? 'Published' : 'Draft',
+        };
+      });
+
       set({ userRecipes: recipes, isLoading: false });
       get().filterUserRecipes();
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to fetch user recipes',
-        isLoading: false 
+        isLoading: false
       });
     }
   },
   addRecipe: async (recipe: Omit<Recipe, 'id'>, userId: string) => {
     try {
       set({ isLoading: true, error: null });
-      
-      // Create recipe data for Firebase
-      const createData: CreateRecipeData = {
+
+      // Create recipe data for Firebase - only include defined fields
+      const createData: any = {
         userId,
         title: recipe.title,
         description: recipe.description,
         ingredients: recipe.ingredients,
-        instructions: recipe.instructions,
+        steps: recipe.steps,
         cookTime: recipe.cookTime,
         servings: recipe.servings,
         difficulty: recipe.difficulty,
         category: recipe.category,
-        tags: recipe.tags,
-        image: recipe.image,
-        chefiqAppliance: recipe.chefiqAppliance,
-        instructionSections: recipe.instructionSections,
-        cookingActions: recipe.cookingActions,
-        useProbe: recipe.useProbe,
-        published: recipe.published,
+        published: recipe.published || false,
       };
-      
+
+      // Only add optional fields if they're defined and not empty
+      if (recipe.tags && recipe.tags.length > 0) {
+        createData.tags = recipe.tags;
+      }
+      if (recipe.image) {
+        createData.image = recipe.image;
+      }
+      if (recipe.chefiqAppliance) {
+        createData.chefiqAppliance = recipe.chefiqAppliance;
+      }
+      if (recipe.stepSections && recipe.stepSections.length > 0) {
+        createData.stepSections = recipe.stepSections;
+      }
+      if (recipe.useProbe !== undefined) {
+        createData.useProbe = recipe.useProbe;
+      }
+
       await createRecipe(createData);
-      
+
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
       await get().fetchUserRecipes(userId);
+
+      set({ isLoading: false });
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to add recipe',
-        isLoading: false 
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add recipe';
+      set({
+        error: errorMessage,
+        isLoading: false
       });
+      // Re-throw the error so it can be caught in the UI
+      throw new Error(errorMessage);
     }
   },
   deleteRecipe: async (id: string, userId: string) => {
     try {
       set({ isLoading: true, error: null });
       await deleteRecipeService(id);
-      
+
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
       await get().fetchUserRecipes(userId);
     } catch (error) {
-      set({ 
+      set({
         error: error instanceof Error ? error.message : 'Failed to delete recipe',
-        isLoading: false 
+        isLoading: false
+      });
+    }
+  },
+  deleteRecipes: async (ids: string[], userId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // Delete all recipes in parallel
+      await Promise.all(ids.map(id => deleteRecipeService(id)));
+
+      // Refetch both recipe lists to ensure store is up-to-date
+      await get().fetchRecipes(userId);
+      await get().fetchUserRecipes(userId);
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'Failed to delete recipes',
+        isLoading: false
       });
     }
   },
   updateRecipe: async (id: string, recipe: Partial<Omit<Recipe, 'id'>>, userId: string) => {
     try {
       set({ isLoading: true, error: null });
-      await updateRecipeService(id, recipe);
-      
+
+      // Filter out undefined values before updating
+      const updateData: any = {};
+      Object.keys(recipe).forEach(key => {
+        const value = (recipe as any)[key];
+        if (value !== undefined) {
+          updateData[key] = value;
+        }
+      });
+
+      await updateRecipeService(id, updateData);
+
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
       await get().fetchUserRecipes(userId);
+
+      set({ isLoading: false });
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to update recipe',
-        isLoading: false 
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update recipe';
+      set({
+        error: errorMessage,
+        isLoading: false
       });
+      // Re-throw the error so it can be caught in the UI
+      throw new Error(errorMessage);
     }
   },
 }));

@@ -6,9 +6,9 @@ import MultilineInstructionInput, { MultilineInstructionInputRef } from '@compon
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Recipe } from '@store/store';
+import { Recipe } from "~/types/recipe";
 import { useRecipeForm } from '@hooks/useRecipeForm';
-import { CookingAction, getApplianceById } from '@types/chefiq';
+import { CookingAction, getApplianceById } from '~/types/chefiq';
 import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '@components/ApplianceDropdown';
 import { theme } from '@theme/index';
@@ -17,9 +17,11 @@ import { DraggableCookingAction } from '@components/DraggableCookingAction';
 import { useImagePicker } from '@hooks/useImagePicker';
 import { useCookingActions } from '@hooks/useCookingActions';
 import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
+import StepImage from '@components/StepImage';
 import {
   ServingsPickerModal,
   CookTimePickerModal,
+  CategoryPickerModal,
   TagsPickerModal,
   ConfirmationModal,
 } from '~/components/modals';
@@ -39,8 +41,8 @@ export default function RecipeEditScreen() {
   const {
     formData,
     modalStates,
-    instructionSections,
-    setInstructionSections,
+    stepSections,
+    setStepSections,
     updateFormData,
     updateModalStates,
     setCookTimeFromMinutes,
@@ -49,12 +51,12 @@ export default function RecipeEditScreen() {
     confirmCancel,
     handleDelete,
     reorderIngredients,
-    reorderInstructions,
+    reorderSteps,
     moveCookingAction,
     isIngredientsReorderMode,
     setIsIngredientsReorderMode,
-    isInstructionsReorderMode,
-    setIsInstructionsReorderMode,
+    isStepsReorderMode,
+    setIsStepsReorderMode,
     isDraggingCookingAction,
     draggingCookingAction,
     handleCookingActionDragStart,
@@ -135,18 +137,22 @@ export default function RecipeEditScreen() {
     updateFormData({ ingredients: newIngredients });
   };
 
-  const addInstruction = () => {
-    const result = recipeHelpers.addInstruction(formData.instructions);
+  const addStep = () => {
+    const result = recipeHelpers.addStep(formData.steps);
     if (result.success) {
-      updateFormData({ instructions: result.value });
+      updateFormData({
+        steps: result.value
+      });
     } else {
       Alert.alert('Validation Error', result.error);
     }
   };
 
-  const removeInstruction = (index: number) => {
-    const newInstructions = recipeHelpers.removeInstruction(formData.instructions, index);
-    updateFormData({ instructions: newInstructions });
+  const removeStep = (index: number) => {
+    const newSteps = recipeHelpers.removeStep(formData.steps, index);
+    updateFormData({
+      steps: newSteps
+    });
   };
 
   const updateIngredient = (index: number, value: string) => {
@@ -154,9 +160,14 @@ export default function RecipeEditScreen() {
     updateFormData({ ingredients: newIngredients });
   };
 
-  const updateInstruction = (index: number, value: string) => {
-    const newInstructions = recipeHelpers.updateInstruction(formData.instructions, index, value);
-    updateFormData({ instructions: newInstructions });
+  const updateStep = (index: number, value: string) => {
+    const newSteps = recipeHelpers.updateStepText(formData.steps, index, value);
+    updateFormData({ steps: newSteps });
+  };
+
+  const updateStepImage = (index: number, imageUri: string | undefined) => {
+    const newSteps = recipeHelpers.updateStepImage(formData.steps, index, imageUri);
+    updateFormData({ steps: newSteps });
   };
 
   // Refs for managing focus
@@ -298,16 +309,15 @@ export default function RecipeEditScreen() {
         </View>
 
         {/* Category */}
-        <TouchableOpacity className="mb-4 border-b border-gray-200 pb-3">
+        <TouchableOpacity
+          className="mb-4 border-b border-gray-200 pb-3"
+          onPress={() => updateModalStates({ showCategoryPicker: true })}
+        >
           <View className="flex-row items-center justify-between">
             <Text className="text-lg text-gray-800">Category</Text>
-            <TextInput
-              className="text-lg text-gray-500 text-right flex-1 ml-4"
-              placeholder="Uncategorized"
-              value={formData.category}
-              onChangeText={(value) => updateFormData({ category: value })}
-              textAlign="right"
-            />
+            <Text className="text-lg text-gray-500">
+              {formData.category || 'Uncategorized'}
+            </Text>
           </View>
         </TouchableOpacity>
 
@@ -451,60 +461,68 @@ export default function RecipeEditScreen() {
         <View className="mb-4">
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-lg font-semibold text-gray-800">INSTRUCTIONS</Text>
-            {formData.instructions.length >= 3 && (
+            {formData.steps.length >= 3 && (
               <TouchableOpacity
-                onPress={() => setIsInstructionsReorderMode(!isInstructionsReorderMode)}
+                onPress={() => setIsStepsReorderMode(!isStepsReorderMode)}
                 className="px-3 py-1 rounded-lg"
                 style={{
-                  backgroundColor: isInstructionsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
+                  backgroundColor: isStepsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
                 }}
               >
                 <Text style={{
-                  color: isInstructionsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
+                  color: isStepsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
                   fontSize: theme.typography.fontSize.sm,
                   fontWeight: theme.typography.fontWeight.medium
                 }}>
-                  {isInstructionsReorderMode ? 'Done' : 'Reorder'}
+                  {isStepsReorderMode ? 'Done' : 'Reorder'}
                 </Text>
               </TouchableOpacity>
             )}
           </View>
           <SimpleDraggableList
-            data={formData.instructions}
-            onReorder={reorderInstructions}
+            data={formData.steps}
+            onReorder={reorderSteps}
             keyExtractor={(item, index) => `instruction-${index}`}
-            isReorderMode={isInstructionsReorderMode}
-            renderItem={(instruction, index, isReorderMode) => {
+            isReorderMode={isStepsReorderMode}
+            renderItem={(step, index, isReorderMode) => {
               const cookingAction = getCookingActionForStep(index);
               return (
               <View>
                 <View className="flex-row items-center mb-1">
                   {isReorderMode ? (
                     <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={{ minHeight: 40 }}>
-                      <Text className="text-base">{instruction || `Step ${index + 1}`}</Text>
+                      <Text className="text-base">{step.text || `Step ${index + 1}`}</Text>
                     </View>
                   ) : (
                     <MultilineInstructionInput
                       ref={(ref) => (instructionRefs.current[index] = ref)}
                       className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
                       placeholder={`Step ${index + 1}`}
-                      value={instruction}
-                      onChangeText={(value) => updateInstruction(index, value)}
+                      value={step.text}
+                      onChangeText={(value) => updateStep(index, value)}
                       onAddNewStep={() => {
-                        addInstruction();
+                        addStep();
                         // Focus on the new instruction field after a brief delay
                         setTimeout(() => {
-                          const newIndex = formData.instructions.length;
+                          const newIndex = formData.steps.length;
                           instructionRefs.current[newIndex]?.focus();
                         }, 100);
                       }}
                       onFocusNext={() => instructionRefs.current[index + 1]?.focus()}
-                      isLastStep={index === formData.instructions.length - 1}
+                      isLastStep={index === formData.steps.length - 1}
                       keyboardShouldPersistTaps="handled"
                     />
                   )}
                   {!isReorderMode && (
                     <View className="flex-row gap-1 items-center">
+                      {/* Step Image Button */}
+                      <StepImage
+                        imageUri={step.image}
+                        onImageChange={(uri) => updateStepImage(index, uri)}
+                        editable={true}
+                        compact={true}
+                      />
+
                       {/* Add Cooking Method Button - Only show if appliance is selected */}
                       {formData.selectedAppliance && (
                         <TouchableOpacity
@@ -534,9 +552,9 @@ export default function RecipeEditScreen() {
                     )}
 
                       {/* Remove Instruction Button */}
-                      {formData.instructions.length > 1 && (
+                      {formData.steps.length > 1 && (
                         <TouchableOpacity
-                          onPress={() => removeInstruction(index)}
+                          onPress={() => removeStep(index)}
                           className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
                         >
                           <Text className="text-red-600 font-bold">×</Text>
@@ -557,7 +575,7 @@ export default function RecipeEditScreen() {
                       onRemove={() => removeCookingAction(index)}
                       onEdit={() => handleEditCookingAction(index)}
                       selectedAppliance={formData.selectedAppliance}
-                      isReorderMode={isInstructionsReorderMode}
+                      isReorderMode={isStepsReorderMode}
                     />
                   </View>
                 )}
@@ -578,10 +596,10 @@ export default function RecipeEditScreen() {
                 const textToAdd = newInstructionText.trim();
                 if (textToAdd) {
                   // Add new instruction and focus on it
-                  updateFormData({ instructions: [...formData.instructions, textToAdd] });
+                  updateFormData({ steps: [...formData.steps, { text: textToAdd }] });
                   setNewInstructionText('');
                   setTimeout(() => {
-                    const newIndex = formData.instructions.length;
+                    const newIndex = formData.steps.length;
                     instructionRefs.current[newIndex]?.focus();
                   }, 100);
                 }
@@ -648,6 +666,14 @@ export default function RecipeEditScreen() {
         onHoursChange={(value) => updateFormData({ cookTimeHours: value })}
         onMinutesChange={(value) => updateFormData({ cookTimeMinutes: value })}
         onClose={() => updateModalStates({ showCookTimePicker: false })}
+      />
+
+      {/* Category Picker Modal */}
+      <CategoryPickerModal
+        visible={modalStates.showCategoryPicker}
+        selectedValue={formData.category}
+        onValueChange={(value) => updateFormData({ category: value })}
+        onClose={() => updateModalStates({ showCategoryPicker: false })}
       />
 
       {/* Tags Picker Modal */}

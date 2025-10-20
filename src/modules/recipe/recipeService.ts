@@ -9,71 +9,22 @@ import {
   query,
   where,
   orderBy,
-  DocumentData,
   DocumentSnapshot,
-  Timestamp,
+  DocumentData,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { CookingAction, InstructionSection } from '../../types/chefiq';
+import {
+  Recipe,
+  CreateRecipeData,
+  UpdateRecipeData,
+} from '../../types/recipe';
+import {
+  deepCleanUndefined,
+  mapFirebaseDataToRecipe
+} from '../../utils/helpers/firebaseHelpers';
 
-export interface Recipe {
-  id: string;
-  userId: string;
-  title: string;
-  description: string;
-  ingredients: string[];
-  instructions: string[];
-  cookTime: number;
-  servings: number;
-  difficulty: string;
-  category: string;
-  tags?: string[];
-  image?: string;
-  chefiqAppliance?: string;
-  cookingActions?: CookingAction[];
-  instructionSections?: InstructionSection[];
-  useProbe?: boolean;
-  published: boolean;
-  createdAt: String;
-  updatedAt: String;
-}
-
-export interface CreateRecipeData {
-  userId: string;
-  title: string;
-  description: string;
-  ingredients: string[];
-  instructions: string[];
-  cookTime: number;
-  servings: number;
-  difficulty: string;
-  category: string;
-  tags?: string[];
-  image?: string;
-  chefiqAppliance?: string;
-  cookingActions?: CookingAction[];
-  instructionSections?: InstructionSection[];
-  useProbe?: boolean;
-  published?: boolean;
-}
-
-export interface UpdateRecipeData {
-  title?: string;
-  description?: string;
-  ingredients?: string[];
-  instructions?: string[];
-  cookTime?: number;
-  servings?: number;
-  difficulty?: string;
-  category?: string;
-  tags?: string[];
-  image?: string;
-  chefiqAppliance?: string;
-  cookingActions?: CookingAction[];
-  instructionSections?: InstructionSection[];
-  useProbe?: boolean;
-  published?: boolean;
-}
+// Re-export types for backward compatibility
+export type { Recipe, CreateRecipeData, UpdateRecipeData };
 
 // Create a new recipe in Firestore
 export const createRecipe = async (data: CreateRecipeData): Promise<string> => {
@@ -81,29 +32,44 @@ export const createRecipe = async (data: CreateRecipeData): Promise<string> => {
     const recipesRef = collection(db, 'recipes');
     const recipeRef = doc(recipesRef);
     const now = new Date().toUTCString();
-    
-    const recipe: Omit<Recipe, 'id'> = {
+
+    // Build recipe object with only required fields first
+    const recipeData: Partial<Omit<Recipe, 'id' | 'status'>> = {
       userId: data.userId,
       title: data.title,
       description: data.description,
       ingredients: data.ingredients,
-      instructions: data.instructions,
+      steps: data.steps,
       cookTime: data.cookTime,
       servings: data.servings,
-      difficulty: data.difficulty,
+      difficulty: data.difficulty as 'Easy' | 'Medium' | 'Hard',
       category: data.category,
-      tags: data.tags ?? [],
-      image: data.image,
-      chefiqAppliance: data.chefiqAppliance,
-      cookingActions: data.cookingActions,
-      instructionSections: data.instructionSections ?? [],
-      useProbe: data.useProbe ?? false,
       published: data.published ?? false,
       createdAt: now,
       updatedAt: now
     };
-    
-    await setDoc(recipeRef, recipe);
+
+    // Only add optional fields if they are provided and not undefined
+    if (data.tags !== undefined) {
+      recipeData.tags = data.tags;
+    }
+    if (data.image !== undefined) {
+      recipeData.image = data.image;
+    }
+    if (data.chefiqAppliance !== undefined) {
+      recipeData.chefiqAppliance = data.chefiqAppliance;
+    }
+    if (data.stepSections !== undefined) {
+      recipeData.stepSections = data.stepSections;
+    }
+    if (data.useProbe !== undefined) {
+      recipeData.useProbe = data.useProbe;
+    }
+
+    // Deep clean to remove any undefined values in nested objects and arrays
+    const cleanedRecipeData = deepCleanUndefined(recipeData);
+
+    await setDoc(recipeRef, cleanedRecipeData);
     return recipeRef.id;
   } catch (error) {
     console.error('Error creating recipe:', error);
@@ -116,30 +82,10 @@ export const getRecipe = async (recipeId: string): Promise<Recipe | null> => {
   try {
     const recipeRef = doc(db, 'recipes', recipeId);
     const recipeSnap: DocumentSnapshot<DocumentData> = await getDoc(recipeRef);
-    
+
     if (recipeSnap.exists()) {
       const data = recipeSnap.data();
-      return {
-        id: recipeSnap.id,
-        userId: data.userId,
-        title: data.title,
-        description: data.description,
-        ingredients: data.ingredients,
-        instructions: data.instructions,
-        cookTime: data.cookTime,
-        servings: data.servings,
-        difficulty: data.difficulty,
-        category: data.category,
-        tags: data.tags,
-        image: data.image,
-        chefiqAppliance: data.chefiqAppliance,
-        cookingActions: data.cookingActions,
-        instructionSections: data.instructionSections,
-        useProbe: data.useProbe,
-        published: data.published ?? false,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt
-      };
+      return mapFirebaseDataToRecipe(recipeSnap.id, data);
     } else {
       return null;
     }
@@ -149,7 +95,7 @@ export const getRecipe = async (recipeId: string): Promise<Recipe | null> => {
   }
 };
 
-// Get all recipes for a specific user
+// Get all published recipes
 export const getRecipes = async (userId: string): Promise<Recipe[]> => {
   try {
     const recipesRef = collection(db, 'recipes');
@@ -158,35 +104,15 @@ export const getRecipes = async (userId: string): Promise<Recipe[]> => {
       where('published', '==', true),
       orderBy('updatedAt', 'desc')
     );
-    
+
     const querySnapshot = await getDocs(q);
     const recipes: Recipe[] = [];
-    
+
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      recipes.push({
-        id: doc.id,
-        userId: data.userId,
-        title: data.title,
-        description: data.description,
-        ingredients: data.ingredients,
-        instructions: data.instructions,
-        cookTime: data.cookTime,
-        servings: data.servings,
-        difficulty: data.difficulty,
-        category: data.category,
-        tags: data.tags,
-        image: data.image,
-        chefiqAppliance: data.chefiqAppliance,
-        cookingActions: data.cookingActions,
-        instructionSections: data.instructionSections,
-        useProbe: data.useProbe,
-        published: data.published ?? false,
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
-        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
-      });
+      recipes.push(mapFirebaseDataToRecipe(doc.id, data));
     });
-    
+
     return recipes;
   } catch (error) {
     console.error('Error getting recipes:', error);
@@ -201,11 +127,15 @@ export const updateRecipe = async (
 ): Promise<void> => {
   try {
     const recipeRef = doc(db, 'recipes', recipeId);
+
+    // Deep clean to remove undefined fields (including nested objects and arrays)
+    const cleanedData = deepCleanUndefined(data);
+
     const updateData = {
-      ...data,
+      ...cleanedData,
       updatedAt: new Date().toUTCString()
     };
-    
+
     await updateDoc(recipeRef, updateData);
   } catch (error) {
     console.error('Error updating recipe:', error);
@@ -253,27 +183,7 @@ export const getRecipesByCategory = async (userId: string, category: string): Pr
     
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      recipes.push({
-        id: doc.id,
-        userId: data.userId,
-        title: data.title,
-        description: data.description,
-        ingredients: data.ingredients,
-        instructions: data.instructions,
-        cookTime: data.cookTime,
-        servings: data.servings,
-        difficulty: data.difficulty,
-        category: data.category,
-        tags: data.tags,
-        image: data.image,
-        chefiqAppliance: data.chefiqAppliance,
-        cookingActions: data.cookingActions,
-        instructionSections: data.instructionSections,
-        useProbe: data.useProbe,
-        published: data.published ?? false,
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
-        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
-      });
+      recipes.push(mapFirebaseDataToRecipe(doc.id, data));
     });
     
     return recipes;
@@ -298,27 +208,7 @@ export const getRecipesByUserId = async (userId: string): Promise<Recipe[]> => {
     
     querySnapshot.forEach((doc) => {
       const data = doc.data();
-      recipes.push({
-        id: doc.id,
-        userId: data.userId,
-        title: data.title,
-        description: data.description,
-        ingredients: data.ingredients,
-        instructions: data.instructions,
-        cookTime: data.cookTime,
-        servings: data.servings,
-        difficulty: data.difficulty,
-        category: data.category,
-        tags: data.tags,
-        image: data.image,
-        chefiqAppliance: data.chefiqAppliance,
-        cookingActions: data.cookingActions,
-        instructionSections: data.instructionSections,
-        useProbe: data.useProbe,
-        published: data.published ?? false,
-        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
-        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
-      });
+      recipes.push(mapFirebaseDataToRecipe(doc.id, data));
     });
     
     return recipes;
@@ -345,27 +235,7 @@ export const searchRecipesByTitle = async (userId: string, searchTerm: string): 
       const data = doc.data();
       // Client-side filtering for title search (Firestore doesn't support full-text search)
       if (data.title.toLowerCase().includes(searchTerm.toLowerCase())) {
-        recipes.push({
-          id: doc.id,
-          userId: data.userId,
-          title: data.title,
-          description: data.description,
-          ingredients: data.ingredients,
-          instructions: data.instructions,
-          cookTime: data.cookTime,
-          servings: data.servings,
-          difficulty: data.difficulty,
-          category: data.category,
-          tags: data.tags,
-          image: data.image,
-          chefiqAppliance: data.chefiqAppliance,
-          cookingActions: data.cookingActions,
-          instructionSections: data.instructionSections,
-          useProbe: data.useProbe,
-          published: data.published ?? false,
-          createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
-          updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
-        });
+        recipes.push(mapFirebaseDataToRecipe(doc.id, data));
       }
     });
     

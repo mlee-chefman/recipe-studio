@@ -11,7 +11,8 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { theme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
-import { useRecipeStore, Recipe } from '@store/store';
+import { useRecipeStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 type RecipeSelectionRouteProp = RouteProp<{
@@ -147,7 +148,7 @@ export default function RecipeSelectionScreen() {
             <View style={styles.metadataItem}>
               <Text style={styles.metadataIcon}>📝</Text>
               <Text style={styles.metadataText}>
-                {item.instructions.length} step{item.instructions.length !== 1 ? 's' : ''}
+                {item.steps.length} step{item.steps.length !== 1 ? 's' : ''}
               </Text>
             </View>
             <View style={styles.metadataItem}>

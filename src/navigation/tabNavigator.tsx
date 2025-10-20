@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
-import { HeaderButton } from '@components/HeaderButton';
+import { ViewToggleButton, ViewMode } from '@components/ViewToggleButton';
+import { SelectModeButton } from '@components/SelectModeButton';
 import { TabBarIcon } from '@components/TabBarIcon';
 import Home from '@screens/home';
 import MyRecipes from '@screens/MyRecipes';
 import Settings from '@screens/settings';
 import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
+import { useRecipeStore } from '@store/store';
 import { theme } from '@theme/index';
 
 // Custom Tab Bar Component with centered + button
@@ -147,6 +149,53 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
+// Header Right Component for Home Tab (All Recipes)
+function HomeHeaderRightButtons() {
+  const { allRecipesViewMode, setAllRecipesViewMode, filteredAllRecipes } = useRecipeStore();
+
+  const toggleViewMode = () => {
+    const modes: ViewMode[] = ['detailed', 'compact', 'grid'];
+    const currentIndex = modes.indexOf(allRecipesViewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setAllRecipesViewMode(modes[nextIndex]);
+  };
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <ViewToggleButton viewMode={allRecipesViewMode} onToggle={toggleViewMode} />
+    </View>
+  );
+}
+
+// Header Right Component for MyRecipes Tab (User's Recipes)
+function MyRecipesHeaderRightButtons() {
+  const { userRecipesViewMode, setUserRecipesViewMode, selectionMode, setSelectionMode, filteredUserRecipes } = useRecipeStore();
+
+  const toggleViewMode = () => {
+    const modes: ViewMode[] = ['detailed', 'compact', 'grid'];
+    const currentIndex = modes.indexOf(userRecipesViewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setUserRecipesViewMode(modes[nextIndex]);
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+  };
+
+  const hasRecipes = filteredUserRecipes.length > 0;
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <SelectModeButton
+        isSelectionMode={selectionMode}
+        onToggle={toggleSelectionMode}
+        disabled={!hasRecipes}
+      />
+      <ViewToggleButton viewMode={userRecipesViewMode} onToggle={toggleViewMode} />
+    </View>
+  );
+}
+
 const Tab = createBottomTabNavigator({
   screenOptions: function ScreenOptions() {
     return {
@@ -157,10 +206,10 @@ const Tab = createBottomTabNavigator({
   screens: {
     Home: {
       screen: Home,
-      options: ({ navigation }) => ({
+      options: () => ({
         title: 'Recipes',
         tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
-        headerRight: () => <HeaderButton onPress={() => navigation.navigate('Modal')} />,
+        headerRight: () => <HomeHeaderRightButtons />,
       }),
     },
     MyRecipes: {
@@ -168,6 +217,7 @@ const Tab = createBottomTabNavigator({
       options: {
         title: 'My Recipes',
         tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+        headerRight: () => <MyRecipesHeaderRightButtons />,
       },
     },
     Settings: {

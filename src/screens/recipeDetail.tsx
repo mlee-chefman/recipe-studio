@@ -3,10 +3,12 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Recipe, useRecipeStore, useAuthStore } from '@store/store';
-import { getApplianceById, formatCookingAction, CookingAction } from '@types/chefiq';
+import { useRecipeStore, useAuthStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
+import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { theme } from '@theme/index';
+import StepImage from '@components/StepImage';
 
 type RootStackParamList = {
   RecipeDetail: { recipe: Recipe };
@@ -118,6 +120,20 @@ export default function RecipeDetailScreen() {
             </View>
           </View>
 
+          {/* Tags */}
+          {recipe.tags && recipe.tags.length > 0 && (
+            <View className="mb-6">
+              <Text className="text-lg font-semibold text-gray-800 mb-2">Tags</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {recipe.tags.map((tag, index) => (
+                  <View key={index} className="px-3 py-1.5 rounded-full bg-gray-100">
+                    <Text className="text-sm text-gray-700">{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
           {/* ChefIQ Appliance Info */}
           {recipe.chefiqAppliance && (
             <View className="mb-6">
@@ -159,15 +175,24 @@ export default function RecipeDetailScreen() {
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-3">Instructions</Text>
             <View className="bg-gray-50 p-4 rounded-lg">
-              {recipe.instructions.map((instruction, index) => {
-                const cookingAction = recipe.cookingActions?.find(action => action.stepIndex === index);
+              {recipe.steps.map((step, index) => {
+                const cookingAction = step.cookingAction;
+                const stepImage = step.image;
+
                 return (
                   <View key={index} className="mb-4">
                     <View className="flex-row mb-2">
                       <View className="rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5" style={{ backgroundColor: theme.colors.primary[500] }}>
                         <Text className="text-white text-sm font-bold">{index + 1}</Text>
                       </View>
-                      <Text className="text-base text-gray-700 flex-1 leading-6">{instruction}</Text>
+                      <Text className="text-base text-gray-700 leading-6 flex-1">{step.text}</Text>
+
+                      {/* Step Image - inline */}
+                      {stepImage && (
+                        <View className="ml-2">
+                          <StepImage imageUri={stepImage} editable={false} compact={true} />
+                        </View>
+                      )}
                     </View>
 
                     {/* Cooking Action for this step */}

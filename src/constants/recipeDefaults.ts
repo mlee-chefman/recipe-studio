@@ -1,3 +1,5 @@
+import { Step } from '~/types/recipe';
+
 // Default values for recipe creation form
 export const RECIPE_DEFAULTS = {
   // Basic Info
@@ -19,12 +21,11 @@ export const RECIPE_DEFAULTS = {
 
   // Arrays
   INGREDIENTS: [''],
-  INSTRUCTIONS: [''],
+  STEPS: [{ text: '' }] as Step[],
 
   // ChefIQ Settings
   SELECTED_APPLIANCE: '',
   USE_PROBE: false,
-  COOKING_ACTIONS: [] as any[],
 
   // Publishing
   PUBLISHED: false,
@@ -135,10 +136,10 @@ export const hasFormData = (formData: RecipeFormState) => {
     formData.cookTime > RECIPE_DEFAULTS.COOK_TIME ||
     formData.servings !== RECIPE_DEFAULTS.SERVINGS ||
     formData.ingredients.some(i => i.trim()) ||
-    formData.instructions.some(i => i.trim()) ||
+    formData.steps.some(s => s.text.trim()) ||
     formData.notes ||
     formData.selectedAppliance ||
-    formData.cookingActions.length > 0
+    formData.steps.some(s => s.cookingAction)
   );
 };
 
@@ -164,12 +165,9 @@ export const hasFormChanges = (formData: RecipeFormState, originalRecipe: any) =
   const currentIngredients = formData.ingredients.filter(i => i.trim() !== '');
   if (JSON.stringify(currentIngredients) !== JSON.stringify(originalIngredients)) return true;
 
-  const originalInstructions = originalRecipe.instructions || [];
-  const currentInstructions = formData.instructions.filter(i => i.trim() !== '');
-  if (JSON.stringify(currentInstructions) !== JSON.stringify(originalInstructions)) return true;
-
-  const originalActions = originalRecipe.cookingActions || [];
-  if (JSON.stringify(formData.cookingActions) !== JSON.stringify(originalActions)) return true;
+  const originalSteps = originalRecipe.steps || [];
+  const currentSteps = formData.steps.filter(s => s.text.trim() !== '');
+  if (JSON.stringify(currentSteps) !== JSON.stringify(originalSteps)) return true;
 
   return false;
 };
@@ -194,12 +192,11 @@ export interface RecipeFormState {
 
   // Arrays
   ingredients: string[];
-  instructions: string[];
+  steps: Step[];
 
   // ChefIQ Settings
   selectedAppliance: string;
   useProbe: boolean;
-  cookingActions: any[];
 
   // Publishing
   published: boolean;
@@ -232,12 +229,11 @@ export const getInitialFormState = (): RecipeFormState => ({
   servings: RECIPE_DEFAULTS.SERVINGS,
   difficulty: RECIPE_DEFAULTS.DIFFICULTY,
   ingredients: [...RECIPE_DEFAULTS.INGREDIENTS],
-  instructions: [...RECIPE_DEFAULTS.INSTRUCTIONS],
+  steps: [...RECIPE_DEFAULTS.STEPS],
   notes: RECIPE_DEFAULTS.NOTES,
   importUrl: RECIPE_DEFAULTS.IMPORT_URL,
   selectedAppliance: RECIPE_DEFAULTS.SELECTED_APPLIANCE,
   useProbe: RECIPE_DEFAULTS.USE_PROBE,
-  cookingActions: [...RECIPE_DEFAULTS.COOKING_ACTIONS],
   published: RECIPE_DEFAULTS.PUBLISHED,
   showImportSection: RECIPE_DEFAULTS.SHOW_IMPORT_SECTION,
   isImporting: RECIPE_DEFAULTS.IS_IMPORTING,
