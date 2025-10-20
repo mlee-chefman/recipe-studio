@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Alert, Clipboard } from 'react-native';
+import { Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { parseMultipleRecipes } from '@services/gemini.service';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 
@@ -25,7 +26,7 @@ export function useTextImport(): UseTextImportResult {
    */
   const pasteFromClipboard = async () => {
     try {
-      const text = await Clipboard.getString();
+      const text = await Clipboard.getStringAsync();
       if (text && text.trim()) {
         setImportText(text);
       } else {

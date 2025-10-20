@@ -1,5 +1,9 @@
+import * as Crypto from 'expo-crypto';
 import { CHEFIQ_APPLIANCES, CookingAction } from '~/types/chefiq';
 import { Step } from '~/types/recipe';
+
+// UUID generator using expo-crypto
+const uuidv4 = () => Crypto.randomUUID();
 import {
   FanSpeed,
   TemperatureLevel,
@@ -390,7 +394,7 @@ export const analyzeRecipeForChefIQ = (
         }
 
         const action: CookingAction = {
-          id: `auto_${Date.now()}`,
+          id: uuidv4(),
           applianceId: ovenAppliance.category_id,
           methodId: String(suggestedOvenMethod),
           methodName: methodPattern.keywords[0].split(' ').map(word =>
@@ -726,7 +730,7 @@ export const analyzeRecipeForChefIQ = (
   );
 
   const primaryAction: CookingAction = {
-    id: `auto_${Date.now()}`,
+    id: uuidv4(),
     applianceId: suggestedAppliance.category_id,
     methodId: String(bestMethod.method.methodId),
     methodName: bestMethod.method.keywords[0].split(' ').map(word =>
@@ -761,7 +765,7 @@ export const analyzeRecipeForChefIQ = (
                               primaryParams.cooking_time;
 
       const secondBakeAction: CookingAction = {
-        id: `auto_${Date.now()}_temp_increase`,
+        id: uuidv4(),
         applianceId: suggestedAppliance.category_id,
         methodId: String(bestMethod.method.methodId),
         methodName: 'Bake (Increased Temp)',
@@ -792,7 +796,7 @@ export const analyzeRecipeForChefIQ = (
     );
 
     const additionalAction: CookingAction = {
-      id: `auto_${Date.now()}_${index + 1}`,
+      id: uuidv4(),
       applianceId: suggestedAppliance.category_id,
       methodId: String(method.method.methodId),
       methodName: method.method.keywords[0].split(' ').map(word =>

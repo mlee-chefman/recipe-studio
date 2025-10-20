@@ -1,6 +1,10 @@
 import React, { useLayoutEffect, useRef, useEffect, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch, Animated } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
+
+// UUID generator using expo-crypto
+const uuidv4 = () => Crypto.randomUUID();
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
@@ -314,7 +318,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       if (action.stepIndex !== undefined && action.stepIndex >= 0 && action.stepIndex < instructions.length) {
         assignedActions.push({
           ...action,
-          id: action.id || `auto_${Date.now()}_${action.stepIndex}`
+          id: action.id || uuidv4()
         });
         return;
       }
@@ -385,7 +389,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         assignedActions.push({
           ...action,
           stepIndex: bestStepIndex,
-          id: `auto_${Date.now()}_${bestStepIndex}`
+          id: uuidv4()
         });
       } else {
         // Default to assigning to the main cooking step (usually step 3-4)
@@ -393,7 +397,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         assignedActions.push({
           ...action,
           stepIndex: defaultStepIndex,
-          id: `auto_${Date.now()}_${defaultStepIndex}`
+          id: uuidv4()
         });
       }
     });

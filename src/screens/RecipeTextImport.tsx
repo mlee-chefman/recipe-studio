@@ -8,10 +8,10 @@ import {
   Alert,
   StyleSheet,
   ScrollView,
-  Clipboard,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { theme } from '@theme/index';
 
 import { parseMultipleRecipes } from '@services/gemini.service';
@@ -54,7 +54,7 @@ export default function RecipeTextImportScreen() {
 
   const handlePasteFromClipboard = async () => {
     try {
-      const text = await Clipboard.getString();
+      const text = await Clipboard.getStringAsync();
       if (text && text.trim()) {
         setImportText(text);
       } else {

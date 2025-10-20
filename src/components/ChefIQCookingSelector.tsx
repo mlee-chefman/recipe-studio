@@ -13,6 +13,10 @@ import {
   Animated,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import * as Crypto from 'expo-crypto';
+
+// UUID generator using expo-crypto
+const uuidv4 = () => Crypto.randomUUID();
 import { cookingFunctions as rj40Functions, getSmartCookerDefaultState } from '@utils/rj40CookingFunctions';
 import { cookingFunctions as cq50Functions } from '@utils/cq50CookingFunctions';
 import { CookingAction, getApplianceById } from '~/types/chefiq';
@@ -418,7 +422,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
     }
 
     const action: CookingAction = {
-      id: `action_${Date.now()}`,
+      id: uuidv4(),
       applianceId,
       methodId: selectedMethod,
       methodName: method.name,

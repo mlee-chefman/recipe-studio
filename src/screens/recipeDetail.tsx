@@ -1,4 +1,4 @@
-import React, { useLayoutEffect } from 'react';
+import React, { useLayoutEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
@@ -7,6 +7,8 @@ import { useRecipeStore, useAuthStore } from '@store/store';
 import { Recipe } from '~/types/recipe';
 import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
+import { generateExportJSON, validateChefIQExport, exportToChefIQFormat } from '@utils/chefiqExport';
+import { ChefIQExportModal } from '@components/ChefIQExportModal';
 import { theme } from '@theme/index';
 import StepImage from '@components/StepImage';
 
@@ -24,10 +26,14 @@ export default function RecipeDetailScreen() {
   const { allRecipes, userRecipes } = useRecipeStore();
   const { user } = useAuthStore();
 
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportJSON, setExportJSON] = useState('');
+
   // Get the latest recipe data from store instead of route params
   // Check both allRecipes and userRecipes arrays
-  const recipe = allRecipes.find(r => r.id === routeRecipe.id) || 
-                 userRecipes.find(r => r.id === routeRecipe.id) || 
+  const recipe = allRecipes.find(r => r.id === routeRecipe.id) ||
+                 userRecipes.find(r => r.id === routeRecipe.id) ||
                  routeRecipe;
 
   // Check if current user owns this recipe
@@ -36,6 +42,20 @@ export default function RecipeDetailScreen() {
   const handleEdit = () => {
     // @ts-ignore - Navigation typing issue with static navigation
     navigation.navigate('RecipeEdit', { recipe });
+  };
+
+  const handleExportToChefIQ = async () => {
+    try {
+      // Generate export
+      const json = generateExportJSON(recipe);
+      setExportJSON(json);
+      setShowExportModal(true);
+    } catch (error) {
+      Alert.alert(
+        'Export Failed',
+        error instanceof Error ? error.message : 'Failed to export recipe'
+      );
+    }
   };
 
   // Configure navigation header
@@ -172,6 +192,16 @@ export default function RecipeDetailScreen() {
                   )}
                 </View>
               </View>
+
+              {/* Export to ChefIQ Button */}
+              <TouchableOpacity
+                onPress={handleExportToChefIQ}
+                className="mt-3 flex-row items-center justify-center py-3 rounded-lg"
+                style={{ backgroundColor: theme.colors.primary[500] }}
+              >
+                <Feather name="download" size={18} color="white" style={{ marginRight: 8 }} />
+                <Text className="text-white font-semibold text-base">Export to ChefIQ Format</Text>
+              </TouchableOpacity>
             </View>
           )}
 
@@ -243,6 +273,14 @@ export default function RecipeDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Export Modal */}
+      <ChefIQExportModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        exportJSON={exportJSON}
+        recipeName={recipe.title}
+      />
     </View>
   );
 }
