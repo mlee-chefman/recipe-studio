@@ -32,6 +32,7 @@ export interface Recipe {
   cookingActions?: CookingAction[]; // step-level cooking actions
   useProbe?: boolean; // whether to use thermometer probe (iQ MiniOven only)
   published: boolean; // whether the recipe is published
+  status: 'Published' | 'Draft'; // display status based on published field
 }
 
 export interface BearState {
@@ -330,6 +331,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         cookingActions: recipe.cookingActions,
         useProbe: recipe.useProbe,
         published: recipe.published,
+        status: recipe.published ? 'Published' : 'Draft',
       }));
       
       set({ allRecipes: recipes, isLoading: false });
@@ -364,6 +366,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         cookingActions: recipe.cookingActions,
         useProbe: recipe.useProbe,
         published: recipe.published,
+        status: recipe.published ? 'Published' : 'Draft',
       }));
       
       set({ userRecipes: recipes, isLoading: false });

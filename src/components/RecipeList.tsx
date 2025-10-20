@@ -8,7 +8,7 @@ import { getApplianceById } from '@types/chefiq';
 import RecipeCreatorScreen from '@screens/recipeCreator';
 import { theme } from '@theme/index';
 
-const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }) => {
+const RecipeCard = ({ recipe, onPress, showStatus = false }: { recipe: Recipe; onPress: () => void; showStatus?: boolean }) => {
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <View className="bg-white rounded-lg mb-3 shadow-sm border border-gray-200 overflow-hidden">
@@ -73,7 +73,16 @@ const RecipeCard = ({ recipe, onPress }: { recipe: Recipe; onPress: () => void }
                 </View>
               )}
             </View>
-            <Text className="text-xs text-gray-400">Tap for details →</Text>
+            <View className="flex-row items-center gap-2">
+              {showStatus && (
+                <View className={`px-2 py-1 rounded-full ${recipe.status === 'Published' ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                  <Text className={`text-xs font-medium ${recipe.status === 'Published' ? 'text-green-800' : 'text-yellow-800'}`}>
+                    {recipe.status}
+                  </Text>
+                </View>
+              )}
+              <Text className="text-xs text-gray-400">Tap for details →</Text>
+            </View>
           </View>
         </View>
       </View>
@@ -276,6 +285,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
             <RecipeCard 
               recipe={item} 
               onPress={() => handleRecipePress(item)} 
+              showStatus={!isHomeTab}
             />
           )}
           showsVerticalScrollIndicator={false}
