@@ -3,7 +3,8 @@ import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { Recipe, useRecipeStore } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { theme } from '@theme/index';
@@ -20,10 +21,17 @@ export default function RecipeDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute<RecipeDetailRouteProp>();
   const { recipe: routeRecipe } = route.params;
-  const { recipes } = useRecipeStore();
+  const { allRecipes, userRecipes } = useRecipeStore();
+  const { user } = useAuthStore();
 
   // Get the latest recipe data from store instead of route params
-  const recipe = recipes.find(r => r.id === routeRecipe.id) || routeRecipe;
+  // Check both allRecipes and userRecipes arrays
+  const recipe = allRecipes.find(r => r.id === routeRecipe.id) || 
+                 userRecipes.find(r => r.id === routeRecipe.id) || 
+                 routeRecipe;
+
+  // Check if current user owns this recipe
+  const isOwner = user?.uid === recipe.userId;
 
   const handleEdit = () => {
     // @ts-ignore - Navigation typing issue with static navigation
@@ -42,7 +50,7 @@ export default function RecipeDetailScreen() {
         fontWeight: theme.typography.fontWeight.semibold,
         fontSize: theme.typography.fontSize.lg,
       },
-      headerRight: () => (
+      headerRight: () => isOwner ? (
         <TouchableOpacity
           onPress={handleEdit}
           style={{
@@ -56,9 +64,9 @@ export default function RecipeDetailScreen() {
             color={theme.colors.primary[500]}
           />
         </TouchableOpacity>
-      ),
+      ) : null,
     });
-  }, [navigation, recipe, handleEdit]);
+  }, [navigation, recipe, handleEdit, isOwner]);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>

@@ -564,7 +564,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         {/* Info Section */}
         <View className="mb-4 border-b border-gray-200 pb-3">
           <Text className="text-lg text-gray-800 mb-3">Info</Text>
-          <View className="flex-row items-center justify-between gap-4">
+          <View className="flex-row items-center justify-between gap-4 mb-3">
             {/* Cook Time */}
             <View className="flex-1 flex-row items-center justify-between">
               <Text className="text-base text-gray-600">Cook Time</Text>
@@ -587,6 +587,19 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                 <Text className="text-base text-gray-800 text-right">{formData.servings}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+          {/* Published Toggle */}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-1">
+              <Text className="text-base text-gray-600">Published</Text>
+              <Text className="text-sm text-gray-500">Make this recipe visible to others</Text>
+            </View>
+            <Switch
+              value={formData.published}
+              onValueChange={(value) => updateFormData({ published: value })}
+              trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
+              thumbColor={theme.colors.background.primary}
+            />
           </View>
         </View>
 

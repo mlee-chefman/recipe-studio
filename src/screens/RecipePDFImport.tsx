@@ -15,7 +15,8 @@ import { theme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { parseMultipleRecipes } from '@services/gemini.service';
 import { extractTextFromPDF } from '@utils/pdfExtractor';
-import { useRecipeStore, Recipe } from '@store/store';
+import { useRecipeStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_SUCCESS, IMPORT_ALERTS, IMPORT_BUTTONS } from '@constants/importMessages';
 

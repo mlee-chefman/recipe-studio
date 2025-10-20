@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useNavigation, StackActions } from '@react-navigation/native';
-import { Recipe, useRecipeStore } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import {
   RECIPE_DEFAULTS,
   RecipeFormState,
@@ -22,6 +23,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   const navigation = useNavigation();
   const { editingRecipe, onComplete = () => navigation?.goBack() } = props;
   const { addRecipe, updateRecipe, deleteRecipe } = useRecipeStore();
+  const { user } = useAuthStore();
 
   // Form state
   const [formData, setFormData] = useState<RecipeFormState>(getInitialFormState());
@@ -153,13 +155,19 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
         steps: editingRecipe.steps.length > 0 ? editingRecipe.steps : [{ text: '' }],
         notes: editingRecipe.description,
         selectedAppliance: editingRecipe.chefiqAppliance || '',
-        useProbe: editingRecipe.useProbe || false
+        useProbe: editingRecipe.useProbe || false,
+        published: editingRecipe.published || false
       });
       setStepSections(editingRecipe.stepSections || []);
     }
   }, [editingRecipe]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to save a recipe.');
+      return;
+    }
+
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Recipe title is required');
       return;
@@ -191,21 +199,35 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       chefiqAppliance: formData.selectedAppliance || undefined,
       stepSections: stepSections.length > 0 ? stepSections : undefined,
       useProbe: formData.useProbe || undefined,
+      published: formData.published || false,
     };
 
-    if (editingRecipe) {
-      updateRecipe(editingRecipe.id, recipe);
-      Alert.alert('Success', 'Recipe updated!', [
-        { text: 'OK', onPress: onComplete }
-      ]);
-    } else {
-      addRecipe(recipe);
-      Alert.alert('Success', 'Recipe created!', [
-        {
-          text: 'OK',
-          onPress: onComplete
-        }
-      ]);
+    try {
+      if (editingRecipe) {
+        await updateRecipe(editingRecipe.id, recipe, user.uid);
+        const publishStatus = formData.published ? 'published' : 'saved as draft';
+        Alert.alert('Success', `Recipe updated and ${publishStatus}!`, [
+          { text: 'OK', onPress: onComplete }
+        ]);
+      } else {
+        await addRecipe(recipe, user.uid);
+        const publishStatus = formData.published ? 'created and published' : 'created as draft';
+        Alert.alert('Success', `Recipe ${publishStatus}!`, [
+          {
+            text: 'OK',
+            onPress: onComplete
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error saving recipe:', error);
+      const action = editingRecipe ? 'updating' : 'creating';
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      Alert.alert(
+        'Error',
+        `Failed to ${action} recipe: ${errorMessage}. Please try again.`,
+        [{ text: 'OK' }]
+      );
     }
   };
 
@@ -233,7 +255,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   };
 
   const handleDelete = () => {
-    if (!editingRecipe) return;
+    if (!editingRecipe || !user) return;
 
     Alert.alert(
       'Delete Recipe',
@@ -247,7 +269,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            deleteRecipe(editingRecipe.id);
+            deleteRecipe(editingRecipe.id, user.uid);
             navigation?.dispatch(StackActions.popToTop());
           }
         }

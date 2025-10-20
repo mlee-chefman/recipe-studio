@@ -13,9 +13,10 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '@theme/index';
-import { ScrapedRecipe } from '@utils/recipeScraper';
+
 import { parseMultipleRecipes } from '@services/gemini.service';
-import { useRecipeStore, Recipe } from '@store/store';
+import { useRecipeStore } from '@store/store';
+
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 export default function RecipeTextImportScreen() {

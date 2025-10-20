@@ -11,7 +11,8 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { theme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
-import { useRecipeStore, Recipe } from '@store/store';
+import { useRecipeStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 type RecipeSelectionRouteProp = RouteProp<{

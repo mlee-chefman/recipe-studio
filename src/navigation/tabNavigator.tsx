@@ -6,6 +6,7 @@ import { ViewToggleButton, ViewMode } from '@components/ViewToggleButton';
 import { SelectModeButton } from '@components/SelectModeButton';
 import { TabBarIcon } from '@components/TabBarIcon';
 import Home from '@screens/home';
+import MyRecipes from '@screens/MyRecipes';
 import Settings from '@screens/settings';
 import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
 import { useRecipeStore } from '@store/store';
@@ -111,6 +112,25 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
             );
           }
 
+          // Render third tab
+          if (index === 2) {
+            return (
+              <TouchableOpacity
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                testID={options.tabBarTestID}
+                onPress={onPress}
+                style={styles.tabButton}
+              >
+                {options.tabBarIcon?.({
+                  color: isFocused ? theme.colors.primary[500] : theme.colors.gray[400]
+                })}
+              </TouchableOpacity>
+            );
+          }
+
           return null;
         })}
       </View>
@@ -129,22 +149,40 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
-// Header Right Component with Selection and View Toggle Buttons
-function HeaderRightButtons() {
-  const { viewMode, setViewMode, selectionMode, setSelectionMode, filteredRecipes } = useRecipeStore();
+// Header Right Component for Home Tab (All Recipes)
+function HomeHeaderRightButtons() {
+  const { allRecipesViewMode, setAllRecipesViewMode, filteredAllRecipes } = useRecipeStore();
 
   const toggleViewMode = () => {
     const modes: ViewMode[] = ['detailed', 'compact', 'grid'];
-    const currentIndex = modes.indexOf(viewMode);
+    const currentIndex = modes.indexOf(allRecipesViewMode);
     const nextIndex = (currentIndex + 1) % modes.length;
-    setViewMode(modes[nextIndex]);
+    setAllRecipesViewMode(modes[nextIndex]);
+  };
+
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <ViewToggleButton viewMode={allRecipesViewMode} onToggle={toggleViewMode} />
+    </View>
+  );
+}
+
+// Header Right Component for MyRecipes Tab (User's Recipes)
+function MyRecipesHeaderRightButtons() {
+  const { userRecipesViewMode, setUserRecipesViewMode, selectionMode, setSelectionMode, filteredUserRecipes } = useRecipeStore();
+
+  const toggleViewMode = () => {
+    const modes: ViewMode[] = ['detailed', 'compact', 'grid'];
+    const currentIndex = modes.indexOf(userRecipesViewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    setUserRecipesViewMode(modes[nextIndex]);
   };
 
   const toggleSelectionMode = () => {
     setSelectionMode(!selectionMode);
   };
 
-  const hasRecipes = filteredRecipes.length > 0;
+  const hasRecipes = filteredUserRecipes.length > 0;
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -153,7 +191,7 @@ function HeaderRightButtons() {
         onToggle={toggleSelectionMode}
         disabled={!hasRecipes}
       />
-      <ViewToggleButton viewMode={viewMode} onToggle={toggleViewMode} />
+      <ViewToggleButton viewMode={userRecipesViewMode} onToggle={toggleViewMode} />
     </View>
   );
 }
@@ -171,8 +209,16 @@ const Tab = createBottomTabNavigator({
       options: () => ({
         title: 'Recipes',
         tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
-        headerRight: () => <HeaderRightButtons />,
+        headerRight: () => <HomeHeaderRightButtons />,
       }),
+    },
+    MyRecipes: {
+      screen: MyRecipes,
+      options: {
+        title: 'My Recipes',
+        tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+        headerRight: () => <MyRecipesHeaderRightButtons />,
+      },
     },
     Settings: {
       screen: Settings,

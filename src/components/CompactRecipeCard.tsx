@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Recipe } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import { getApplianceById } from '~/types/chefiq';
 import { theme } from '@theme/index';
 

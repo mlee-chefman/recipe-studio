@@ -4,20 +4,20 @@ import { RecipeList } from '@components/RecipeList';
 import { useAuthStore } from '@store/store';
 import { useRecipeStore } from '@store/store';
 
-export default function HomeScreen() {
+export default function MyRecipesScreen() {
   const { user } = useAuthStore();
-  const { fetchRecipes } = useRecipeStore();
+  const { fetchUserRecipes } = useRecipeStore();
 
   useEffect(() => {
-    // Fetch recipes when component mounts and user is authenticated
+    // Fetch user's recipes when component mounts and user is authenticated
     if (user?.uid) {
-      fetchRecipes(user.uid);
+      fetchUserRecipes(user.uid);
     }
-  }, [user?.uid, fetchRecipes]);
+  }, [user?.uid, fetchUserRecipes]);
 
   return (
-    <ScreenContent path="screens/home.tsx" title="">
-      <RecipeList tabType="home" />
+    <ScreenContent path="screens/MyRecipes.tsx" title="">
+      <RecipeList tabType="myRecipes" />
     </ScreenContent>
   );
 }

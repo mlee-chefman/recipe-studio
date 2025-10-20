@@ -1,4 +1,4 @@
-import { CookingAction } from './chefiq';
+import { CookingAction, StepSection } from './chefiq';
 
 /**
  * Represents a single step in a recipe
@@ -8,6 +8,72 @@ export interface Step {
   text: string;
   image?: string;
   cookingAction?: CookingAction;
+}
+
+/**
+ * Main Recipe interface - the source of truth for recipe data structure
+ */
+export interface Recipe {
+  id: string;
+  userId: string;
+  title: string;
+  description: string;
+  ingredients: string[];
+  steps: Step[];
+  cookTime: number;
+  servings: number;
+  difficulty: 'Easy' | 'Medium' | 'Hard';
+  category: string;
+  tags?: string[];
+  image?: string;
+  chefiqAppliance?: string;
+  stepSections?: StepSection[];
+  useProbe?: boolean;
+  published: boolean;
+  status: 'Published' | 'Draft';
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
+}
+
+/**
+ * Data required to create a new recipe
+ */
+export interface CreateRecipeData {
+  userId: string;
+  title: string;
+  description: string;
+  ingredients: string[];
+  steps: Step[];
+  cookTime: number;
+  servings: number;
+  difficulty: string;
+  category: string;
+  tags?: string[];
+  image?: string;
+  chefiqAppliance?: string;
+  stepSections?: StepSection[];
+  useProbe?: boolean;
+  published?: boolean;
+}
+
+/**
+ * Data that can be updated in an existing recipe
+ */
+export interface UpdateRecipeData {
+  title?: string;
+  description?: string;
+  ingredients?: string[];
+  steps?: Step[];
+  cookTime?: number;
+  servings?: number;
+  difficulty?: string;
+  category?: string;
+  tags?: string[];
+  image?: string;
+  chefiqAppliance?: string;
+  stepSections?: StepSection[];
+  useProbe?: boolean;
+  published?: boolean;
 }
 
 /**

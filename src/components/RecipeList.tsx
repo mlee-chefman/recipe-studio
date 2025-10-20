@@ -3,7 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, Modal, StyleSheet, A
 import { Image } from 'expo-image';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
-import { useRecipeStore, Recipe } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
+import { Recipe } from '~/types/recipe';
 import { FilterModal } from './FilterModal';
 import { CompactRecipeCard } from './CompactRecipeCard';
 import { GridRecipeCard } from './GridRecipeCard';
@@ -14,11 +15,13 @@ import { theme } from '@theme/index';
 const RecipeCard = ({
   recipe,
   onPress,
+  showStatus = false,
   isSelectionMode = false,
   isSelected = false
 }: {
   recipe: Recipe;
   onPress: () => void;
+  showStatus?: boolean;
   isSelectionMode?: boolean;
   isSelected?: boolean;
 }) => {
@@ -88,7 +91,16 @@ const RecipeCard = ({
                 </View>
               )}
             </View>
-            <Text className="text-xs text-gray-400">Tap for details →</Text>
+            <View className="flex-row items-center gap-2">
+              {showStatus && (
+                <View className={`px-2 py-1 rounded-full ${recipe.status === 'Published' ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                  <Text className={`text-xs font-medium ${recipe.status === 'Published' ? 'text-green-800' : 'text-yellow-800'}`}>
+                    {recipe.status}
+                  </Text>
+                </View>
+              )}
+              <Text className="text-xs text-gray-400">Tap for details →</Text>
+            </View>
           </View>
         </View>
 
@@ -133,26 +145,38 @@ const FilterButton = ({
   );
 };
 
-export const RecipeList = () => {
+interface RecipeListProps {
+  tabType: 'home' | 'myRecipes';
+}
+
+export const RecipeList = ({ tabType }: RecipeListProps) => {
   const navigation = useNavigation();
-  const {
-    filteredRecipes,
-    searchQuery,
-    selectedCategory,
-    selectedDifficulty,
-    selectedTags,
-    selectedAppliance,
-    viewMode,
-    selectionMode,
-    setSearchQuery,
-    setSelectedCategory,
-    setSelectedDifficulty,
-    setSelectedTags,
-    setSelectedAppliance,
-    deleteRecipes,
-    recipes,
-    filterRecipes
-  } = useRecipeStore();
+  const recipeStore = useRecipeStore();
+  const { user } = useAuthStore();
+
+  // Determine if we're on the home tab
+  const isHomeTab = tabType === 'home';
+
+  // Select the appropriate state and actions based on tab type
+  const filteredRecipes = isHomeTab ? recipeStore.filteredAllRecipes : recipeStore.filteredUserRecipes;
+  const searchQuery = isHomeTab ? recipeStore.allRecipesSearchQuery : recipeStore.userRecipesSearchQuery;
+  const selectedCategory = isHomeTab ? recipeStore.allRecipesSelectedCategory : recipeStore.userRecipesSelectedCategory;
+  const selectedDifficulty = isHomeTab ? recipeStore.allRecipesSelectedDifficulty : recipeStore.userRecipesSelectedDifficulty;
+  const selectedTags = isHomeTab ? recipeStore.allRecipesSelectedTags : recipeStore.userRecipesSelectedTags;
+  const selectedAppliance = isHomeTab ? recipeStore.allRecipesSelectedAppliance : recipeStore.userRecipesSelectedAppliance;
+  const setSearchQuery = isHomeTab ? recipeStore.setAllRecipesSearchQuery : recipeStore.setUserRecipesSearchQuery;
+  const setSelectedCategory = isHomeTab ? recipeStore.setAllRecipesSelectedCategory : recipeStore.setUserRecipesSelectedCategory;
+  const setSelectedDifficulty = isHomeTab ? recipeStore.setAllRecipesSelectedDifficulty : recipeStore.setUserRecipesSelectedDifficulty;
+  const setSelectedTags = isHomeTab ? recipeStore.setAllRecipesSelectedTags : recipeStore.setUserRecipesSelectedTags;
+  const setSelectedAppliance = isHomeTab ? recipeStore.setAllRecipesSelectedAppliance : recipeStore.setUserRecipesSelectedAppliance;
+  const recipes = isHomeTab ? recipeStore.allRecipes : recipeStore.userRecipes;
+  const filterRecipes = isHomeTab ? recipeStore.filterAllRecipes : recipeStore.filterUserRecipes;
+
+  // View mode and selection mode (only for myRecipes tab)
+  const viewMode = isHomeTab ? recipeStore.allRecipesViewMode : recipeStore.userRecipesViewMode;
+  const selectionMode = isHomeTab ? false : recipeStore.selectionMode; // Only myRecipes can have selection mode
+  const setViewMode = isHomeTab ? recipeStore.setAllRecipesViewMode : recipeStore.setUserRecipesViewMode;
+  const deleteRecipes = recipeStore.deleteRecipes;
 
   // Modal state
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -251,7 +275,7 @@ export const RecipeList = () => {
   };
 
   const handleDeleteSelected = () => {
-    if (selectedRecipeIds.size === 0) return;
+    if (selectedRecipeIds.size === 0 || !user) return;
 
     const count = selectedRecipeIds.size;
     Alert.alert(
@@ -263,7 +287,7 @@ export const RecipeList = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            deleteRecipes(Array.from(selectedRecipeIds));
+            deleteRecipes(Array.from(selectedRecipeIds), user.uid);
             setSelectedRecipeIds(new Set());
           }
         }
@@ -381,6 +405,7 @@ export const RecipeList = () => {
                 <RecipeCard
                   recipe={item}
                   onPress={() => handleRecipePress(item)}
+                  showStatus={!isHomeTab}
                   isSelectionMode={selectionMode}
                   isSelected={isSelected}
                 />
@@ -461,8 +486,7 @@ export const RecipeList = () => {
         onRequestClose={() => setShowEditModal(false)}
       >
         <RecipeCreatorScreen
-          editingRecipe={editingRecipe || undefined}
-          onEditComplete={handleEditComplete}
+          onComplete={handleEditComplete}
         />
       </Modal>
     </View>
