@@ -8,6 +8,7 @@ import { theme } from '@theme/index';
 interface CompactRecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
+  showStatus?: boolean;
   isSelectionMode?: boolean;
   isSelected?: boolean;
 }
@@ -15,6 +16,7 @@ interface CompactRecipeCardProps {
 export const CompactRecipeCard = ({
   recipe,
   onPress,
+  showStatus = false,
   isSelectionMode = false,
   isSelected = false
 }: CompactRecipeCardProps) => {
@@ -25,26 +27,55 @@ export const CompactRecipeCard = ({
       }`}>
         <View className="flex-row">
           {/* Recipe Image */}
-          {recipe.image ? (
-            <Image
-              source={{ uri: recipe.image }}
-              style={{ width: 100, height: 100 }}
-              contentFit="cover"
-            />
-          ) : (
-            <View className="w-[100px] h-[100px] bg-gray-100 items-center justify-center">
-              <Text className="text-2xl text-gray-400">🍽️</Text>
-            </View>
-          )}
+          <View style={{ position: 'relative' }}>
+            {recipe.image ? (
+              <Image
+                source={{ uri: recipe.image }}
+                style={{ width: 100, height: 100 }}
+                contentFit="cover"
+              />
+            ) : (
+              <View className="w-[100px] h-[100px] bg-gray-100 items-center justify-center">
+                <Text className="text-2xl text-gray-400">🍽️</Text>
+              </View>
+            )}
+
+            {/* Status Badge - Absolutely positioned on image */}
+            {showStatus && (
+              <View style={styles.statusBadge}>
+                <View className={`px-2 py-1 rounded ${recipe.status === 'Published' ? 'bg-green-500' : 'bg-yellow-500'}`}>
+                  <Text className="text-xs font-bold text-white">
+                    {recipe.status}
+                  </Text>
+                </View>
+              </View>
+            )}
+          </View>
 
           {/* Recipe Content */}
           <View className="flex-1 p-3">
             <Text className="text-base font-bold text-gray-800 mb-1" numberOfLines={1}>
               {recipe.title}
             </Text>
-            <Text className="text-sm text-gray-600 mb-2" numberOfLines={2}>
+            <Text className="text-sm text-gray-600 mb-1" numberOfLines={2}>
               {recipe.description}
             </Text>
+
+            {/* Author */}
+            {recipe.authorName && (
+              <View className="flex-row items-center mb-2">
+                {recipe.authorProfilePicture && (
+                  <Image
+                    source={{ uri: recipe.authorProfilePicture }}
+                    style={{ width: 16, height: 16, borderRadius: 8, marginRight: 4 }}
+                    contentFit="cover"
+                  />
+                )}
+                <Text className="text-xs text-gray-500">
+                  By {recipe.authorName}
+                </Text>
+              </View>
+            )}
 
             {/* Info Row */}
             <View className="flex-row items-center justify-between">
@@ -104,6 +135,19 @@ export const CompactRecipeCard = ({
 };
 
 const styles = StyleSheet.create({
+  statusBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
   checkboxOverlay: {
     position: 'absolute',
     top: 8,

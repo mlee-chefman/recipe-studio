@@ -6,12 +6,14 @@ import {
   DocumentData,
   DocumentSnapshot
 } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { db, auth } from '../../services/firebase';
+import { generateAvatarUrl } from '../../utils/avatarGenerator';
 
 export interface UserProfile {
   uid: string;
   email: string;
   name: string;
+  profilePicture?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +27,7 @@ export interface CreateUserProfileData {
 export interface UpdateUserProfileData {
   name?: string;
   email?: string;
+  profilePicture?: string;
 }
 
 // Create a new user profile in Firestore
@@ -32,15 +35,19 @@ export const createUserProfile = async (data: CreateUserProfileData): Promise<vo
   try {
     const userRef = doc(db, 'users', data.uid);
     const now = new Date();
-    
+
+    // Generate a random avatar for the user
+    const profilePicture = generateAvatarUrl(data.uid);
+
     const userProfile: UserProfile = {
       uid: data.uid,
       email: data.email,
       name: data.name,
+      profilePicture,
       createdAt: now,
       updatedAt: now
     };
-    
+
     await setDoc(userRef, userProfile);
   } catch (error) {
     console.error('Error creating user profile:', error);
@@ -53,13 +60,35 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
   try {
     const userRef = doc(db, 'users', uid);
     const userSnap: DocumentSnapshot<DocumentData> = await getDoc(userRef);
-    
+
     if (userSnap.exists()) {
       const data = userSnap.data();
+      let profilePicture = data.profilePicture;
+
+      // If user doesn't have a profile picture, generate one
+      if (!profilePicture) {
+        profilePicture = generateAvatarUrl(uid);
+
+        // Only try to save it if this is the current user's own profile
+        const currentUser = auth.currentUser;
+        if (currentUser && currentUser.uid === uid) {
+          try {
+            await updateDoc(userRef, {
+              profilePicture,
+              updatedAt: new Date()
+            });
+          } catch (updateError) {
+            console.error('Error updating profile with avatar:', updateError);
+            // Continue even if update fails - we'll still return the generated avatar
+          }
+        }
+      }
+
       return {
         uid: data.uid,
         email: data.email,
         name: data.name,
+        profilePicture,
         createdAt: data.createdAt.toDate(),
         updatedAt: data.updatedAt.toDate()
       };

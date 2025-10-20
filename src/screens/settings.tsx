@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,40 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
+import { Image } from 'expo-image';
+import { Feather } from '@expo/vector-icons';
 import { signOutUser } from '../modules/user/userAuth';
 import { useAuthStore } from '../store/store';
+import { updateUserProfile } from '../modules/user/userService';
+import { AvatarPickerModal } from '../components/AvatarPickerModal';
 
 export default function SettingsScreen() {
-  const { user, userProfile, signOut } = useAuthStore();
+  const { user, userProfile, setUserProfile } = useAuthStore();
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+
+  const handleAvatarSelect = async (avatarUrl: string) => {
+    if (!user?.uid) {
+      Alert.alert('Error', 'User not authenticated');
+      return;
+    }
+
+    try {
+      // Update profile in Firebase
+      await updateUserProfile(user.uid, { profilePicture: avatarUrl });
+
+      // Update local state
+      if (userProfile) {
+        setUserProfile({
+          ...userProfile,
+          profilePicture: avatarUrl,
+          updatedAt: new Date(),
+        });
+      }
+    } catch (error) {
+      console.error('Error updating avatar:', error);
+      throw error;
+    }
+  };
 
   const handleSignOut = async () => {
     Alert.alert(
@@ -48,6 +77,27 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Profile</Text>
           <View style={styles.profileCard}>
+            {/* Profile Picture */}
+            <TouchableOpacity
+              style={styles.profilePictureContainer}
+              onPress={() => setShowAvatarPicker(true)}
+            >
+              {userProfile?.profilePicture ? (
+                <Image
+                  source={{ uri: userProfile.profilePicture }}
+                  style={styles.profilePicture}
+                  contentFit="cover"
+                />
+              ) : (
+                <View style={styles.placeholderPicture}>
+                  <Feather name="user" size={48} color="#999" />
+                </View>
+              )}
+              <View style={styles.editBadge}>
+                <Feather name="camera" size={16} color="white" />
+              </View>
+            </TouchableOpacity>
+
             <View style={styles.profileInfo}>
               <Text style={styles.label}>Name</Text>
               <Text style={styles.value}>{userProfile?.name || user?.displayName || 'Not set'}</Text>
@@ -67,6 +117,14 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Avatar Picker Modal */}
+      <AvatarPickerModal
+        visible={showAvatarPicker}
+        currentAvatar={userProfile?.profilePicture}
+        onSelect={handleAvatarSelect}
+        onClose={() => setShowAvatarPicker(false)}
+      />
     </ScrollView>
   );
 }
@@ -106,6 +164,38 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  profilePictureContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+    position: 'relative',
+  },
+  profilePicture: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#f0f0f0',
+  },
+  placeholderPicture: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: '35%',
+    backgroundColor: '#007AFF',
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
   },
   profileInfo: {
     marginBottom: 15,

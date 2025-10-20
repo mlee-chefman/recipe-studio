@@ -26,6 +26,9 @@ import {
 // Re-export types for backward compatibility
 export type { Recipe, CreateRecipeData, UpdateRecipeData };
 
+// Re-export helper functions
+export { enrichRecipesWithAuthorNames } from '../../utils/helpers/recipeHelpers';
+
 // Create a new recipe in Firestore
 export const createRecipe = async (data: CreateRecipeData): Promise<string> => {
   try {

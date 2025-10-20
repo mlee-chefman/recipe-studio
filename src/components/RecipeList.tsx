@@ -31,23 +31,52 @@ const RecipeCard = ({
         isSelected ? 'border-green-500' : 'border-gray-200'
       }`}>
         {/* Recipe Image */}
-        {recipe.image ? (
-          <Image
-            source={{ uri: recipe.image }}
-            style={{ width: '100%', height: 160 }}
-            contentFit="cover"
-          />
-        ) : (
-          <View className="w-full h-40 bg-gray-100 items-center justify-center">
-            <Text className="text-4xl text-gray-400">🍽️</Text>
-            <Text className="text-gray-500 text-sm mt-1">No Image</Text>
-          </View>
-        )}
+        <View style={{ position: 'relative' }}>
+          {recipe.image ? (
+            <Image
+              source={{ uri: recipe.image }}
+              style={{ width: '100%', height: 160 }}
+              contentFit="cover"
+            />
+          ) : (
+            <View className="w-full h-40 bg-gray-100 items-center justify-center">
+              <Text className="text-4xl text-gray-400">🍽️</Text>
+              <Text className="text-gray-500 text-sm mt-1">No Image</Text>
+            </View>
+          )}
+
+          {/* Status Badge - Absolutely positioned on image */}
+          {showStatus && (
+            <View style={styles.statusBadge}>
+              <View className={`px-3 py-1.5 rounded-lg ${recipe.status === 'Published' ? 'bg-green-500' : 'bg-yellow-500'}`}>
+                <Text className="text-xs font-bold text-white">
+                  {recipe.status}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
 
         {/* Recipe Content */}
         <View className="p-4">
           <Text className="text-lg font-bold text-gray-800 mb-2">{recipe.title}</Text>
-          <Text className="text-gray-600 mb-3 line-clamp-2">{recipe.description}</Text>
+          <Text className="text-gray-600 mb-2 line-clamp-2">{recipe.description}</Text>
+
+          {/* Author */}
+          {recipe.authorName && (
+            <View className="flex-row items-center mb-3">
+              {recipe.authorProfilePicture && (
+                <Image
+                  source={{ uri: recipe.authorProfilePicture }}
+                  style={{ width: 20, height: 20, borderRadius: 10, marginRight: 6 }}
+                  contentFit="cover"
+                />
+              )}
+              <Text className="text-xs text-gray-500">
+                By {recipe.authorName}
+              </Text>
+            </View>
+          )}
 
           {/* Tags */}
           {recipe.tags && recipe.tags.length > 0 && (
@@ -92,13 +121,6 @@ const RecipeCard = ({
               )}
             </View>
             <View className="flex-row items-center gap-2">
-              {showStatus && (
-                <View className={`px-2 py-1 rounded-full ${recipe.status === 'Published' ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                  <Text className={`text-xs font-medium ${recipe.status === 'Published' ? 'text-green-800' : 'text-yellow-800'}`}>
-                    {recipe.status}
-                  </Text>
-                </View>
-              )}
               <Text className="text-xs text-gray-400">Tap for details →</Text>
             </View>
           </View>
@@ -386,6 +408,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
                   <GridRecipeCard
                     recipe={item}
                     onPress={() => handleRecipePress(item)}
+                    showStatus={!isHomeTab}
                     isSelectionMode={selectionMode}
                     isSelected={isSelected}
                   />
@@ -396,6 +419,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
                 <CompactRecipeCard
                   recipe={item}
                   onPress={() => handleRecipePress(item)}
+                  showStatus={!isHomeTab}
                   isSelectionMode={selectionMode}
                   isSelected={isSelected}
                 />
@@ -494,6 +518,19 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
 };
 
 const styles = StyleSheet.create({
+  statusBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
   checkboxOverlay: {
     position: 'absolute',
     top: 8,
