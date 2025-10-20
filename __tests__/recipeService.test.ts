@@ -149,31 +149,111 @@ describe('Recipe Service', () => {
   describe('updateRecipe', () => {
     it('should update a recipe successfully', async () => {
       const mockUpdateDoc = jest.fn().mockResolvedValue(undefined);
+      const mockGetDoc = jest.fn().mockResolvedValue({
+        exists: () => true,
+        id: mockRecipeId,
+        data: () => ({
+          userId: mockUserId,
+          title: 'Test Recipe',
+          description: 'A delicious test recipe',
+          published: false,
+        }),
+      });
+
       require('firebase/firestore').doc.mockReturnValue({});
+      require('firebase/firestore').getDoc.mockImplementation(mockGetDoc);
       require('firebase/firestore').updateDoc.mockImplementation(mockUpdateDoc);
 
-      await updateRecipe(mockRecipeId, mockUpdateRecipeData);
+      await updateRecipe(mockRecipeId, mockUpdateRecipeData, mockUserId);
 
       expect(mockUpdateDoc).toHaveBeenCalledWith(
         {},
         expect.objectContaining({
           title: 'Updated Test Recipe',
           cookTime: 35,
-          updatedAt: expect.any(Date),
+          updatedAt: expect.any(String),
         })
       );
+    });
+
+    it('should throw error when recipe not found', async () => {
+      const mockGetDoc = jest.fn().mockResolvedValue({
+        exists: () => false,
+      });
+
+      require('firebase/firestore').getDoc.mockImplementation(mockGetDoc);
+
+      await expect(updateRecipe(mockRecipeId, mockUpdateRecipeData, mockUserId))
+        .rejects.toThrow('Recipe not found');
+    });
+
+    it('should throw error when user does not own the recipe', async () => {
+      const mockGetDoc = jest.fn().mockResolvedValue({
+        exists: () => true,
+        id: mockRecipeId,
+        data: () => ({
+          userId: 'different-user-id',
+          title: 'Test Recipe',
+          published: false,
+        }),
+      });
+
+      require('firebase/firestore').getDoc.mockImplementation(mockGetDoc);
+
+      await expect(updateRecipe(mockRecipeId, mockUpdateRecipeData, mockUserId))
+        .rejects.toThrow('Unauthorized: You can only update your own recipes');
     });
   });
 
   describe('deleteRecipe', () => {
     it('should delete a recipe successfully', async () => {
       const mockDeleteDoc = jest.fn().mockResolvedValue(undefined);
+      const mockGetDoc = jest.fn().mockResolvedValue({
+        exists: () => true,
+        id: mockRecipeId,
+        data: () => ({
+          userId: mockUserId,
+          title: 'Test Recipe',
+          description: 'A delicious test recipe',
+          published: false,
+        }),
+      });
+
       require('firebase/firestore').doc.mockReturnValue({});
+      require('firebase/firestore').getDoc.mockImplementation(mockGetDoc);
       require('firebase/firestore').deleteDoc.mockImplementation(mockDeleteDoc);
 
-      await deleteRecipe(mockRecipeId);
+      await deleteRecipe(mockRecipeId, mockUserId);
 
       expect(mockDeleteDoc).toHaveBeenCalledWith({});
+    });
+
+    it('should throw error when recipe not found', async () => {
+      const mockGetDoc = jest.fn().mockResolvedValue({
+        exists: () => false,
+      });
+
+      require('firebase/firestore').getDoc.mockImplementation(mockGetDoc);
+
+      await expect(deleteRecipe(mockRecipeId, mockUserId))
+        .rejects.toThrow('Recipe not found');
+    });
+
+    it('should throw error when user does not own the recipe', async () => {
+      const mockGetDoc = jest.fn().mockResolvedValue({
+        exists: () => true,
+        id: mockRecipeId,
+        data: () => ({
+          userId: 'different-user-id',
+          title: 'Test Recipe',
+          published: false,
+        }),
+      });
+
+      require('firebase/firestore').getDoc.mockImplementation(mockGetDoc);
+
+      await expect(deleteRecipe(mockRecipeId, mockUserId))
+        .rejects.toThrow('Unauthorized: You can only delete your own recipes');
     });
   });
 

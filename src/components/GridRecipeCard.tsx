@@ -8,6 +8,7 @@ import { theme } from '@theme/index';
 interface GridRecipeCardProps {
   recipe: Recipe;
   onPress: () => void;
+  showStatus?: boolean;
   isSelectionMode?: boolean;
   isSelected?: boolean;
 }
@@ -15,6 +16,7 @@ interface GridRecipeCardProps {
 export const GridRecipeCard = ({
   recipe,
   onPress,
+  showStatus = false,
   isSelectionMode = false,
   isSelected = false
 }: GridRecipeCardProps) => {
@@ -24,23 +26,52 @@ export const GridRecipeCard = ({
         isSelected ? 'border-green-500' : 'border-gray-200'
       }`}>
         {/* Recipe Image */}
-        {recipe.image ? (
-          <Image
-            source={{ uri: recipe.image }}
-            style={{ width: '100%', height: 120 }}
-            contentFit="cover"
-          />
-        ) : (
-          <View className="w-full h-[120px] bg-gray-100 items-center justify-center">
-            <Text className="text-3xl text-gray-400">🍽️</Text>
-          </View>
-        )}
+        <View style={{ position: 'relative' }}>
+          {recipe.image ? (
+            <Image
+              source={{ uri: recipe.image }}
+              style={{ width: '100%', height: 120 }}
+              contentFit="cover"
+            />
+          ) : (
+            <View className="w-full h-[120px] bg-gray-100 items-center justify-center">
+              <Text className="text-3xl text-gray-400">🍽️</Text>
+            </View>
+          )}
+
+          {/* Status Badge - Absolutely positioned on image */}
+          {showStatus && (
+            <View style={styles.statusBadge}>
+              <View className={`px-2 py-1 rounded ${recipe.status === 'Published' ? 'bg-green-500' : 'bg-yellow-500'}`}>
+                <Text className="text-xs font-bold text-white">
+                  {recipe.status}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
 
         {/* Recipe Content */}
         <View className="p-2">
           <Text className="text-sm font-bold text-gray-800 mb-1" numberOfLines={2}>
             {recipe.title}
           </Text>
+
+          {/* Author */}
+          {recipe.authorName && (
+            <View className="flex-row items-center mb-1">
+              {recipe.authorProfilePicture && (
+                <Image
+                  source={{ uri: recipe.authorProfilePicture }}
+                  style={{ width: 14, height: 14, borderRadius: 7, marginRight: 4 }}
+                  contentFit="cover"
+                />
+              )}
+              <Text className="text-xs text-gray-500" numberOfLines={1}>
+                {recipe.authorName}
+              </Text>
+            </View>
+          )}
 
           {/* Quick Info */}
           <View className="flex-row items-center mb-1">
@@ -91,6 +122,19 @@ export const GridRecipeCard = ({
 };
 
 const styles = StyleSheet.create({
+  statusBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
   checkboxOverlay: {
     position: 'absolute',
     top: 6,

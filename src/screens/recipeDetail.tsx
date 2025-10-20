@@ -82,9 +82,26 @@ export default function RecipeDetailScreen() {
 
         <View className="p-4">
           {/* Description */}
-          <View className="mb-6">
+          <View className="mb-4">
             <Text className="text-base text-gray-700 leading-6">{recipe.description}</Text>
           </View>
+
+          {/* Author */}
+          {recipe.authorName && (
+            <View className="mb-6 flex-row items-center">
+              {recipe.authorProfilePicture && (
+                <Image
+                  source={{ uri: recipe.authorProfilePicture }}
+                  style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }}
+                  contentFit="cover"
+                />
+              )}
+              <View>
+                <Text className="text-xs text-gray-500">Created by</Text>
+                <Text className="text-sm font-medium text-gray-700">{recipe.authorName}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Recipe Info */}
           <View className="flex-row justify-between mb-6 bg-gray-50 p-4 rounded-lg">

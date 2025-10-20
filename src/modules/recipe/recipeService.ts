@@ -26,6 +26,9 @@ import {
 // Re-export types for backward compatibility
 export type { Recipe, CreateRecipeData, UpdateRecipeData };
 
+// Re-export helper functions
+export { enrichRecipesWithAuthorNames } from '../../utils/helpers/recipeHelpers';
+
 // Create a new recipe in Firestore
 export const createRecipe = async (data: CreateRecipeData): Promise<string> => {
   try {
@@ -123,9 +126,21 @@ export const getRecipes = async (userId: string): Promise<Recipe[]> => {
 // Update a recipe in Firestore
 export const updateRecipe = async (
   recipeId: string,
-  data: UpdateRecipeData
+  data: UpdateRecipeData,
+  userId: string
 ): Promise<void> => {
   try {
+    // First, verify ownership by fetching the recipe
+    const existingRecipe = await getRecipe(recipeId);
+
+    if (!existingRecipe) {
+      throw new Error('Recipe not found');
+    }
+
+    if (existingRecipe.userId !== userId) {
+      throw new Error('Unauthorized: You can only update your own recipes');
+    }
+
     const recipeRef = doc(db, 'recipes', recipeId);
 
     // Deep clean to remove undefined fields (including nested objects and arrays)
@@ -144,8 +159,19 @@ export const updateRecipe = async (
 };
 
 // Delete a recipe from Firestore
-export const deleteRecipe = async (recipeId: string): Promise<void> => {
+export const deleteRecipe = async (recipeId: string, userId: string): Promise<void> => {
   try {
+    // First, verify ownership by fetching the recipe
+    const existingRecipe = await getRecipe(recipeId);
+
+    if (!existingRecipe) {
+      throw new Error('Recipe not found');
+    }
+
+    if (existingRecipe.userId !== userId) {
+      throw new Error('Unauthorized: You can only delete your own recipes');
+    }
+
     const recipeRef = doc(db, 'recipes', recipeId);
     await deleteDoc(recipeRef);
   } catch (error) {

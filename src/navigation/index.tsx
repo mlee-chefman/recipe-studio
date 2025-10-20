@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import Modal from '@screens/modal';
 import RecipeDetail from '@screens/recipeDetail';
 import RecipeCreator from '@screens/recipeCreator';
+import RecipeInfo from '@screens/RecipeInfo';
 import RecipeEdit from '@screens/recipeEdit';
 import RecipeWebImport from '@screens/RecipeWebImport';
 import RecipeOCRImport from '@screens/RecipeOCRImport';
@@ -63,6 +64,13 @@ const MainStack = createStackNavigator({
       options: {
         headerShown: true,
         presentation: 'modal',
+      },
+    },
+    RecipeInfo: {
+      screen: RecipeInfo,
+      options: {
+        headerShown: true,
+        presentation: 'card',
       },
     },
     RecipeEdit: {

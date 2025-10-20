@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
@@ -17,12 +17,9 @@ import { DraggableCookingAction } from '@components/DraggableCookingAction';
 import { useImagePicker } from '@hooks/useImagePicker';
 import { useCookingActions } from '@hooks/useCookingActions';
 import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
+import { formatCookTime } from '@utils/helpers/recipeHelpers';
 import StepImage from '@components/StepImage';
 import {
-  ServingsPickerModal,
-  CookTimePickerModal,
-  CategoryPickerModal,
-  TagsPickerModal,
   ConfirmationModal,
 } from '~/components/modals';
 
@@ -266,37 +263,38 @@ export default function RecipeEditScreen() {
           </View>
         </View>
 
-        {/* Info Section */}
-        <View className="mb-4 border-b border-gray-200 pb-3">
-          <Text className="text-lg text-gray-800 mb-3">Info</Text>
-          <View className="flex-row items-center justify-between gap-4 mb-3">
-            {/* Cook Time */}
-            <View className="flex-1 flex-row items-center justify-between">
-              <Text className="text-base text-gray-600">Cook Time</Text>
-              <TouchableOpacity
-                onPress={() => updateModalStates({ showCookTimePicker: true })}
-                className="border-b border-gray-200 py-1 px-2"
-              >
-                <Text className="text-base text-gray-800 text-right">
-                  {formData.cookTimeHours > 0 ? `${formData.cookTimeHours}h ${formData.cookTimeMinutes}m` : `${formData.cookTimeMinutes}m`}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {/* Servings */}
-            <View className="flex-1 flex-row items-center justify-between">
-              <Text className="text-base text-gray-600">Servings</Text>
-              <TouchableOpacity
-                onPress={() => updateModalStates({ showServingsPicker: true })}
-                className="border-b border-gray-200 py-1 px-2"
-              >
-                <Text className="text-base text-gray-800 text-right">{formData.servings}</Text>
-              </TouchableOpacity>
+        {/* Recipe Info Button */}
+        <TouchableOpacity
+          className="mb-4 border border-gray-200 rounded-lg px-4 py-3 bg-white"
+          onPress={() => {
+            // @ts-ignore - Navigation typing issue with static navigation
+            navigation.navigate('RecipeInfo', {
+              cookTimeHours: formData.cookTimeHours,
+              cookTimeMinutes: formData.cookTimeMinutes,
+              servings: formData.servings,
+              category: formData.category,
+              difficulty: formData.difficulty,
+              tags: formData.tags || [],
+              onUpdate: (data: any) => updateFormData(data),
+            });
+          }}
+        >
+          <View className="flex-row items-center justify-between">
+            <Text className="text-base font-medium text-gray-800">Recipe Info</Text>
+            <View className="flex-row items-center">
+              <Text className="text-sm text-gray-500 mr-2">
+                {formatCookTime(formData.cookTimeHours, formData.cookTimeMinutes)} • {formData.servings} servings
+              </Text>
+              <Feather name="chevron-right" size={20} color={theme.colors.text.secondary} />
             </View>
           </View>
-          {/* Published Toggle */}
+        </TouchableOpacity>
+
+        {/* Published Toggle */}
+        <View className="mb-4 border border-gray-200 rounded-lg p-4 bg-white">
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
-              <Text className="text-base text-gray-600">Published</Text>
+              <Text className="text-base font-medium text-gray-800">Published</Text>
               <Text className="text-sm text-gray-500">Make this recipe visible to others</Text>
             </View>
             <Switch
@@ -306,66 +304,6 @@ export default function RecipeEditScreen() {
               thumbColor={theme.colors.background.primary}
             />
           </View>
-        </View>
-
-        {/* Category */}
-        <TouchableOpacity
-          className="mb-4 border-b border-gray-200 pb-3"
-          onPress={() => updateModalStates({ showCategoryPicker: true })}
-        >
-          <View className="flex-row items-center justify-between">
-            <Text className="text-lg text-gray-800">Category</Text>
-            <Text className="text-lg text-gray-500">
-              {formData.category || 'Uncategorized'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Tags */}
-        <View className="mb-4 border-b border-gray-200 pb-3">
-          <View className="flex-row items-center justify-between mb-2">
-            <Text className="text-lg text-gray-800">Tags</Text>
-            <TouchableOpacity
-              onPress={() => updateModalStates({ showTagsPicker: true })}
-              className="px-3 py-1 rounded-lg"
-              style={{ backgroundColor: theme.colors.primary[100] }}
-            >
-              <Text style={{ color: theme.colors.primary[700], fontSize: theme.typography.fontSize.sm }}>
-                + Add
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {formData.tags && formData.tags.length > 0 && (
-            <View className="flex-row flex-wrap gap-2">
-              {formData.tags.map((tag, index) => (
-                <View
-                  key={index}
-                  className="flex-row items-center px-3 py-1 rounded-full"
-                  style={{ backgroundColor: theme.colors.primary[100] }}
-                >
-                  <Text style={{ color: theme.colors.primary[700], fontSize: theme.typography.fontSize.sm }}>
-                    {tag}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => {
-                      const newTags = (formData.tags || []).filter((_, i) => i !== index);
-                      updateFormData({ tags: newTags });
-                    }}
-                    className="ml-1"
-                  >
-                    <Text style={{ color: theme.colors.primary[700], fontSize: 16, fontWeight: 'bold' }}>
-                      ×
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </View>
-          )}
-          {(!formData.tags || formData.tags.length === 0) && (
-            <Text className="text-sm" style={{ color: theme.colors.text.secondary }}>
-              No tags added
-            </Text>
-          )}
         </View>
 
         {/* ChefIQ Smart Cooking */}
@@ -649,50 +587,6 @@ export default function RecipeEditScreen() {
           initialAction={editingCookingAction?.action}
         />
       )}
-
-      {/* Servings Picker Modal */}
-      <ServingsPickerModal
-        visible={modalStates.showServingsPicker}
-        selectedValue={formData.servings}
-        onValueChange={(value) => updateFormData({ servings: value })}
-        onClose={() => updateModalStates({ showServingsPicker: false })}
-      />
-
-      {/* Cook Time Picker Modal */}
-      <CookTimePickerModal
-        visible={modalStates.showCookTimePicker}
-        hours={formData.cookTimeHours}
-        minutes={formData.cookTimeMinutes}
-        onHoursChange={(value) => updateFormData({ cookTimeHours: value })}
-        onMinutesChange={(value) => updateFormData({ cookTimeMinutes: value })}
-        onClose={() => updateModalStates({ showCookTimePicker: false })}
-      />
-
-      {/* Category Picker Modal */}
-      <CategoryPickerModal
-        visible={modalStates.showCategoryPicker}
-        selectedValue={formData.category}
-        onValueChange={(value) => updateFormData({ category: value })}
-        onClose={() => updateModalStates({ showCategoryPicker: false })}
-      />
-
-      {/* Tags Picker Modal */}
-      <TagsPickerModal
-        visible={modalStates.showTagsPicker}
-        selectedTags={formData.tags || []}
-        onToggleTag={(tag) => {
-          const isSelected = formData.tags && formData.tags.includes(tag);
-          if (isSelected) {
-            updateFormData({ tags: (formData.tags || []).filter(t => t !== tag) });
-          } else {
-            updateFormData({ tags: [...(formData.tags || []), tag] });
-          }
-        }}
-        onAddCustomTag={(tag) => {
-          updateFormData({ tags: [...(formData.tags || []), tag] });
-        }}
-        onClose={() => updateModalStates({ showTagsPicker: false })}
-      />
 
       {/* Cancel Confirmation Modal */}
       <ConfirmationModal

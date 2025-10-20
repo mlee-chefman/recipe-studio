@@ -10,6 +10,7 @@ import {
   getRecipesByUserId,
   updateRecipe as updateRecipeService,
   deleteRecipe as deleteRecipeService,
+  enrichRecipesWithAuthorNames,
   CreateRecipeData,
   Recipe as FirebaseRecipe
 } from '../modules/recipe/recipeService';
@@ -317,7 +318,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       const firebaseRecipes = await getRecipes(userId);
 
       // Convert Firebase recipes to store Recipe format
-      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => {
+      let recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => {
         // Migrate old format to new format if needed
         const steps = (recipe as any).steps
           ? (recipe as any).steps
@@ -330,6 +331,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         return {
           id: recipe.id,
           userId: recipe.userId,
+          authorName: recipe.authorName,
+          authorProfilePicture: recipe.authorProfilePicture,
           title: recipe.title,
           description: recipe.description,
           ingredients: recipe.ingredients,
@@ -347,6 +350,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
           status: recipe.published ? 'Published' : 'Draft',
         };
       });
+
+      // Enrich recipes with author names for those that don't have them
+      recipes = await enrichRecipesWithAuthorNames(recipes);
 
       set({ allRecipes: recipes, isLoading: false });
       get().filterAllRecipes();
@@ -363,7 +369,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       const firebaseRecipes = await getRecipesByUserId(userId);
 
       // Convert Firebase recipes to store Recipe format
-      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => {
+      let recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => {
         // Migrate old format to new format if needed
         const steps = (recipe as any).steps
           ? (recipe as any).steps
@@ -376,6 +382,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         return {
           id: recipe.id,
           userId: recipe.userId,
+          authorName: recipe.authorName,
+          authorProfilePicture: recipe.authorProfilePicture,
           title: recipe.title,
           description: recipe.description,
           ingredients: recipe.ingredients,
@@ -393,6 +401,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
           status: recipe.published ? 'Published' : 'Draft',
         };
       });
+
+      // Enrich recipes with author names for those that don't have them
+      recipes = await enrichRecipesWithAuthorNames(recipes);
 
       set({ userRecipes: recipes, isLoading: false });
       get().filterUserRecipes();
@@ -458,7 +469,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   deleteRecipe: async (id: string, userId: string) => {
     try {
       set({ isLoading: true, error: null });
-      await deleteRecipeService(id);
+      await deleteRecipeService(id, userId);
 
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
@@ -475,7 +486,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       set({ isLoading: true, error: null });
 
       // Delete all recipes in parallel
-      await Promise.all(ids.map(id => deleteRecipeService(id)));
+      await Promise.all(ids.map(id => deleteRecipeService(id, userId)));
 
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
@@ -500,7 +511,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         }
       });
 
-      await updateRecipeService(id, updateData);
+      await updateRecipeService(id, updateData, userId);
 
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);

@@ -185,7 +185,9 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       return;
     }
 
+    const published = formData.published || false;
     const recipe = {
+      userId: user.uid,
       title: formData.title.trim(),
       description: formData.notes.trim() || 'No description provided',
       ingredients: validIngredients,
@@ -199,7 +201,8 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       chefiqAppliance: formData.selectedAppliance || undefined,
       stepSections: stepSections.length > 0 ? stepSections : undefined,
       useProbe: formData.useProbe || undefined,
-      published: formData.published || false,
+      published,
+      status: published ? 'Published' as const : 'Draft' as const,
     };
 
     try {

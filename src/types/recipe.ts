@@ -12,10 +12,13 @@ export interface Step {
 
 /**
  * Main Recipe interface - the source of truth for recipe data structure
+ * Note: authorName and authorProfilePicture are computed at runtime by fetching the user's profile based on userId
  */
 export interface Recipe {
   id: string;
   userId: string;
+  authorName?: string; // Computed at runtime, not stored in database
+  authorProfilePicture?: string; // Computed at runtime, not stored in database
   title: string;
   description: string;
   ingredients: string[];

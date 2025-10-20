@@ -15,6 +15,7 @@ import { signIn } from '../modules/user/userAuth';
 import { getUserProfile } from '../modules/user/userService';
 import { useAuthStore } from '../store/store';
 import { convertToAuthUser } from '../modules/user/userAuth';
+import { theme } from '../theme';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
@@ -123,83 +124,71 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background.secondary,
   },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: theme.spacing.xl,
   },
   formContainer: {
-    backgroundColor: 'white',
-    padding: 30,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: theme.colors.surface.primary,
+    padding: theme.spacing['3xl'],
+    borderRadius: theme.borderRadius.xl,
+    ...theme.shadows.md,
   },
   title: {
-    fontSize: 28,
-    fontWeight: 'bold',
+    ...theme.typography.styles.h1,
     textAlign: 'center',
-    marginBottom: 10,
-    color: '#333',
+    marginBottom: theme.spacing.md,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: theme.typography.fontSize.base,
     textAlign: 'center',
-    marginBottom: 30,
-    color: '#666',
+    marginBottom: theme.spacing['3xl'],
+    color: theme.colors.text.secondary,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.xl,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
-    color: '#333',
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    marginBottom: theme.spacing.sm,
+    color: theme.colors.text.primary,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 15,
-    fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    ...theme.components.input.default,
+    padding: theme.spacing.lg,
   },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
-    marginTop: 10,
+    backgroundColor: theme.colors.primary[500],
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    marginTop: theme.spacing.md,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: theme.colors.gray[300],
+    opacity: theme.opacity.disabled,
   },
   buttonText: {
-    color: 'white',
+    color: theme.colors.text.inverse,
     textAlign: 'center',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.semibold as any,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 20,
+    marginTop: theme.spacing.xl,
   },
   footerText: {
-    fontSize: 16,
-    color: '#666',
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text.secondary,
   },
   linkText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '600',
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.primary[500],
+    fontWeight: theme.typography.fontWeight.semibold as any,
   },
 });
