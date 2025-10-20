@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '@theme/index';
+import BaseModal from '../BaseModal';
 
 interface ConfirmationModalProps {
   visible: boolean;
@@ -28,49 +29,34 @@ export function ConfirmationModal({
     : styles.primaryButton;
 
   return (
-    <Modal
+    <BaseModal
       visible={visible}
-      animationType="fade"
-      transparent={true}
-      onRequestClose={onCancel}
+      onClose={onCancel}
+      variant="centered"
+      contentStyle={styles.modalContent}
     >
-      <View style={styles.container}>
-        <View style={styles.modalContent}>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.message}>{message}</Text>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              onPress={onCancel}
-              style={styles.cancelButton}
-            >
-              <Text style={styles.cancelButtonText}>{cancelText}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={onConfirm}
-              style={confirmButtonStyle}
-            >
-              <Text style={styles.confirmButtonText}>{confirmText}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.message}>{message}</Text>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity
+          onPress={onCancel}
+          style={styles.cancelButton}
+        >
+          <Text style={styles.cancelButtonText}>{cancelText}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={onConfirm}
+          style={confirmButtonStyle}
+        >
+          <Text style={styles.confirmButtonText}>{confirmText}</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    width: '85%',
-    maxWidth: 400,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,

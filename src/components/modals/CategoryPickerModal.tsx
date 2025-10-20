@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { theme } from '@theme/index';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
+import BaseModal from '../BaseModal';
 
 interface CategoryPickerModalProps {
   visible: boolean;
@@ -18,69 +19,37 @@ export function CategoryPickerModal({
   onClose,
 }: CategoryPickerModalProps) {
   return (
-    <Modal
+    <BaseModal
       visible={visible}
-      animationType="fade"
-      transparent={true}
-      onRequestClose={onClose}
+      onClose={onClose}
+      variant="bottom-sheet"
+      maxHeight={450}
+      backdropOpacity={0.3}
     >
-      <View style={styles.container}>
-        {/* Backdrop */}
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        {/* Bottom Sheet */}
-        <View style={styles.bottomSheet}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.cancelButton}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.title}>Category</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={styles.doneButton}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <Picker
-            selectedValue={selectedValue}
-            onValueChange={onValueChange}
-            style={styles.picker}
-          >
-            <Picker.Item label="Uncategorized" value="" />
-            {RECIPE_OPTIONS.CATEGORIES.map((cat) => (
-              <Picker.Item key={cat} label={cat} value={cat} />
-            ))}
-          </Picker>
-        </View>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={styles.cancelButton}>Cancel</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Category</Text>
+        <TouchableOpacity onPress={onClose}>
+          <Text style={styles.doneButton}>Done</Text>
+        </TouchableOpacity>
       </View>
-    </Modal>
+      <Picker
+        selectedValue={selectedValue}
+        onValueChange={onValueChange}
+        style={styles.picker}
+      >
+        <Picker.Item label="Uncategorized" value="" />
+        {RECIPE_OPTIONS.CATEGORIES.map((cat) => (
+          <Picker.Item key={cat} label={cat} value={cat} />
+        ))}
+      </Picker>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-  },
-  bottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 20,
-    maxHeight: 450,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -1,7 +1,7 @@
 import React from 'react';
 import { createStaticNavigation, StaticParamList } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import Modal from '@screens/modal';
+
 import RecipeDetail from '@screens/recipeDetail';
 import RecipeCreator from '@screens/recipeCreator';
 import RecipeInfo from '@screens/RecipeInfo';
@@ -114,14 +114,7 @@ const MainStack = createStackNavigator({
         headerShown: true,
         presentation: 'card',
       },
-    },
-    Modal: {
-      screen: Modal,
-      options: {
-        presentation: 'modal',
-        headerLeft: () => null,
-      },
-    },
+    }
   },
 });
 
@@ -145,7 +138,7 @@ type MainStackParamList = StaticParamList<typeof MainStack>;
 
 declare global {
   namespace ReactNavigation {
-    // eslint-disable-next-line @typescript-eslint/no-empty-object-type
+     
     interface RootParamList extends AuthStackParamList, MainStackParamList {}
   }
 }

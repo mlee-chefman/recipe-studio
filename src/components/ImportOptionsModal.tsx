@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { theme } from '@theme/index';
+import BaseModal from './BaseModal';
 
 interface ImportOptionsModalProps {
   visible: boolean;
@@ -16,27 +17,18 @@ export default function ImportOptionsModal({
   onSelectOCRImport
 }: ImportOptionsModalProps) {
   return (
-    <Modal
+    <BaseModal
       visible={visible}
-      animationType="fade"
-      transparent={true}
-      onRequestClose={onClose}
+      onClose={onClose}
+      variant="bottom-sheet"
+      showDragIndicator={true}
+      maxHeight="60%"
     >
-      <View style={styles.backdrop}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-
-        {/* Bottom Sheet */}
-        <View style={styles.bottomSheet}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.dragIndicator} />
-            <Text style={styles.title}>Import Recipe</Text>
-            <Text style={styles.subtitle}>Choose an import method</Text>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Import Recipe</Text>
+        <Text style={styles.subtitle}>Choose an import method</Text>
+      </View>
 
           {/* Options */}
           <View style={styles.optionsContainer}>
@@ -76,45 +68,16 @@ export default function ImportOptionsModal({
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Cancel Button */}
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={onClose}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  bottomSheet: {
-    backgroundColor: theme.colors.background.primary,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 40,
-    maxHeight: '60%',
-  },
   header: {
     padding: theme.spacing.xl,
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.gray[200],
-  },
-  dragIndicator: {
-    width: 40,
-    height: 4,
-    backgroundColor: theme.colors.gray[300],
-    borderRadius: 2,
-    marginBottom: theme.spacing.md,
   },
   title: {
     fontSize: theme.typography.fontSize.xl,
@@ -128,6 +91,7 @@ const styles = StyleSheet.create({
   },
   optionsContainer: {
     padding: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
     gap: theme.spacing.md,
   },
   optionButton: {
@@ -168,18 +132,5 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: theme.colors.gray[400],
     marginLeft: theme.spacing.sm,
-  },
-  cancelButton: {
-    marginHorizontal: theme.spacing.lg,
-    marginTop: theme.spacing.md,
-    padding: theme.spacing.lg,
-    backgroundColor: theme.colors.gray[100],
-    borderRadius: theme.borderRadius.lg,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    color: theme.colors.text.primary,
   },
 });

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Modal,
   StyleSheet,
   ScrollView,
   Alert,
@@ -14,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '@theme/index';
 import { generatePresetAvatars } from '@utils/avatarGenerator';
+import BaseModal from './BaseModal';
 
 interface AvatarPickerModalProps {
   visible: boolean;
@@ -83,29 +83,17 @@ export function AvatarPickerModal({
   };
 
   return (
-    <Modal
+    <BaseModal
       visible={visible}
-      animationType="fade"
-      transparent={true}
-      onRequestClose={onClose}
+      onClose={onClose}
+      variant="bottom-sheet"
+      showDragIndicator={true}
+      maxHeight="80%"
     >
-      <View style={styles.container}>
-        {/* Backdrop */}
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-
-        {/* Bottom Sheet */}
-        <View style={styles.bottomSheet}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.title}>Choose Avatar</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Feather name="x" size={24} color={theme.colors.text.secondary} />
-            </TouchableOpacity>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Choose Avatar</Text>
+      </View>
 
           {/* Upload from Library Button */}
           <TouchableOpacity
@@ -153,45 +141,19 @@ export function AvatarPickerModal({
             ))}
           </ScrollView>
 
-          {/* Loading Indicator */}
-          {isUploading && (
-            <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color={theme.colors.primary[500]} />
-              <Text style={styles.loadingText}>Updating avatar...</Text>
-            </View>
-          )}
+      {/* Loading Indicator */}
+      {isUploading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={theme.colors.primary[500]} />
+          <Text style={styles.loadingText}>Updating avatar...</Text>
         </View>
-      </View>
-    </Modal>
+      )}
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  bottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 20,
-    maxHeight: '80%',
-  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: theme.spacing.lg,
     borderBottomWidth: 1,
@@ -201,9 +163,6 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.fontSize.xl,
     fontWeight: theme.typography.fontWeight.semibold as any,
     color: theme.colors.text.primary,
-  },
-  closeButton: {
-    padding: 4,
   },
   uploadButton: {
     flexDirection: 'row',
@@ -246,6 +205,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
     gap: 16,
     justifyContent: 'center',
   },
