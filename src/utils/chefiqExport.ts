@@ -581,16 +581,7 @@ export function validateChefIQExport(exportData: any): {
     errors.push('At least one section is required');
   }
 
-  // Validate sections have proper actions
-  const hasStartCooking = exportData.sections.some(
-    (s: any) => s.sections_recipes_actions.some(
-      (a: any) => a.value.command === 'start_cooking_func'
-    )
-  );
-
-  if (!hasStartCooking) {
-    errors.push('Recipe must have at least one cooking action');
-  }
+  // Note: Cooking actions are optional - recipes can be exported without smart cooking features
 
   return {
     valid: errors.length === 0,

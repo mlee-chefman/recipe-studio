@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import { Recipe } from '~/types/recipe';
 import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { generateExportJSON, validateChefIQExport, exportToChefIQFormat } from '@utils/chefiqExport';
+import { ChefIQExportModal } from '@components/ChefIQExportModal';
 import { theme } from '@theme/index';
 import StepImage from '@components/StepImage';
 
@@ -25,10 +26,14 @@ export default function RecipeDetailScreen() {
   const { allRecipes, userRecipes } = useRecipeStore();
   const { user } = useAuthStore();
 
+  // Export modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportJSON, setExportJSON] = useState('');
+
   // Get the latest recipe data from store instead of route params
   // Check both allRecipes and userRecipes arrays
-  const recipe = allRecipes.find(r => r.id === routeRecipe.id) || 
-                 userRecipes.find(r => r.id === routeRecipe.id) || 
+  const recipe = allRecipes.find(r => r.id === routeRecipe.id) ||
+                 userRecipes.find(r => r.id === routeRecipe.id) ||
                  routeRecipe;
 
   // Check if current user owns this recipe
@@ -41,26 +46,10 @@ export default function RecipeDetailScreen() {
 
   const handleExportToChefIQ = async () => {
     try {
-      // Check if recipe has cooking actions
-      const hasCookingActions = recipe.steps.some(step => step.cookingAction);
-
-      if (!hasCookingActions) {
-        Alert.alert(
-          'No Cooking Actions',
-          'This recipe doesn\'t have any cooking actions assigned. Add cooking actions in the editor to export to ChefIQ format.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
       // Generate export
-      const exportJSON = generateExportJSON(recipe);
-
-      // Show share sheet
-      await Share.share({
-        message: exportJSON,
-        title: `${recipe.title} - ChefIQ Recipe`,
-      });
+      const json = generateExportJSON(recipe);
+      setExportJSON(json);
+      setShowExportModal(true);
     } catch (error) {
       Alert.alert(
         'Export Failed',
@@ -284,6 +273,14 @@ export default function RecipeDetailScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Export Modal */}
+      <ChefIQExportModal
+        visible={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        exportJSON={exportJSON}
+        recipeName={recipe.title}
+      />
     </View>
   );
 }
