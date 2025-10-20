@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { signIn } from '../modules/user/userAuth';
 import { getUserProfile } from '../modules/user/userService';
 import { useAuthStore } from '../store/store';
 import { convertToAuthUser } from '../modules/user/userAuth';
+import { getCredentials, saveCredentials } from '../services/keychainService';
+import { setHasSignedUpBefore } from '../services/authStorageService';
 import { theme } from '../theme';
 
 export default function SignInScreen() {
@@ -24,6 +26,22 @@ export default function SignInScreen() {
   const [loading, setLoading] = useState(false);
 
   const { setUser, setUserProfile } = useAuthStore();
+
+  // Load saved credentials on mount
+  useEffect(() => {
+    const loadSavedCredentials = async () => {
+      console.log('📱 Sign-in screen: Loading saved credentials...');
+      const credentials = await getCredentials();
+      if (credentials) {
+        console.log('📱 Sign-in screen: Auto-filling credentials');
+        setEmail(credentials.username);
+        setPassword(credentials.password);
+      } else {
+        console.log('📱 Sign-in screen: No credentials to load');
+      }
+    };
+    loadSavedCredentials();
+  }, []);
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -45,7 +63,15 @@ export default function SignInScreen() {
       const authUser = convertToAuthUser(user);
       setUser(authUser);
       setUserProfile(profile);
-      
+
+      // Save credentials to keychain for next time
+      console.log('📱 Sign-in screen: Saving credentials...');
+      const saved = await saveCredentials(email, password);
+      console.log('📱 Sign-in screen: Credentials saved:', saved);
+
+      // Mark that user has signed up before
+      await setHasSignedUpBefore();
+
     } catch (error: any) {
       console.error('Sign in error:', error);
       let errorMessage = 'Failed to sign in';
@@ -111,7 +137,14 @@ export default function SignInScreen() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('SignUp' as never)}>
+            <TouchableOpacity onPress={() => {
+              // Check if we can go back (SignUp screen is in stack)
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('SignUp' as never);
+              }
+            }}>
               <Text style={styles.linkText}>Sign Up</Text>
             </TouchableOpacity>
           </View>

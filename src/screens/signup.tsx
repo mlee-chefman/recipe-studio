@@ -19,6 +19,8 @@ import { useAuthStore } from '../store/store';
 import { convertToAuthUser } from '../modules/user/userAuth';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
 import { generateAvatarUrl } from '../utils/avatarGenerator';
+import { saveCredentials } from '../services/keychainService';
+import { setHasSignedUpBefore } from '../services/authStorageService';
 import { theme } from '../theme';
 
 export default function SignUpScreen() {
@@ -86,6 +88,14 @@ export default function SignUpScreen() {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
+
+      // Save credentials to keychain for auto-login
+      console.log('📱 Sign-up screen: Saving credentials...');
+      const saved = await saveCredentials(email, password);
+      console.log('📱 Sign-up screen: Credentials saved:', saved);
+
+      // Mark that user has signed up before
+      await setHasSignedUpBefore();
 
       Alert.alert('Success', 'Account created successfully!');
     } catch (error: any) {
@@ -187,7 +197,14 @@ export default function SignUpScreen() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('SignIn' as never)}>
+            <TouchableOpacity onPress={() => {
+              // Check if we can go back (SignIn screen is in stack)
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('SignIn' as never);
+              }
+            }}>
               <Text style={styles.linkText}>Sign In</Text>
             </TouchableOpacity>
           </View>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, Modal, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, Modal, StyleSheet, Alert, RefreshControl } from 'react-native';
 import { Image } from 'expo-image';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
@@ -8,6 +8,7 @@ import { Recipe } from '~/types/recipe';
 import { FilterModal } from './FilterModal';
 import { CompactRecipeCard } from './CompactRecipeCard';
 import { GridRecipeCard } from './GridRecipeCard';
+import { RecipeCardSkeleton } from './RecipeCardSkeleton';
 import { getApplianceById } from '~/types/chefiq';
 import RecipeCreatorScreen from '@screens/recipeCreator';
 import { theme } from '@theme/index';
@@ -193,6 +194,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   const setSelectedAppliance = isHomeTab ? recipeStore.setAllRecipesSelectedAppliance : recipeStore.setUserRecipesSelectedAppliance;
   const recipes = isHomeTab ? recipeStore.allRecipes : recipeStore.userRecipes;
   const filterRecipes = isHomeTab ? recipeStore.filterAllRecipes : recipeStore.filterUserRecipes;
+  const isLoading = recipeStore.isLoading;
 
   // View mode and selection mode (only for myRecipes tab)
   const viewMode = isHomeTab ? recipeStore.allRecipesViewMode : recipeStore.userRecipesViewMode;
@@ -207,6 +209,9 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
 
   // Selection state
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(new Set());
+
+  // Refresh state
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Clear selection when exiting selection mode
   useEffect(() => {
@@ -317,6 +322,21 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
     );
   };
 
+  const handleRefresh = async () => {
+    if (!user) return;
+
+    setIsRefreshing(true);
+    try {
+      if (isHomeTab) {
+        await recipeStore.fetchRecipes(user.uid);
+      } else {
+        await recipeStore.fetchUserRecipes(user.uid);
+      }
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <View className="flex-1 w-full">
       {/* Fixed Header */}
@@ -388,69 +408,114 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
 
         {/* Results Count */}
         <Text className="text-sm text-gray-600 mb-2">
-          {filteredRecipes.length} recipe{filteredRecipes.length !== 1 ? 's' : ''} found
+          {isLoading ? 'Loading recipes...' : `${filteredRecipes.length} recipe${filteredRecipes.length !== 1 ? 's' : ''} found`}
         </Text>
       </View>
 
       {/* Scrollable Recipe List */}
       <View className="flex-1 w-full">
-        <FlatList
-          key={viewMode === 'grid' ? 'grid' : 'list'}
-          data={filteredRecipes}
-          keyExtractor={(item) => item.id}
-          numColumns={viewMode === 'grid' ? 2 : 1}
-          renderItem={({ item, index }) => {
-            const isSelected = selectedRecipeIds.has(item.id);
+        {isLoading ? (
+          <FlatList
+            key={`${viewMode}-skeleton`}
+            data={[1, 2, 3, 4, 5, 6]}
+            keyExtractor={(item) => `skeleton-${item}`}
+            numColumns={viewMode === 'grid' ? 2 : 1}
+            renderItem={() => {
+              if (viewMode === 'grid') {
+                return (
+                  <View style={{ flex: 1, margin: 4 }}>
+                    <RecipeCardSkeleton viewMode="grid" />
+                  </View>
+                );
+              } else if (viewMode === 'compact') {
+                return <RecipeCardSkeleton viewMode="compact" />;
+              } else {
+                return <RecipeCardSkeleton viewMode="detailed" />;
+              }
+            }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: 20,
+              paddingHorizontal: viewMode === 'grid' ? 12 : 16,
+              minHeight: '100%',
+            }}
+            columnWrapperStyle={viewMode === 'grid' ? { justifyContent: 'space-between' } : undefined}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={theme.colors.primary[500]}
+                colors={[theme.colors.primary[500]]}
+              />
+            }
+          />
+        ) : (
+          <FlatList
+            key={`${viewMode}-list`}
+            data={filteredRecipes}
+            keyExtractor={(item) => item.id}
+            numColumns={viewMode === 'grid' ? 2 : 1}
+            renderItem={({ item, index }) => {
+              const isSelected = selectedRecipeIds.has(item.id);
 
-            if (viewMode === 'grid') {
-              return (
-                <View style={{ flex: 1, margin: 4 }}>
-                  <GridRecipeCard
+              if (viewMode === 'grid') {
+                return (
+                  <View style={{ flex: 1, margin: 4 }}>
+                    <GridRecipeCard
+                      recipe={item}
+                      onPress={() => handleRecipePress(item)}
+                      showStatus={!isHomeTab}
+                      isSelectionMode={selectionMode}
+                      isSelected={isSelected}
+                    />
+                  </View>
+                );
+              } else if (viewMode === 'compact') {
+                return (
+                  <CompactRecipeCard
                     recipe={item}
                     onPress={() => handleRecipePress(item)}
                     showStatus={!isHomeTab}
                     isSelectionMode={selectionMode}
                     isSelected={isSelected}
                   />
-                </View>
-              );
-            } else if (viewMode === 'compact') {
-              return (
-                <CompactRecipeCard
-                  recipe={item}
-                  onPress={() => handleRecipePress(item)}
-                  showStatus={!isHomeTab}
-                  isSelectionMode={selectionMode}
-                  isSelected={isSelected}
-                />
-              );
-            } else {
-              return (
-                <RecipeCard
-                  recipe={item}
-                  onPress={() => handleRecipePress(item)}
-                  showStatus={!isHomeTab}
-                  isSelectionMode={selectionMode}
-                  isSelected={isSelected}
-                />
-              );
+                );
+              } else {
+                return (
+                  <RecipeCard
+                    recipe={item}
+                    onPress={() => handleRecipePress(item)}
+                    showStatus={!isHomeTab}
+                    isSelectionMode={selectionMode}
+                    isSelected={isSelected}
+                  />
+                );
+              }
+            }}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingBottom: selectionMode ? 100 : 20,
+              paddingHorizontal: viewMode === 'grid' ? 12 : 16,
+              flexGrow: 1,
+            }}
+            columnWrapperStyle={viewMode === 'grid' ? { justifyContent: 'space-between' } : undefined}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={theme.colors.primary[500]}
+                colors={[theme.colors.primary[500]]}
+              />
             }
-          }}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingBottom: selectionMode ? 100 : 20,
-            paddingHorizontal: viewMode === 'grid' ? 12 : 16,
-            flexGrow: 1
-          }}
-          columnWrapperStyle={viewMode === 'grid' ? { justifyContent: 'space-between' } : undefined}
-          ListEmptyComponent={
-            <View className="flex-1 items-center justify-center py-8 w-full">
-              <Text className="text-gray-500 text-center">
-                No recipes found matching your criteria.
-              </Text>
-            </View>
-          }
-        />
+            ListEmptyComponent={
+              <View className="flex-1 items-center justify-center py-8 w-full">
+                <Text className="text-gray-500 text-center">
+                  No recipes found matching your criteria.
+                </Text>
+              </View>
+            }
+          />
+        )}
       </View>
 
       {/* Selection Mode Bottom Bar */}

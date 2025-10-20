@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+
 import { onAuthStateChange, convertToAuthUser } from '../modules/user/userAuth';
 import { getUserProfile } from '../modules/user/userService';
 import { useAuthStore } from '../store/store';
+import { HomeScreenSkeleton } from './HomeScreenSkeleton';
 
 interface AuthWrapperProps {
   children: React.ReactNode;
@@ -41,21 +42,8 @@ export default function AuthWrapper({ children }: AuthWrapperProps) {
   }, [setUser, setUserProfile, setLoading]);
 
   if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
+    return <HomeScreenSkeleton />;
   }
 
   return <>{children}</>;
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-  },
-});

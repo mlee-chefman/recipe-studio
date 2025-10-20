@@ -9,7 +9,6 @@ import {
   View,
   Text,
   TouchableOpacity,
-  Modal,
   StyleSheet,
   Image,
   ScrollView,
@@ -26,6 +25,7 @@ import {
   detectProteinType,
   findDonenessForTemp,
 } from '@constants/temperatureGuide';
+import BaseModal from './BaseModal';
 
 interface TemperatureInfoModalProps {
   visible: boolean;
@@ -88,21 +88,19 @@ export function TemperatureInfoModal({
   }
 
   return (
-    <Modal
+    <BaseModal
       visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+      onClose={onClose}
+      variant="bottom-sheet"
+      maxHeight="80%"
     >
-      <View style={styles.overlay}>
-        <View style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Temperature Guide</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Feather name="x" size={24} color={theme.colors.text.secondary} />
-            </TouchableOpacity>
-          </View>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Temperature Guide</Text>
+        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+          <Feather name="x" size={24} color={theme.colors.text.secondary} />
+        </TouchableOpacity>
+      </View>
 
           <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
             {/* Detected Protein */}
@@ -216,26 +214,13 @@ export function TemperatureInfoModal({
               <Text style={styles.infoNoteText}>
                 These are recommended internal temperatures. Always verify with a meat thermometer.
               </Text>
-            </View>
-          </ScrollView>
-        </View>
       </View>
-    </Modal>
+      </ScrollView>
+    </BaseModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContainer: {
-    backgroundColor: theme.colors.background.primary,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    maxHeight: '80%',
-  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
