@@ -1,5 +1,5 @@
-import React, { useLayoutEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import React, { useLayoutEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -7,6 +7,7 @@ import { useRecipeStore, useAuthStore } from '@store/store';
 import { Recipe } from '~/types/recipe';
 import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
+import { generateExportJSON, validateChefIQExport, exportToChefIQFormat } from '@utils/chefiqExport';
 import { theme } from '@theme/index';
 import StepImage from '@components/StepImage';
 
@@ -36,6 +37,36 @@ export default function RecipeDetailScreen() {
   const handleEdit = () => {
     // @ts-ignore - Navigation typing issue with static navigation
     navigation.navigate('RecipeEdit', { recipe });
+  };
+
+  const handleExportToChefIQ = async () => {
+    try {
+      // Check if recipe has cooking actions
+      const hasCookingActions = recipe.steps.some(step => step.cookingAction);
+
+      if (!hasCookingActions) {
+        Alert.alert(
+          'No Cooking Actions',
+          'This recipe doesn\'t have any cooking actions assigned. Add cooking actions in the editor to export to ChefIQ format.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
+      // Generate export
+      const exportJSON = generateExportJSON(recipe);
+
+      // Show share sheet
+      await Share.share({
+        message: exportJSON,
+        title: `${recipe.title} - ChefIQ Recipe`,
+      });
+    } catch (error) {
+      Alert.alert(
+        'Export Failed',
+        error instanceof Error ? error.message : 'Failed to export recipe'
+      );
+    }
   };
 
   // Configure navigation header
@@ -172,6 +203,16 @@ export default function RecipeDetailScreen() {
                   )}
                 </View>
               </View>
+
+              {/* Export to ChefIQ Button */}
+              <TouchableOpacity
+                onPress={handleExportToChefIQ}
+                className="mt-3 flex-row items-center justify-center py-3 rounded-lg"
+                style={{ backgroundColor: theme.colors.primary[500] }}
+              >
+                <Feather name="download" size={18} color="white" style={{ marginRight: 8 }} />
+                <Text className="text-white font-semibold text-base">Export to ChefIQ Format</Text>
+              </TouchableOpacity>
             </View>
           )}
 
