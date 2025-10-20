@@ -16,6 +16,7 @@ import {
 
 export interface Recipe {
   id: string;
+  userId: string; // ID of the user who created the recipe
   title: string;
   description: string;
   ingredients: string[];
@@ -316,6 +317,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       // Convert Firebase recipes to store Recipe format
       const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => ({
         id: recipe.id,
+        userId: recipe.userId,
         title: recipe.title,
         description: recipe.description,
         ingredients: recipe.ingredients,
@@ -351,6 +353,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       // Convert Firebase recipes to store Recipe format
       const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => ({
         id: recipe.id,
+        userId: recipe.userId,
         title: recipe.title,
         description: recipe.description,
         ingredients: recipe.ingredients,
