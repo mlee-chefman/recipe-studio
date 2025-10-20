@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { HeaderButton } from '@components/HeaderButton';
 import { TabBarIcon } from '@components/TabBarIcon';
 import Home from '@screens/home';
+import MyRecipes from '@screens/MyRecipes';
 import Settings from '@screens/settings';
 import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
 import { theme } from '@theme/index';
@@ -109,6 +110,25 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
             );
           }
 
+          // Render third tab
+          if (index === 2) {
+            return (
+              <TouchableOpacity
+                key={route.key}
+                accessibilityRole="button"
+                accessibilityState={isFocused ? { selected: true } : {}}
+                accessibilityLabel={options.tabBarAccessibilityLabel}
+                testID={options.tabBarTestID}
+                onPress={onPress}
+                style={styles.tabButton}
+              >
+                {options.tabBarIcon?.({
+                  color: isFocused ? theme.colors.primary[500] : theme.colors.gray[400]
+                })}
+              </TouchableOpacity>
+            );
+          }
+
           return null;
         })}
       </View>
@@ -142,6 +162,13 @@ const Tab = createBottomTabNavigator({
         tabBarIcon: ({ color }) => <TabBarIcon name="archive" color={color} />,
         headerRight: () => <HeaderButton onPress={() => navigation.navigate('Modal')} />,
       }),
+    },
+    MyRecipes: {
+      screen: MyRecipes,
+      options: {
+        title: 'My Recipes',
+        tabBarIcon: ({ color }) => <TabBarIcon name="user" color={color} />,
+      },
     },
     Settings: {
       screen: Settings,

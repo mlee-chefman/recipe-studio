@@ -283,6 +283,51 @@ export const getRecipesByCategory = async (userId: string, category: string): Pr
   }
 };
 
+// Get all recipes for a specific user (including unpublished ones)
+export const getRecipesByUserId = async (userId: string): Promise<Recipe[]> => {
+  try {
+    const recipesRef = collection(db, 'recipes');
+    const q = query(
+      recipesRef,
+      where('userId', '==', userId),
+      orderBy('updatedAt', 'desc')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    const recipes: Recipe[] = [];
+    
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      recipes.push({
+        id: doc.id,
+        userId: data.userId,
+        title: data.title,
+        description: data.description,
+        ingredients: data.ingredients,
+        instructions: data.instructions,
+        cookTime: data.cookTime,
+        servings: data.servings,
+        difficulty: data.difficulty,
+        category: data.category,
+        tags: data.tags,
+        image: data.image,
+        chefiqAppliance: data.chefiqAppliance,
+        cookingActions: data.cookingActions,
+        instructionSections: data.instructionSections,
+        useProbe: data.useProbe,
+        published: data.published ?? false,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate() : data.createdAt,
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate() : data.updatedAt
+      });
+    });
+    
+    return recipes;
+  } catch (error) {
+    console.error('Error getting recipes by user ID:', error);
+    throw error;
+  }
+};
+
 // Search recipes by title for a specific user
 export const searchRecipesByTitle = async (userId: string, searchTerm: string): Promise<Recipe[]> => {
   try {

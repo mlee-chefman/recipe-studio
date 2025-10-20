@@ -107,23 +107,31 @@ const FilterButton = ({
   );
 };
 
-export const RecipeList = () => {
+interface RecipeListProps {
+  tabType: 'home' | 'myRecipes';
+}
+
+export const RecipeList = ({ tabType }: RecipeListProps) => {
   const navigation = useNavigation();
-  const {
-    filteredRecipes,
-    searchQuery,
-    selectedCategory,
-    selectedDifficulty,
-    selectedTags,
-    selectedAppliance,
-    setSearchQuery,
-    setSelectedCategory,
-    setSelectedDifficulty,
-    setSelectedTags,
-    setSelectedAppliance,
-    recipes,
-    filterRecipes
-  } = useRecipeStore();
+  const recipeStore = useRecipeStore();
+
+  // Determine if we're on the home tab
+  const isHomeTab = tabType === 'home';
+
+  // Select the appropriate state and actions based on tab type
+  const filteredRecipes = isHomeTab ? recipeStore.filteredAllRecipes : recipeStore.filteredUserRecipes;
+  const searchQuery = isHomeTab ? recipeStore.allRecipesSearchQuery : recipeStore.userRecipesSearchQuery;
+  const selectedCategory = isHomeTab ? recipeStore.allRecipesSelectedCategory : recipeStore.userRecipesSelectedCategory;
+  const selectedDifficulty = isHomeTab ? recipeStore.allRecipesSelectedDifficulty : recipeStore.userRecipesSelectedDifficulty;
+  const selectedTags = isHomeTab ? recipeStore.allRecipesSelectedTags : recipeStore.userRecipesSelectedTags;
+  const selectedAppliance = isHomeTab ? recipeStore.allRecipesSelectedAppliance : recipeStore.userRecipesSelectedAppliance;
+  const setSearchQuery = isHomeTab ? recipeStore.setAllRecipesSearchQuery : recipeStore.setUserRecipesSearchQuery;
+  const setSelectedCategory = isHomeTab ? recipeStore.setAllRecipesSelectedCategory : recipeStore.setUserRecipesSelectedCategory;
+  const setSelectedDifficulty = isHomeTab ? recipeStore.setAllRecipesSelectedDifficulty : recipeStore.setUserRecipesSelectedDifficulty;
+  const setSelectedTags = isHomeTab ? recipeStore.setAllRecipesSelectedTags : recipeStore.setUserRecipesSelectedTags;
+  const setSelectedAppliance = isHomeTab ? recipeStore.setAllRecipesSelectedAppliance : recipeStore.setUserRecipesSelectedAppliance;
+  const recipes = isHomeTab ? recipeStore.allRecipes : recipeStore.userRecipes;
+  const filterRecipes = isHomeTab ? recipeStore.filterAllRecipes : recipeStore.filterUserRecipes;
 
   // Modal state
   const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -313,8 +321,7 @@ export const RecipeList = () => {
         onRequestClose={() => setShowEditModal(false)}
       >
         <RecipeCreatorScreen
-          editingRecipe={editingRecipe || undefined}
-          onEditComplete={handleEditComplete}
+          onComplete={handleEditComplete}
         />
       </Modal>
     </View>

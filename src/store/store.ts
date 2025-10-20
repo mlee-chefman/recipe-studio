@@ -7,6 +7,7 @@ import { UserProfile } from '../modules/user/userService';
 import { 
   createRecipe, 
   getRecipes, 
+  getRecipesByUserId,
   updateRecipe as updateRecipeService, 
   deleteRecipe as deleteRecipeService,
   Recipe as FirebaseRecipe,
@@ -52,22 +53,43 @@ export interface AuthState {
 }
 
 export interface RecipeState {
-  recipes: Recipe[];
-  filteredRecipes: Recipe[];
+  // Home tab recipes (all published recipes)
+  allRecipes: Recipe[];
+  filteredAllRecipes: Recipe[];
+  // MyRecipes tab recipes (user's own recipes)
+  userRecipes: Recipe[];
+  filteredUserRecipes: Recipe[];
   isLoading: boolean;
   error: string | null;
-  searchQuery: string;
-  selectedCategory: string;
-  selectedDifficulty: string;
-  selectedTags: string[];
-  selectedAppliance: string;
-  setSearchQuery: (query: string) => void;
-  setSelectedCategory: (category: string) => void;
-  setSelectedDifficulty: (difficulty: string) => void;
-  setSelectedTags: (tags: string[]) => void;
-  setSelectedAppliance: (appliance: string) => void;
-  filterRecipes: () => void;
+  // Search and filter state for Home tab
+  allRecipesSearchQuery: string;
+  allRecipesSelectedCategory: string;
+  allRecipesSelectedDifficulty: string;
+  allRecipesSelectedTags: string[];
+  allRecipesSelectedAppliance: string;
+  // Search and filter state for MyRecipes tab
+  userRecipesSearchQuery: string;
+  userRecipesSelectedCategory: string;
+  userRecipesSelectedDifficulty: string;
+  userRecipesSelectedTags: string[];
+  userRecipesSelectedAppliance: string;
+  // Actions for Home tab
+  setAllRecipesSearchQuery: (query: string) => void;
+  setAllRecipesSelectedCategory: (category: string) => void;
+  setAllRecipesSelectedDifficulty: (difficulty: string) => void;
+  setAllRecipesSelectedTags: (tags: string[]) => void;
+  setAllRecipesSelectedAppliance: (appliance: string) => void;
+  filterAllRecipes: () => void;
+  // Actions for MyRecipes tab
+  setUserRecipesSearchQuery: (query: string) => void;
+  setUserRecipesSelectedCategory: (category: string) => void;
+  setUserRecipesSelectedDifficulty: (difficulty: string) => void;
+  setUserRecipesSelectedTags: (tags: string[]) => void;
+  setUserRecipesSelectedAppliance: (appliance: string) => void;
+  filterUserRecipes: () => void;
+  // Data fetching
   fetchRecipes: (userId: string) => Promise<void>;
+  fetchUserRecipes: (userId: string) => Promise<void>;
   addRecipe: (recipe: Omit<Recipe, 'id'>, userId: string) => Promise<void>;
   deleteRecipe: (id: string, userId: string) => Promise<void>;
   updateRecipe: (id: string, recipe: Partial<Omit<Recipe, 'id'>>, userId: string) => Promise<void>;
@@ -123,77 +145,167 @@ export const useAuthStore = create<AuthState>()(
 );
 
 export const useRecipeStore = create<RecipeState>((set, get) => ({
-  recipes: [],
-  filteredRecipes: [],
+  // Home tab recipes (all published recipes)
+  allRecipes: [],
+  filteredAllRecipes: [],
+  // MyRecipes tab recipes (user's own recipes)
+  userRecipes: [],
+  filteredUserRecipes: [],
   isLoading: false,
   error: null,
-  searchQuery: '',
-  selectedCategory: '',
-  selectedDifficulty: '',
-  selectedTags: [],
-  selectedAppliance: '',
-  setSearchQuery: (query: string) => {
-    set({ searchQuery: query });
-    get().filterRecipes();
+  // Search and filter state for Home tab
+  allRecipesSearchQuery: '',
+  allRecipesSelectedCategory: '',
+  allRecipesSelectedDifficulty: '',
+  allRecipesSelectedTags: [],
+  allRecipesSelectedAppliance: '',
+  // Search and filter state for MyRecipes tab
+  userRecipesSearchQuery: '',
+  userRecipesSelectedCategory: '',
+  userRecipesSelectedDifficulty: '',
+  userRecipesSelectedTags: [],
+  userRecipesSelectedAppliance: '',
+  // Actions for Home tab
+  setAllRecipesSearchQuery: (query: string) => {
+    set({ allRecipesSearchQuery: query });
+    get().filterAllRecipes();
   },
-  setSelectedCategory: (category: string) => {
-    set({ selectedCategory: category });
-    get().filterRecipes();
+  setAllRecipesSelectedCategory: (category: string) => {
+    set({ allRecipesSelectedCategory: category });
+    get().filterAllRecipes();
   },
-  setSelectedDifficulty: (difficulty: string) => {
-    set({ selectedDifficulty: difficulty });
-    get().filterRecipes();
+  setAllRecipesSelectedDifficulty: (difficulty: string) => {
+    set({ allRecipesSelectedDifficulty: difficulty });
+    get().filterAllRecipes();
   },
-  setSelectedTags: (tags: string[]) => {
-    set({ selectedTags: tags });
-    get().filterRecipes();
+  setAllRecipesSelectedTags: (tags: string[]) => {
+    set({ allRecipesSelectedTags: tags });
+    get().filterAllRecipes();
   },
-  setSelectedAppliance: (appliance: string) => {
-    set({ selectedAppliance: appliance });
-    get().filterRecipes();
+  setAllRecipesSelectedAppliance: (appliance: string) => {
+    set({ allRecipesSelectedAppliance: appliance });
+    get().filterAllRecipes();
   },
-  filterRecipes: () => {
-    const { recipes, searchQuery, selectedCategory, selectedDifficulty, selectedTags, selectedAppliance } = get();
-    let filtered = recipes;
+  filterAllRecipes: () => {
+    const { 
+      allRecipes, 
+      allRecipesSearchQuery, 
+      allRecipesSelectedCategory, 
+      allRecipesSelectedDifficulty, 
+      allRecipesSelectedTags, 
+      allRecipesSelectedAppliance 
+    } = get();
+    let filtered = allRecipes;
 
     // Search query filter
-    if (searchQuery) {
-      filtered = filtered.filter(recipe => {
-        const searchLower = searchQuery.toLowerCase();
+    if (allRecipesSearchQuery) {
+      filtered = filtered.filter((recipe: Recipe) => {
+        const searchLower = allRecipesSearchQuery.toLowerCase();
         return (
           recipe.title.toLowerCase().includes(searchLower) ||
           recipe.description.toLowerCase().includes(searchLower) ||
-          (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(searchLower)))
+          (recipe.tags && recipe.tags.some((tag: string) => tag.toLowerCase().includes(searchLower)))
         );
       });
     }
 
     // Category filter
-    if (selectedCategory) {
-      filtered = filtered.filter(recipe => recipe.category === selectedCategory);
+    if (allRecipesSelectedCategory) {
+      filtered = filtered.filter((recipe: Recipe) => recipe.category === allRecipesSelectedCategory);
     }
 
     // Difficulty filter
-    if (selectedDifficulty) {
-      filtered = filtered.filter(recipe => recipe.difficulty === selectedDifficulty);
+    if (allRecipesSelectedDifficulty) {
+      filtered = filtered.filter((recipe: Recipe) => recipe.difficulty === allRecipesSelectedDifficulty);
     }
 
     // Tags filter (recipe must have ALL selected tags)
-    if (selectedTags.length > 0) {
-      filtered = filtered.filter(recipe => {
+    if (allRecipesSelectedTags.length > 0) {
+      filtered = filtered.filter((recipe: Recipe) => {
         if (!recipe.tags || recipe.tags.length === 0) return false;
-        return selectedTags.every(selectedTag =>
-          recipe.tags!.some(recipeTag => recipeTag.toLowerCase() === selectedTag.toLowerCase())
+        return allRecipesSelectedTags.every((selectedTag: string) =>
+          recipe.tags!.some((recipeTag: string) => recipeTag.toLowerCase() === selectedTag.toLowerCase())
         );
       });
     }
 
     // Appliance filter
-    if (selectedAppliance) {
-      filtered = filtered.filter(recipe => recipe.chefiqAppliance === selectedAppliance);
+    if (allRecipesSelectedAppliance) {
+      filtered = filtered.filter((recipe: Recipe) => recipe.chefiqAppliance === allRecipesSelectedAppliance);
     }
 
-    set({ filteredRecipes: filtered });
+    set({ filteredAllRecipes: filtered });
+  },
+  // Actions for MyRecipes tab
+  setUserRecipesSearchQuery: (query: string) => {
+    set({ userRecipesSearchQuery: query });
+    get().filterUserRecipes();
+  },
+  setUserRecipesSelectedCategory: (category: string) => {
+    set({ userRecipesSelectedCategory: category });
+    get().filterUserRecipes();
+  },
+  setUserRecipesSelectedDifficulty: (difficulty: string) => {
+    set({ userRecipesSelectedDifficulty: difficulty });
+    get().filterUserRecipes();
+  },
+  setUserRecipesSelectedTags: (tags: string[]) => {
+    set({ userRecipesSelectedTags: tags });
+    get().filterUserRecipes();
+  },
+  setUserRecipesSelectedAppliance: (appliance: string) => {
+    set({ userRecipesSelectedAppliance: appliance });
+    get().filterUserRecipes();
+  },
+  filterUserRecipes: () => {
+    const { 
+      userRecipes, 
+      userRecipesSearchQuery, 
+      userRecipesSelectedCategory, 
+      userRecipesSelectedDifficulty, 
+      userRecipesSelectedTags, 
+      userRecipesSelectedAppliance 
+    } = get();
+    let filtered = userRecipes;
+
+    // Search query filter
+    if (userRecipesSearchQuery) {
+      filtered = filtered.filter((recipe: Recipe) => {
+        const searchLower = userRecipesSearchQuery.toLowerCase();
+        return (
+          recipe.title.toLowerCase().includes(searchLower) ||
+          recipe.description.toLowerCase().includes(searchLower) ||
+          (recipe.tags && recipe.tags.some((tag: string) => tag.toLowerCase().includes(searchLower)))
+        );
+      });
+    }
+
+    // Category filter
+    if (userRecipesSelectedCategory) {
+      filtered = filtered.filter((recipe: Recipe) => recipe.category === userRecipesSelectedCategory);
+    }
+
+    // Difficulty filter
+    if (userRecipesSelectedDifficulty) {
+      filtered = filtered.filter((recipe: Recipe) => recipe.difficulty === userRecipesSelectedDifficulty);
+    }
+
+    // Tags filter (recipe must have ALL selected tags)
+    if (userRecipesSelectedTags.length > 0) {
+      filtered = filtered.filter((recipe: Recipe) => {
+        if (!recipe.tags || recipe.tags.length === 0) return false;
+        return userRecipesSelectedTags.every((selectedTag: string) =>
+          recipe.tags!.some((recipeTag: string) => recipeTag.toLowerCase() === selectedTag.toLowerCase())
+        );
+      });
+    }
+
+    // Appliance filter
+    if (userRecipesSelectedAppliance) {
+      filtered = filtered.filter((recipe: Recipe) => recipe.chefiqAppliance === userRecipesSelectedAppliance);
+    }
+
+    set({ filteredUserRecipes: filtered });
   },
   fetchRecipes: async (userId: string) => {
     try {
@@ -201,7 +313,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       const firebaseRecipes = await getRecipes(userId);
       
       // Convert Firebase recipes to store Recipe format
-      const recipes: Recipe[] = firebaseRecipes.map(recipe => ({
+      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => ({
         id: recipe.id,
         title: recipe.title,
         description: recipe.description,
@@ -220,11 +332,45 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         published: recipe.published,
       }));
       
-      set({ recipes, isLoading: false });
-      get().filterRecipes();
+      set({ allRecipes: recipes, isLoading: false });
+      get().filterAllRecipes();
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to fetch recipes',
+        isLoading: false 
+      });
+    }
+  },
+  fetchUserRecipes: async (userId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+      const firebaseRecipes = await getRecipesByUserId(userId);
+      
+      // Convert Firebase recipes to store Recipe format
+      const recipes: Recipe[] = firebaseRecipes.map((recipe: FirebaseRecipe) => ({
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        cookTime: recipe.cookTime,
+        servings: recipe.servings,
+        difficulty: recipe.difficulty as 'Easy' | 'Medium' | 'Hard',
+        category: recipe.category,
+        tags: recipe.tags,
+        image: recipe.image,
+        chefiqAppliance: recipe.chefiqAppliance,
+        instructionSections: recipe.instructionSections,
+        cookingActions: recipe.cookingActions,
+        useProbe: recipe.useProbe,
+        published: recipe.published,
+      }));
+      
+      set({ userRecipes: recipes, isLoading: false });
+      get().filterUserRecipes();
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to fetch user recipes',
         isLoading: false 
       });
     }
@@ -255,8 +401,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       
       await createRecipe(createData);
       
-      // Refetch recipes to ensure store is up-to-date
+      // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
+      await get().fetchUserRecipes(userId);
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to add recipe',
@@ -269,8 +416,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       set({ isLoading: true, error: null });
       await deleteRecipeService(id);
       
-      // Refetch recipes to ensure store is up-to-date
+      // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
+      await get().fetchUserRecipes(userId);
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to delete recipe',
@@ -283,8 +431,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       set({ isLoading: true, error: null });
       await updateRecipeService(id, recipe);
       
-      // Refetch recipes to ensure store is up-to-date
+      // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
+      await get().fetchUserRecipes(userId);
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to update recipe',
