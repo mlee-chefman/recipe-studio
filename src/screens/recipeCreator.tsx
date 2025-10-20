@@ -1,6 +1,6 @@
 import React, { useLayoutEffect, useRef, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator } from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { View, Text, TextInput, TouchableOpacity, Alert, Switch, Animated } from 'react-native';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
@@ -23,6 +23,7 @@ import { formatCookTime } from '@utils/helpers/recipeHelpers';
 import StepImage from '@components/StepImage';
 import {
   ConfirmationModal,
+  AIAssistantModal,
 } from '@components/modals';
 
 interface RecipeCreatorProps {
@@ -35,9 +36,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const navigation = useNavigation();
   const route = useRoute<RecipeCreatorRouteProp>();
   const [newInstructionText, setNewInstructionText] = React.useState('');
-  const [showAIHelper, setShowAIHelper] = useState(true);
+  const [showAIHelperModal, setShowAIHelperModal] = useState(false);
   const [showTempInfo, setShowTempInfo] = useState(false);
   const [tempInfoStepIndex, setTempInfoStepIndex] = useState<number | null>(null);
+  const fabScale = useRef(new Animated.Value(1)).current;
 
   const {
     formData,
@@ -110,18 +112,19 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         // Note: Cooking actions can be manually assigned to steps using the ChefIQ selector
       }
 
-      // Hide the AI helper after successful generation
-      setShowAIHelper(false);
+      // Close the AI helper modal after successful generation
+      setShowAIHelperModal(false);
+      setAiDescription(''); // Clear the description for next use
     }
   });
 
-  // Reload remaining generations when AI helper is shown
+  // Reload remaining generations when AI helper modal is opened
   useEffect(() => {
-    if (showAIHelper) {
+    if (showAIHelperModal) {
       loadRemainingGenerations();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showAIHelper]);
+  }, [showAIHelperModal]);
 
   // Handle imported recipe from web import
   useEffect(() => {
@@ -398,108 +401,35 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     return assignedActions;
   };
 
+  const handleFabPress = () => {
+    // Animate the FAB
+    Animated.sequence([
+      Animated.timing(fabScale, {
+        toValue: 0.85,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fabScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    setShowAIHelperModal(true);
+  };
+
   return (
-    <KeyboardAwareScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
-      contentContainerStyle={{
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.lg
-      }}
-      showsVerticalScrollIndicator={false}
-      bottomOffset={40}
-    >
-        {/* AI Helper Section */}
-        {showAIHelper && (
-          <View
-            className="mb-6 p-4 rounded-xl"
-            style={{
-              backgroundColor: theme.colors.primary[50],
-              borderWidth: 1,
-              borderColor: theme.colors.primary[200],
-            }}
-          >
-            <View className="flex-row items-center justify-between mb-2">
-              <Text
-                className="text-lg font-semibold"
-                style={{ color: theme.colors.primary[700] }}
-              >
-                ✨ AI Recipe Assistant
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowAIHelper(false)}
-                className="w-6 h-6 rounded-full items-center justify-center"
-                style={{ backgroundColor: theme.colors.primary[200] }}
-              >
-                <Text style={{ color: theme.colors.primary[700], fontSize: 14 }}>×</Text>
-              </TouchableOpacity>
-            </View>
-            <Text
-              className="text-sm mb-2"
-              style={{ color: theme.colors.text.secondary }}
-            >
-              Don't know where to start? Describe what you want to cook and let AI generate a recipe for you!
-            </Text>
-            {remainingGenerations && (
-              <Text
-                className="text-xs mb-3"
-                style={{ color: theme.colors.primary[600], fontWeight: '600' }}
-              >
-                ✨ {remainingGenerations.daily} of {remainingGenerations.dailyLimit} generations remaining today
-              </Text>
-            )}
-            <TextInput
-              className="border rounded-lg px-3 py-2 mb-3 text-base"
-              style={{
-                backgroundColor: 'white',
-                borderColor: theme.colors.gray[300],
-              }}
-              placeholder='e.g., "simple pork chop" or "easy chicken pasta"'
-              value={aiDescription}
-              onChangeText={setAiDescription}
-              editable={!isGenerating}
-              multiline
-              numberOfLines={2}
-              textAlignVertical="top"
-            />
-            <TouchableOpacity
-              onPress={generateRecipe}
-              disabled={isGenerating || !aiDescription.trim()}
-              className="py-3 px-4 rounded-lg items-center"
-              style={{
-                backgroundColor: isGenerating || !aiDescription.trim()
-                  ? theme.colors.gray[300]
-                  : theme.colors.primary[500],
-              }}
-            >
-              {isGenerating ? (
-                <View className="flex-row items-center">
-                  <ActivityIndicator color="white" size="small" />
-                  <Text className="text-white font-semibold ml-2">Generating...</Text>
-                </View>
-              ) : (
-                <Text className="text-white font-semibold">Generate Recipe</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Show "Bring back AI Helper" button if hidden */}
-        {!showAIHelper && (
-          <TouchableOpacity
-            onPress={() => setShowAIHelper(true)}
-            className="mb-4 py-2 px-3 rounded-lg self-start"
-            style={{
-              backgroundColor: theme.colors.primary[100],
-              borderWidth: 1,
-              borderColor: theme.colors.primary[300],
-            }}
-          >
-            <Text style={{ color: theme.colors.primary[700], fontSize: 14 }}>
-              ✨ Show AI Helper
-            </Text>
-          </TouchableOpacity>
-        )}
-
+    <View style={{ flex: 1 }}>
+      <KeyboardAwareScrollView
+        style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
+        contentContainerStyle={{
+          paddingHorizontal: theme.spacing.lg,
+          paddingVertical: theme.spacing.lg,
+          paddingBottom: 100, // Extra padding for FAB
+        }}
+        showsVerticalScrollIndicator={false}
+        bottomOffset={40}
+      >
         {/* Title */}
         <View className="mb-4">
           <TextInput
@@ -924,5 +854,80 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         />
       )}
     </KeyboardAwareScrollView>
+
+    {/* Floating Action Button for AI Helper */}
+    <Animated.View
+      style={{
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+        transform: [{ scale: fabScale }],
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
+      }}
+    >
+      <TouchableOpacity
+        onPress={handleFabPress}
+        style={{
+          height: 56,
+          borderRadius: 28,
+          backgroundColor: theme.colors.primary[500],
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'row',
+          paddingHorizontal: 20,
+          paddingVertical: 12,
+        }}
+        activeOpacity={0.8}
+      >
+        <MaterialCommunityIcons name="robot-excited" size={28} color="white" />
+        <Text style={{
+          color: 'white',
+          fontSize: 16,
+          fontWeight: '600',
+          marginLeft: 8,
+        }}>
+          AI Assistant
+        </Text>
+      </TouchableOpacity>
+      {/* Badge for remaining generations */}
+      {remainingGenerations && remainingGenerations.daily > 0 && (
+        <View
+          style={{
+            position: 'absolute',
+            top: -6,
+            right: -6,
+            backgroundColor: theme.colors.secondary[500],
+            borderRadius: 12,
+            minWidth: 24,
+            height: 24,
+            alignItems: 'center',
+            justifyContent: 'center',
+            paddingHorizontal: 6,
+            borderWidth: 2,
+            borderColor: 'white',
+          }}
+        >
+          <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+            {remainingGenerations.daily}
+          </Text>
+        </View>
+      )}
+    </Animated.View>
+
+    {/* AI Helper Modal */}
+    <AIAssistantModal
+      visible={showAIHelperModal}
+      onClose={() => setShowAIHelperModal(false)}
+      aiDescription={aiDescription}
+      onChangeDescription={setAiDescription}
+      onGenerate={generateRecipe}
+      isGenerating={isGenerating}
+      remainingGenerations={remainingGenerations}
+    />
+  </View>
   );
 }
