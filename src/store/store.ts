@@ -458,7 +458,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   deleteRecipe: async (id: string, userId: string) => {
     try {
       set({ isLoading: true, error: null });
-      await deleteRecipeService(id);
+      await deleteRecipeService(id, userId);
 
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
@@ -475,7 +475,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       set({ isLoading: true, error: null });
 
       // Delete all recipes in parallel
-      await Promise.all(ids.map(id => deleteRecipeService(id)));
+      await Promise.all(ids.map(id => deleteRecipeService(id, userId)));
 
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
@@ -500,7 +500,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
         }
       });
 
-      await updateRecipeService(id, updateData);
+      await updateRecipeService(id, updateData, userId);
 
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
