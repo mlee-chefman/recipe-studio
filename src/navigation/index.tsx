@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { createStaticNavigation, StaticParamList } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 
@@ -16,9 +16,10 @@ import SignInScreen from '@screens/signin';
 import TabNavigator from './tabNavigator';
 import AuthWrapper from '../components/AuthWrapper';
 import { useAuthStore } from '../store/store';
+import { getHasSignedUpBefore } from '../services/authStorageService';
 
-// Auth Stack for unauthenticated users
-const AuthStack = createStackNavigator({
+// Auth Stack for unauthenticated users (starts with SignUp)
+const AuthStackSignUp = createStackNavigator({
   screenOptions: {
     headerBackTitle: '',
     headerBackTitleVisible: false,
@@ -32,6 +33,28 @@ const AuthStack = createStackNavigator({
     },
     SignIn: {
       screen: SignInScreen,
+      options: {
+        headerShown: false,
+      },
+    },
+  },
+});
+
+// Auth Stack for returning users (starts with SignIn)
+const AuthStackSignIn = createStackNavigator({
+  screenOptions: {
+    headerBackTitle: '',
+    headerBackTitleVisible: false,
+  },
+  screens: {
+    SignIn: {
+      screen: SignInScreen,
+      options: {
+        headerShown: false,
+      },
+    },
+    SignUp: {
+      screen: SignUpScreen,
       options: {
         headerShown: false,
       },
@@ -119,21 +142,40 @@ const MainStack = createStackNavigator({
 });
 
 // Create the navigation components
-const AuthNavigation = createStaticNavigation(AuthStack);
+const AuthNavigationSignUp = createStaticNavigation(AuthStackSignUp);
+const AuthNavigationSignIn = createStaticNavigation(AuthStackSignIn);
 const MainNavigation = createStaticNavigation(MainStack);
 
 // Root component that conditionally renders auth or main stack
 function RootNavigator() {
   const { isAuthenticated } = useAuthStore();
-  
+  const [hasSignedUpBefore, setHasSignedUpBefore] = useState(false);
+  const [isCheckingSignUpStatus, setIsCheckingSignUpStatus] = useState(true);
+
+  // Check if user has signed up before
+  useEffect(() => {
+    const checkSignUpStatus = async () => {
+      const hasSigned = await getHasSignedUpBefore();
+      setHasSignedUpBefore(hasSigned);
+      setIsCheckingSignUpStatus(false);
+    };
+    checkSignUpStatus();
+  }, []);
+
+  // Show nothing while checking signup status
+  if (isCheckingSignUpStatus) {
+    return null;
+  }
+
   if (isAuthenticated) {
     return <MainNavigation />;
   } else {
-    return <AuthNavigation />;
+    // Show SignIn screen if user has signed up before, otherwise SignUp
+    return hasSignedUpBefore ? <AuthNavigationSignIn /> : <AuthNavigationSignUp />;
   }
 }
 
-type AuthStackParamList = StaticParamList<typeof AuthStack>;
+type AuthStackParamList = StaticParamList<typeof AuthStackSignIn>;
 type MainStackParamList = StaticParamList<typeof MainStack>;
 
 declare global {

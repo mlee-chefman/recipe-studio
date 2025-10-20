@@ -15,7 +15,7 @@ import { updateUserProfile } from '../modules/user/userService';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
 
 export default function SettingsScreen() {
-  const { user, userProfile, setUserProfile } = useAuthStore();
+  const { user, userProfile, setUserProfile, signOut } = useAuthStore();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
   const handleAvatarSelect = async (avatarUrl: string) => {
@@ -56,7 +56,12 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Sign out from Firebase
               await signOutUser();
+
+              // Clear local auth state
+              // Note: We keep credentials saved in secure storage
+              // so user can easily sign back in
               signOut();
             } catch (error) {
               console.error('Error signing out:', error);
