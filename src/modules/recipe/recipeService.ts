@@ -155,7 +155,7 @@ export const getRecipes = async (userId: string): Promise<Recipe[]> => {
     const recipesRef = collection(db, 'recipes');
     const q = query(
       recipesRef,
-      where('userId', '==', userId),
+      where('published', '==', true),
       orderBy('updatedAt', 'desc')
     );
     
@@ -244,6 +244,7 @@ export const getRecipesByCategory = async (userId: string, category: string): Pr
       recipesRef,
       where('userId', '==', userId),
       where('category', '==', category),
+      where('published', '==', true),
       orderBy('updatedAt', 'desc')
     );
     
