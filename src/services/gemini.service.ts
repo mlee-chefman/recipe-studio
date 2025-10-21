@@ -12,6 +12,11 @@ import {
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
 
+// Rate limiting configuration
+// Free tier (15 RPM): Use 5000ms (5 seconds) to stay under limit
+// Paid tier (1000 RPM): Use 1000-2000ms (1-2 seconds) for faster processing
+const GEMINI_DELAY_BETWEEN_CALLS_MS = 5000; // Change to 2000 for paid tier
+
 interface GeminiResponse {
   candidates?: {
     content: {
@@ -443,7 +448,7 @@ export async function parseMultipleRecipes(
 
         // Delay between chunks to avoid rate limiting
         if (chunkIndex < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 3000)); // 3 second delay
+          await new Promise(resolve => setTimeout(resolve, GEMINI_DELAY_BETWEEN_CALLS_MS));
         }
 
       } catch (chunkError) {
@@ -1054,7 +1059,7 @@ async function parseMultiRecipeResponse(responseText: string, onProgress?: Progr
 
           // Add delay between Gemini API calls to avoid rate limiting
           if (i < parsedArray.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+            await new Promise(resolve => setTimeout(resolve, GEMINI_DELAY_BETWEEN_CALLS_MS));
           }
         } catch (error) {
           console.error('ChefIQ analysis failed for recipe:', recipe.title, error);
