@@ -23,7 +23,11 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.recipeiq"
+      "bundleIdentifier": "com.anonymous.recipeiq",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take photos of your recipes and cooking steps.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for your recipes."
+      }
     },
     "android": {
       "adaptiveIcon": {
