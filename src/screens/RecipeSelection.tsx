@@ -13,7 +13,7 @@ import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
-import { useRecipeStore } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 type RecipeSelectionRouteProp = RouteProp<{
@@ -30,6 +30,7 @@ export default function RecipeSelectionScreen() {
   const navigation = useNavigation();
   const route = useRoute<RecipeSelectionRouteProp>();
   const { recipes = [], source, filename } = route.params || {};
+  const user = useAuthStore((state) => state.user);
   const addRecipe = useRecipeStore((state) => state.addRecipe);
 
   const [selectedRecipes, setSelectedRecipes] = useState<Set<number>>(new Set());
@@ -83,6 +84,11 @@ export default function RecipeSelectionScreen() {
       return;
     }
 
+    if (!user?.uid) {
+      Alert.alert('Error', 'User not authenticated. Please sign in and try again.');
+      return;
+    }
+
     setIsImporting(true);
 
     try {
@@ -92,10 +98,10 @@ export default function RecipeSelectionScreen() {
         .map(idx => recipes[idx]);
 
       // Save each recipe directly to the store
-      recipesToImport.forEach((scrapedRecipe) => {
+      for (const scrapedRecipe of recipesToImport) {
         const recipe = convertScrapedToRecipe(scrapedRecipe);
-        addRecipe(recipe);
-      });
+        await addRecipe(recipe, user.uid);
+      }
 
       // Show success message
       const count = recipesToImport.length;
@@ -106,8 +112,8 @@ export default function RecipeSelectionScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate to home screen (Recipes tab)
-              navigation.navigate('TabNavigator' as any, { screen: 'Home' });
+              // Navigate to My Recipes tab since imported recipes are not published
+              navigation.navigate('TabNavigator' as any, { screen: 'MyRecipes' });
             }
           }
         ]
