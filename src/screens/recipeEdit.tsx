@@ -566,7 +566,7 @@ export default function RecipeEditScreen() {
           <TouchableOpacity
             onPress={handleDelete}
             className="border border-red-300 rounded-lg py-3 px-4 items-center"
-            style={{ backgroundColor: '#fef2f2' }}
+            style={{ backgroundColor: theme.colors.error.light }}
           >
             <Text className="text-red-600 font-medium text-base">Delete Recipe</Text>
           </TouchableOpacity>

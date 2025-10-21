@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Pressable, StyleSheet } from 'react-native';
+import { theme } from '@theme/index';
 
 export type ViewMode = 'detailed' | 'compact' | 'grid';
 
@@ -31,7 +32,7 @@ export const ViewToggleButton = forwardRef<typeof Pressable, ViewToggleButtonPro
           <FontAwesome
             name={getIcon()}
             size={22}
-            color="#4CAF50"
+            color={theme.colors.primary[500]}
             style={[
               styles.headerRight,
               {

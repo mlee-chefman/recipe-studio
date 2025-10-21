@@ -57,11 +57,7 @@ export function ConfirmationModal({
 
 const styles = StyleSheet.create({
   modalContent: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    ...theme.shadows.md,
   },
   title: {
     fontSize: 18,

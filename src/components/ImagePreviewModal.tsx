@@ -37,7 +37,7 @@ export default function ImagePreviewModal({ visible, imageUri, onClose }: ImageP
 
       {/* Close button */}
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Feather name="x" size={28} color="#FFFFFF" />
+        <Feather name="x" size={28} color={theme.colors.text.inverse} />
       </TouchableOpacity>
     </BaseModal>
   );

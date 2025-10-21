@@ -21,7 +21,7 @@ import { AvatarPickerModal } from '../components/AvatarPickerModal';
 import { generateAvatarUrl } from '../utils/avatarGenerator';
 import { saveCredentials } from '../services/keychainService';
 import { setHasSignedUpBefore } from '../services/authStorageService';
-import { theme } from '../theme';
+import { theme } from '@theme/index';
 
 export default function SignUpScreen() {
   const navigation = useNavigation();
@@ -130,7 +130,7 @@ export default function SignUpScreen() {
                 />
               ) : (
                 <View style={styles.avatarPlaceholder}>
-                  <Feather name="user" size={40} color="#999" />
+                  <Feather name="user" size={40} color={theme.colors.gray[400]} />
                 </View>
               )}
               <View style={styles.avatarEditBadge}>

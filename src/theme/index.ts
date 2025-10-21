@@ -1,109 +1,12 @@
-// Recipe Studio App Theme
-// Clean, minimal health-focused design system
+// RecipeiQ App Theme
+// Clean, minimal design system matching app icon
 
-export const theme = {
-  // === COLORS ===
-  colors: {
-    // Primary Green Palette (Main brand color #38A865)
-    primary: {
-      50: '#f0f9f3',   // Very light green background
-      100: '#dcf2e3',  // Light green surface
-      200: '#bce5ca',  // Soft green accent
-      300: '#8fd5a6',  // Medium light green
-      400: '#5cb97d',  // Medium green
-      500: '#38A865',  // Main brand green
-      600: '#2d8f54',  // Dark green
-      700: '#257243',  // Darker green
-      800: '#1f5a36',  // Very dark green
-      900: '#1a4a2d',  // Deepest green
-    },
+import { useMemo } from 'react';
+import { getThemeColors, ThemeVariant } from './variants';
+import { useThemeStore } from '@store/store';
 
-    // Secondary Palette (Complementary mint blue)
-    secondary: {
-      50: '#f0fdfa',   // Very light mint
-      100: '#ccfbf1',  // Light mint
-      200: '#99f6e4',  // Soft mint
-      300: '#5eead4',  // Medium mint
-      400: '#2dd4bf',  // Mint accent
-      500: '#14b8a6',  // Main mint
-      600: '#0d9488',  // Dark mint
-      700: '#0f766e',  // Darker mint
-      800: '#115e59',  // Very dark mint
-      900: '#134e4a',  // Deepest mint
-    },
-
-    // Neutral Grays (Professional and clean)
-    gray: {
-      50: '#f9fafb',   // Almost white
-      100: '#f3f4f6',  // Very light gray
-      200: '#e5e7eb',  // Light gray
-      300: '#d1d5db',  // Medium light gray
-      400: '#9ca3af',  // Medium gray
-      500: '#6b7280',  // Gray
-      600: '#4b5563',  // Dark gray
-      700: '#374151',  // Darker gray
-      800: '#1f2937',  // Very dark gray
-      900: '#111827',  // Almost black
-    },
-
-    // Semantic Colors
-    success: {
-      light: '#dcf2e3',
-      main: '#38A865',
-      dark: '#257243',
-    },
-
-    warning: {
-      light: '#fef3cd',
-      main: '#f59e0b',
-      dark: '#d97706',
-    },
-
-    error: {
-      light: '#fecaca',
-      main: '#ef4444',
-      dark: '#dc2626',
-    },
-
-    info: {
-      light: '#dbeafe',
-      main: '#3b82f6',
-      dark: '#1d4ed8',
-    },
-
-    // Background Colors
-    background: {
-      primary: '#ffffff',     // Pure white
-      secondary: '#f9fafb',   // Very light gray
-      tertiary: '#f0f9f3',    // Very light green
-    },
-
-    // Text Colors
-    text: {
-      primary: '#111827',     // Almost black
-      secondary: '#4b5563',   // Dark gray
-      tertiary: '#6b7280',    // Medium gray
-      disabled: '#9ca3af',    // Light gray
-      inverse: '#ffffff',     // White text
-    },
-
-    // Border Colors
-    border: {
-      light: '#f3f4f6',      // Very light gray
-      main: '#e5e7eb',       // Light gray
-      dark: '#d1d5db',       // Medium light gray
-      focus: '#38A865',      // Green focus
-    },
-
-    // Surface Colors (for cards, modals, etc.)
-    surface: {
-      primary: '#ffffff',
-      secondary: '#f9fafb',
-      elevated: '#ffffff',   // For modals/overlays
-      overlay: 'rgba(0, 0, 0, 0.5)', // Modal overlay
-    },
-  },
-
+// Static theme properties (non-color properties that don't change)
+const staticTheme = {
   // === SPACING ===
   spacing: {
     // Base spacing unit (4px)
@@ -266,8 +169,8 @@ export const theme = {
     // Button Styles
     button: {
       primary: {
-        backgroundColor: '#38A865',
-        borderColor: '#38A865',
+        backgroundColor: '#02533a',
+        borderColor: '#02533a',
         color: '#ffffff',
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -277,8 +180,8 @@ export const theme = {
       },
       secondary: {
         backgroundColor: 'transparent',
-        borderColor: '#38A865',
-        color: '#38A865',
+        borderColor: '#02533a',
+        color: '#02533a',
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderRadius: 8,
@@ -287,9 +190,9 @@ export const theme = {
         fontWeight: '600',
       },
       tertiary: {
-        backgroundColor: '#f0f9f3',
+        backgroundColor: '#e6f2ee',
         borderColor: 'transparent',
-        color: '#38A865',
+        color: '#02533a',
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderRadius: 8,
@@ -311,7 +214,7 @@ export const theme = {
         color: '#111827',
       },
       focused: {
-        borderColor: '#38A865',
+        borderColor: '#02533a',
         borderWidth: 2,
       },
       error: {
@@ -366,6 +269,25 @@ export const theme = {
     pressed: 0.8,
   },
 };
+
+// Legacy theme export (uses 'fresh' theme colors by default for backward compatibility)
+export const theme = {
+  ...staticTheme,
+  colors: getThemeColors('fresh'),
+};
+
+/**
+ * Hook to get the current app theme with dynamic colors based on user selection
+ * Use this in components that need to respond to theme changes
+ */
+export function useAppTheme() {
+  const themeVariant = useThemeStore((state) => state.themeVariant);
+
+  return useMemo(() => ({
+    ...staticTheme,
+    colors: getThemeColors(themeVariant),
+  }), [themeVariant]);
+}
 
 // Type definitions for TypeScript
 export type Theme = typeof theme;

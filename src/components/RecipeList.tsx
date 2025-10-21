@@ -338,9 +338,9 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   };
 
   return (
-    <View className="flex-1 w-full">
+    <View className="flex-1 w-full bg-cream">
       {/* Fixed Header */}
-      <View className="px-4 pb-2 bg-gray-50 w-full">
+      <View className="px-4 pb-2 bg-cream w-full">
         {/* Search Input and Filter Button */}
         <View className="flex-row mb-3 gap-2">
           <TextInput
@@ -587,14 +587,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    ...theme.shadows.md,
   },
   checkboxOverlay: {
     position: 'absolute',
@@ -606,14 +599,14 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#4CAF50',
+    borderColor: theme.colors.primary[500],
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
   },
   checkboxSelected: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: theme.colors.primary[500],
+    borderColor: theme.colors.primary[500],
   },
   selectionBottomBar: {
     position: 'absolute',
@@ -622,16 +615,9 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: 'white',
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: theme.colors.border.main,
     paddingBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    ...theme.shadows.md,
   },
   selectionInfo: {
     paddingHorizontal: 16,
@@ -640,7 +626,7 @@ const styles = StyleSheet.create({
   selectionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: theme.colors.text.primary,
     marginBottom: 12,
   },
   selectionActions: {
@@ -652,7 +638,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.primary[500],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -666,14 +652,14 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     borderRadius: 8,
-    backgroundColor: '#f44336',
+    backgroundColor: theme.colors.error.main,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
   },
   deleteButtonDisabled: {
-    backgroundColor: '#cccccc',
+    backgroundColor: theme.colors.gray[300],
   },
   deleteButtonText: {
     color: 'white',

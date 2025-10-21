@@ -157,7 +157,7 @@ export const ChefIQExportModal: React.FC<ChefIQExportModalProps> = ({
         <ScrollView
           style={{
             flex: 1,
-            backgroundColor: '#1e1e1e',
+            backgroundColor: theme.colors.gray[900],
           }}
           contentContainerStyle={{
             padding: theme.spacing.md,
@@ -167,7 +167,7 @@ export const ChefIQExportModal: React.FC<ChefIQExportModalProps> = ({
             style={{
               fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
               fontSize: theme.typography.fontSize.sm,
-              color: '#d4d4d4',
+              color: theme.colors.gray[300],
               lineHeight: 20,
             }}
           >

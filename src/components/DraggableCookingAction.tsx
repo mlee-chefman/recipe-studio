@@ -111,7 +111,7 @@ export function DraggableCookingAction({
             <View className="flex-row items-center justify-between">
               {isReorderMode && (
                 <View className="mr-2">
-                  <Feather name="move" size={16} color="#22c55e" />
+                  <Feather name="move" size={16} color={theme.colors.primary[500]} />
                 </View>
               )}
               <View className="flex-1">

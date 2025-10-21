@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Pressable, StyleSheet } from 'react-native';
+import { theme } from '@theme/index';
 
 interface SelectModeButtonProps {
   isSelectionMode: boolean;
@@ -20,7 +21,7 @@ export const SelectModeButton = forwardRef<typeof Pressable, SelectModeButtonPro
           <FontAwesome
             name={isSelectionMode ? "times-circle" : "edit"}
             size={22}
-            color={disabled ? "#cccccc" : (isSelectionMode ? "#f44336" : "#4CAF50")}
+            color={disabled ? theme.colors.gray[300] : (isSelectionMode ? theme.colors.error.main : theme.colors.primary[500])}
             style={[
               styles.icon,
               {
