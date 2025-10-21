@@ -112,8 +112,8 @@ export default function RecipeSelectionScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate to home screen (Recipes tab)
-              navigation.navigate('TabNavigator' as any, { screen: 'Home' });
+              // Navigate to My Recipes tab since imported recipes are not published
+              navigation.navigate('TabNavigator' as any, { screen: 'MyRecipes' });
             }
           }
         ]

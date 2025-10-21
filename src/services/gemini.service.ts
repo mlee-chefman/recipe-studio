@@ -443,10 +443,14 @@ export async function parseMultipleRecipes(
       } catch (chunkError) {
         console.error(`Error processing chunk ${chunkNum}:`, chunkError);
 
-        // Handle rate limiting with retry
-        if (axios.isAxiosError(chunkError) && chunkError.response?.status === 429) {
-          console.log(`Rate limit hit on chunk ${chunkNum}, waiting 10 seconds before retry...`);
-          await new Promise(resolve => setTimeout(resolve, 10000));
+        // Handle rate limiting (429) or service unavailable (503) with retry
+        if (axios.isAxiosError(chunkError) &&
+            (chunkError.response?.status === 429 || chunkError.response?.status === 503)) {
+          const errorType = chunkError.response?.status === 429 ? 'Rate limit' : 'Service unavailable (503)';
+          const waitTime = chunkError.response?.status === 429 ? 10000 : 15000; // 10s for 429, 15s for 503
+
+          console.log(`${errorType} on chunk ${chunkNum}, waiting ${waitTime/1000} seconds before retry...`);
+          await new Promise(resolve => setTimeout(resolve, waitTime));
 
           // Retry once
           try {
