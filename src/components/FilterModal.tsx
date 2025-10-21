@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
-import { theme } from '~/theme';
+import { useAppTheme } from '~/theme';
 import { CHEFIQ_APPLIANCES } from '~/types/chefiq';
 
 interface FilterModalProps {
@@ -35,20 +35,27 @@ const DropdownSection = ({
   placeholder: string;
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
+  const appTheme = useAppTheme();
 
   return (
     <View className="mb-6">
-      <Text className="text-lg font-semibold text-gray-800 mb-3">{title}</Text>
-      
+      <Text className="text-lg font-semibold mb-3" style={{ color: appTheme.colors.text.primary }}>{title}</Text>
+
       {/* Dropdown Button */}
       <TouchableOpacity
         onPress={() => setIsOpen(!isOpen)}
-        className="bg-white border border-gray-300 rounded-lg px-4 py-3 flex-row justify-between items-center"
+        className="border rounded-lg px-4 py-3 flex-row justify-between items-center"
+        style={{
+          backgroundColor: appTheme.colors.surface.primary,
+          borderColor: appTheme.colors.border.main
+        }}
       >
-        <Text className={`text-base ${selectedValue ? 'text-gray-800' : 'text-gray-500'}`}>
+        <Text className="text-base" style={{
+          color: selectedValue ? appTheme.colors.text.primary : appTheme.colors.text.disabled
+        }}>
           {selectedValue || placeholder}
         </Text>
-        <Text className={`text-gray-500 transform ${isOpen ? 'rotate-180' : 'rotate-0'}`}>
+        <Text className={`transform ${isOpen ? 'rotate-180' : 'rotate-0'}`} style={{ color: appTheme.colors.text.tertiary }}>
           ▼
         </Text>
       </TouchableOpacity>
@@ -56,8 +63,12 @@ const DropdownSection = ({
       {/* Dropdown Options */}
       {isOpen && (
         <View
-          className="bg-white border border-gray-300 border-t-0 rounded-b-lg"
-          style={{ maxHeight: 280 }}
+          className="border border-t-0 rounded-b-lg"
+          style={{
+            maxHeight: 280,
+            backgroundColor: appTheme.colors.surface.primary,
+            borderColor: appTheme.colors.border.main
+          }}
         >
           <ScrollView
             showsVerticalScrollIndicator={true}
@@ -70,9 +81,10 @@ const DropdownSection = ({
                 onSelect('');
                 setIsOpen(false);
               }}
-              className="px-4 py-3 border-b border-gray-100"
+              className="px-4 py-3 border-b"
+              style={{ borderBottomColor: appTheme.colors.border.light }}
             >
-              <Text className="text-base text-gray-500 italic">Clear selection</Text>
+              <Text className="text-base italic" style={{ color: appTheme.colors.text.disabled }}>Clear selection</Text>
             </TouchableOpacity>
 
             {/* Options */}
@@ -83,13 +95,14 @@ const DropdownSection = ({
                   onSelect(option);
                   setIsOpen(false);
                 }}
-                className="px-4 py-3 border-b border-gray-100"
+                className="px-4 py-3 border-b"
                 style={{
-                  backgroundColor: selectedValue === option ? theme.colors.primary[50] : 'transparent'
+                  backgroundColor: selectedValue === option ? appTheme.colors.primary[50] : 'transparent',
+                  borderBottomColor: appTheme.colors.border.light
                 }}
               >
                 <Text className="text-base" style={{
-                  color: selectedValue === option ? theme.colors.primary[700] : theme.colors.text.primary,
+                  color: selectedValue === option ? appTheme.colors.primary[700] : appTheme.colors.text.primary,
                   fontWeight: selectedValue === option ? '500' : '400'
                 }}>
                   {option}
@@ -114,9 +127,11 @@ const TagsSection = ({
   selectedTags: string[];
   onToggle: (tag: string) => void;
 }) => {
+  const appTheme = useAppTheme();
+
   return (
     <View className="mb-6">
-      <Text className="text-lg font-semibold text-gray-800 mb-3">{title}</Text>
+      <Text className="text-lg font-semibold mb-3" style={{ color: appTheme.colors.text.primary }}>{title}</Text>
       <View className="flex-row flex-wrap gap-2">
         {options.map((tag) => {
           const isSelected = selectedTags.includes(tag);
@@ -126,15 +141,15 @@ const TagsSection = ({
               onPress={() => onToggle(tag)}
               className="px-3 py-2 rounded-full"
               style={{
-                backgroundColor: isSelected ? theme.colors.primary[500] : theme.colors.gray[100],
+                backgroundColor: isSelected ? appTheme.colors.primary[500] : appTheme.colors.gray[100],
                 borderWidth: 1,
-                borderColor: isSelected ? theme.colors.primary[500] : theme.colors.gray[300]
+                borderColor: isSelected ? appTheme.colors.primary[500] : appTheme.colors.gray[300]
               }}
             >
               <Text
                 className="text-sm"
                 style={{
-                  color: isSelected ? 'white' : theme.colors.text.primary,
+                  color: isSelected ? 'white' : appTheme.colors.text.primary,
                   fontWeight: isSelected ? '600' : '400'
                 }}
               >
@@ -145,7 +160,7 @@ const TagsSection = ({
         })}
       </View>
       {selectedTags.length > 0 && (
-        <Text className="text-xs mt-2" style={{ color: theme.colors.text.secondary }}>
+        <Text className="text-xs mt-2" style={{ color: appTheme.colors.text.secondary }}>
           Recipes must have ALL selected tags ({selectedTags.length} selected)
         </Text>
       )}
@@ -170,6 +185,8 @@ export const FilterModal = ({
   onApplianceChange,
   onClearFilters
 }: FilterModalProps) => {
+  const appTheme = useAppTheme();
+
   const handleTagToggle = (tag: string) => {
     if (selectedTags.includes(tag)) {
       onTagsChange(selectedTags.filter(t => t !== tag));
@@ -187,15 +204,19 @@ export const FilterModal = ({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <View className="flex-1 bg-gray-50">
+      <View className="flex-1" style={{ backgroundColor: appTheme.colors.background.secondary }}>
         {/* Header */}
-        <View className="flex-row justify-between items-center p-4 border-b border-gray-200 bg-white">
-          <Text className="text-xl font-bold text-gray-800">Filter Recipes</Text>
+        <View className="flex-row justify-between items-center p-4 border-b" style={{
+          backgroundColor: appTheme.colors.background.primary,
+          borderBottomColor: appTheme.colors.border.main
+        }}>
+          <Text className="text-xl font-bold" style={{ color: appTheme.colors.text.primary }}>Filter Recipes</Text>
           <TouchableOpacity
             onPress={onClose}
-            className="bg-gray-100 rounded-full w-8 h-8 items-center justify-center"
+            className="rounded-full w-8 h-8 items-center justify-center"
+            style={{ backgroundColor: appTheme.colors.gray[100] }}
           >
-            <Text className="text-gray-600 font-bold text-lg">×</Text>
+            <Text className="font-bold text-lg" style={{ color: appTheme.colors.text.secondary }}>×</Text>
           </TouchableOpacity>
         </View>
 
@@ -247,19 +268,26 @@ export const FilterModal = ({
           {hasActiveFilters && (
             <TouchableOpacity
               onPress={onClearFilters}
-              className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 items-center mt-4"
+              className="border rounded-lg px-4 py-3 items-center mt-4"
+              style={{
+                backgroundColor: appTheme.colors.error.light,
+                borderColor: appTheme.colors.error.dark
+              }}
             >
-              <Text className="text-red-700 font-medium text-base">Clear All Filters</Text>
+              <Text className="font-medium text-base" style={{ color: appTheme.colors.error.dark }}>Clear All Filters</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
 
         {/* Footer */}
-        <View className="p-4 border-t border-gray-200 bg-white">
+        <View className="p-4 border-t" style={{
+          backgroundColor: appTheme.colors.background.primary,
+          borderTopColor: appTheme.colors.border.main
+        }}>
           <TouchableOpacity
             onPress={onClose}
             className="rounded-lg px-6 py-3 items-center"
-            style={{ backgroundColor: theme.colors.primary[500] }}
+            style={{ backgroundColor: appTheme.colors.primary[500] }}
           >
             <Text className="text-white font-semibold text-base">Apply Filters</Text>
           </TouchableOpacity>

@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
 
 interface ChefIQExportModalProps {
   visible: boolean;
@@ -26,6 +26,7 @@ export const ChefIQExportModal: React.FC<ChefIQExportModalProps> = ({
   exportJSON,
   recipeName,
 }) => {
+  const theme = useAppTheme();
   const [copied, setCopied] = useState(false);
 
   const handleCopyToClipboard = async () => {

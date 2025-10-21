@@ -12,7 +12,7 @@ import { RecipeCardSkeleton } from './RecipeCardSkeleton';
 import { getApplianceById } from '~/types/chefiq';
 import RecipeCreatorScreen from '@screens/recipeCreator';
 import { useStyles } from '@hooks/useStyles';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
 import type { Theme } from '@theme/index';
 
 const RecipeCard = ({
@@ -28,13 +28,17 @@ const RecipeCard = ({
   isSelectionMode?: boolean;
   isSelected?: boolean;
 }) => {
+  const appTheme = useAppTheme();
   const styles = useStyles(createStyles);
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <View className={`bg-white rounded-lg mb-3 shadow-sm border-2 overflow-hidden ${
-        isSelected ? 'border-green-500' : 'border-gray-200'
-      }`}>
+      <View
+        className="mb-3 overflow-hidden rounded-lg border-2 shadow-sm"
+        style={{
+          backgroundColor: appTheme.colors.surface.primary,
+          borderColor: isSelected ? appTheme.colors.primary[500] : appTheme.colors.border.main,
+        }}>
         {/* Recipe Image */}
         <View style={{ position: 'relative' }}>
           {recipe.image ? (
@@ -44,19 +48,30 @@ const RecipeCard = ({
               contentFit="cover"
             />
           ) : (
-            <View className="w-full h-40 bg-gray-100 items-center justify-center">
-              <Text className="text-4xl text-gray-400">🍽️</Text>
-              <Text className="text-gray-500 text-sm mt-1">No Image</Text>
+            <View
+              className="h-40 w-full items-center justify-center"
+              style={{ backgroundColor: appTheme.colors.gray[100] }}>
+              <Text className="text-4xl" style={{ color: appTheme.colors.gray[400] }}>
+                🍽️
+              </Text>
+              <Text className="mt-1 text-sm" style={{ color: appTheme.colors.text.tertiary }}>
+                No Image
+              </Text>
             </View>
           )}
 
           {/* Status Badge - Absolutely positioned on image */}
           {showStatus && (
             <View style={styles.statusBadge}>
-              <View className={`px-3 py-1.5 rounded-lg ${recipe.status === 'Published' ? 'bg-green-500' : 'bg-yellow-500'}`}>
-                <Text className="text-xs font-bold text-white">
-                  {recipe.status}
-                </Text>
+              <View
+                className="rounded-lg px-3 py-1.5"
+                style={{
+                  backgroundColor:
+                    recipe.status === 'Published'
+                      ? appTheme.colors.primary[500]
+                      : appTheme.colors.gray[500],
+                }}>
+                <Text className="text-xs font-bold text-white">{recipe.status}</Text>
               </View>
             </View>
           )}
@@ -64,12 +79,16 @@ const RecipeCard = ({
 
         {/* Recipe Content */}
         <View className="p-4">
-          <Text className="text-lg font-bold text-gray-800 mb-2">{recipe.title}</Text>
-          <Text className="text-gray-600 mb-2 line-clamp-2">{recipe.description}</Text>
+          <Text className="mb-2 text-lg font-bold" style={{ color: appTheme.colors.text.primary }}>
+            {recipe.title}
+          </Text>
+          <Text className="mb-2 line-clamp-2" style={{ color: appTheme.colors.text.secondary }}>
+            {recipe.description}
+          </Text>
 
           {/* Author */}
           {recipe.authorName && (
-            <View className="flex-row items-center mb-3">
+            <View className="mb-3 flex-row items-center">
               {recipe.authorProfilePicture && (
                 <Image
                   source={{ uri: recipe.authorProfilePicture }}
@@ -77,7 +96,7 @@ const RecipeCard = ({
                   contentFit="cover"
                 />
               )}
-              <Text className="text-xs text-gray-500">
+              <Text className="text-xs" style={{ color: appTheme.colors.text.tertiary }}>
                 By {recipe.authorName}
               </Text>
             </View>
@@ -85,48 +104,75 @@ const RecipeCard = ({
 
           {/* Tags */}
           {recipe.tags && recipe.tags.length > 0 && (
-            <View className="flex-row flex-wrap gap-1 mb-3">
+            <View className="mb-3 flex-row flex-wrap gap-1">
               {recipe.tags.slice(0, 4).map((tag, index) => (
-                <View key={index} className="px-2 py-0.5 rounded-full" style={{ backgroundColor: theme.colors.primary[100] }}>
-                  <Text className="text-xs" style={{ color: theme.colors.primary[700] }}>{tag}</Text>
+                <View
+                  key={index}
+                  className="rounded-full px-2 py-0.5"
+                  style={{ backgroundColor: appTheme.colors.primary[100] }}>
+                  <Text className="text-xs" style={{ color: appTheme.colors.primary[700] }}>
+                    {tag}
+                  </Text>
                 </View>
               ))}
               {recipe.tags.length > 4 && (
-                <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: theme.colors.gray[200] }}>
-                  <Text className="text-xs" style={{ color: theme.colors.text.secondary }}>+{recipe.tags.length - 4}</Text>
+                <View
+                  className="rounded-full px-2 py-0.5"
+                  style={{ backgroundColor: appTheme.colors.gray[200] }}>
+                  <Text className="text-xs" style={{ color: appTheme.colors.text.secondary }}>
+                    +{recipe.tags.length - 4}
+                  </Text>
                 </View>
               )}
             </View>
           )}
 
-          <View className="flex-row justify-between items-center mb-2">
+          <View className="mb-2 flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <Text className="text-sm text-gray-500 mr-4">⏱️ {recipe.cookTime} min</Text>
-              <Text className="text-sm text-gray-500 mr-4">👥 {recipe.servings} servings</Text>
+              <Text className="mr-4 text-sm" style={{ color: appTheme.colors.text.tertiary }}>
+                ⏱️ {recipe.cookTime} min
+              </Text>
+              <Text className="mr-4 text-sm" style={{ color: appTheme.colors.text.tertiary }}>
+                👥 {recipe.servings} servings
+              </Text>
             </View>
           </View>
 
           <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center flex-wrap gap-1">
-              <Text className="text-sm font-medium mr-2" style={{ color: theme.colors.primary[500] }}>{recipe.category}</Text>
+            <View className="flex-row flex-wrap items-center gap-1">
+              <Text
+                className="mr-2 text-sm font-medium"
+                style={{ color: appTheme.colors.primary[500] }}>
+                {recipe.category}
+              </Text>
               {recipe.chefiqAppliance && (
                 <View className="flex-row items-center gap-1">
-                  <View className="px-2 py-1 rounded-full flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
-                    <Text className="text-xs mr-1">🍳</Text>
-                    <Text className="text-xs font-medium" style={{ color: theme.colors.primary[500] }}>
+                  <View
+                    className="flex-row items-center rounded-full px-2 py-1"
+                    style={{ backgroundColor: appTheme.colors.primary[100] }}>
+                    <Text className="mr-1 text-xs">🍳</Text>
+                    <Text
+                      className="text-xs font-medium"
+                      style={{ color: appTheme.colors.primary[500] }}>
                       {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
                     </Text>
                   </View>
                   {recipe.useProbe && (
-                    <View className="bg-orange-100 px-1.5 py-0.5 rounded-full">
-                      <Text className="text-xs text-orange-800">🌡️</Text>
+                    <View
+                      className="rounded-full px-1.5 py-0.5"
+                      style={{ backgroundColor: appTheme.colors.warning.light }}>
+                      <Text className="text-xs" style={{ color: appTheme.colors.warning.dark }}>
+                        🌡️
+                      </Text>
                     </View>
                   )}
                 </View>
               )}
             </View>
             <View className="flex-row items-center gap-2">
-              <Text className="text-xs text-gray-400">Tap for details →</Text>
+              <Text className="text-xs" style={{ color: appTheme.colors.text.disabled }}>
+                Tap for details →
+              </Text>
             </View>
           </View>
         </View>
@@ -135,39 +181,11 @@ const RecipeCard = ({
         {isSelectionMode && (
           <View style={styles.checkboxOverlay}>
             <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
-              {isSelected && (
-                <FontAwesome name="check" size={16} color="white" />
-              )}
+              {isSelected && <FontAwesome name="check" size={16} color="white" />}
             </View>
           </View>
         )}
       </View>
-    </TouchableOpacity>
-  );
-};
-
-const FilterButton = ({ 
-  title, 
-  isSelected, 
-  onPress 
-}: { 
-  title: string; 
-  isSelected: boolean; 
-  onPress: () => void; 
-}) => {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      className={`px-3 py-2 rounded-full mr-2 ${
-        isSelected ? 'bg-green-500' : 'bg-gray-200'
-      }`}
-      style={{ height: 36, minWidth: 60, justifyContent: 'center', alignItems: 'center' }}
-    >
-      <Text className={`text-sm font-medium ${
-        isSelected ? 'text-white' : 'text-gray-700'
-      }`}>
-        {title}
-      </Text>
     </TouchableOpacity>
   );
 };
@@ -180,6 +198,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   const navigation = useNavigation();
   const recipeStore = useRecipeStore();
   const { user } = useAuthStore();
+  const appTheme = useAppTheme();
   const styles = useStyles(createStyles);
 
   // Determine if we're on the home tab
@@ -349,21 +368,28 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
         {/* Search Input and Filter Button */}
         <View className="flex-row mb-3 gap-2">
           <TextInput
-            className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 text-base"
+            className="flex-1 rounded-lg px-4 py-3 text-base"
+            style={{
+              backgroundColor: appTheme.colors.surface.primary,
+              borderWidth: 1,
+              borderColor: appTheme.colors.border.main,
+              color: appTheme.colors.text.primary
+            }}
             placeholder="Search recipes..."
+            placeholderTextColor={appTheme.colors.text.disabled}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           <TouchableOpacity
             onPress={() => setFilterModalVisible(true)}
             className="rounded-lg px-4 py-3 items-center justify-center min-w-[80px]"
-            style={{ backgroundColor: theme.colors.primary[500] }}
+            style={{ backgroundColor: appTheme.colors.primary[500] }}
           >
             <View className="flex-row items-center">
               <Text className="text-white font-medium text-sm mr-1">Filter</Text>
               {getActiveFiltersCount() > 0 && (
                 <View className="bg-white rounded-full w-5 h-5 items-center justify-center">
-                  <Text className="text-xs font-bold" style={{ color: theme.colors.primary[500] }}>{getActiveFiltersCount()}</Text>
+                  <Text className="text-xs font-bold" style={{ color: appTheme.colors.primary[500] }}>{getActiveFiltersCount()}</Text>
                 </View>
               )}
             </View>
@@ -373,37 +399,37 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
         {/* Active Filters Display */}
         {(selectedCategory || selectedDifficulty || selectedTags.length > 0 || selectedAppliance) && (
           <View className="mb-3">
-            <Text className="text-sm font-medium text-gray-700 mb-2">Active Filters:</Text>
+            <Text className="text-sm font-medium mb-2" style={{ color: appTheme.colors.text.secondary }}>Active Filters:</Text>
             <View className="flex-row flex-wrap">
               {selectedCategory && (
-                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
-                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Category: {selectedCategory}</Text>
+                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: appTheme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: appTheme.colors.primary[600] }}>Category: {selectedCategory}</Text>
                   <TouchableOpacity onPress={() => setSelectedCategory('')}>
-                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
+                    <Text className="font-bold" style={{ color: appTheme.colors.primary[600] }}>×</Text>
                   </TouchableOpacity>
                 </View>
               )}
               {selectedDifficulty && (
-                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
-                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Difficulty: {selectedDifficulty}</Text>
+                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: appTheme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: appTheme.colors.primary[600] }}>Difficulty: {selectedDifficulty}</Text>
                   <TouchableOpacity onPress={() => setSelectedDifficulty('')}>
-                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
+                    <Text className="font-bold" style={{ color: appTheme.colors.primary[600] }}>×</Text>
                   </TouchableOpacity>
                 </View>
               )}
               {selectedTags.map((tag) => (
-                <View key={tag} className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
-                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Tag: {tag}</Text>
+                <View key={tag} className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: appTheme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: appTheme.colors.primary[600] }}>Tag: {tag}</Text>
                   <TouchableOpacity onPress={() => setSelectedTags(selectedTags.filter(t => t !== tag))}>
-                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
+                    <Text className="font-bold" style={{ color: appTheme.colors.primary[600] }}>×</Text>
                   </TouchableOpacity>
                 </View>
               ))}
               {selectedAppliance && (
-                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
-                  <Text className="text-sm mr-1" style={{ color: theme.colors.primary[600] }}>Appliance: {getApplianceById(selectedAppliance)?.short_code}</Text>
+                <View className="px-3 py-1 rounded-full mr-2 mb-1 flex-row items-center" style={{ backgroundColor: appTheme.colors.primary[100] }}>
+                  <Text className="text-sm mr-1" style={{ color: appTheme.colors.primary[600] }}>Appliance: {getApplianceById(selectedAppliance)?.short_code}</Text>
                   <TouchableOpacity onPress={() => setSelectedAppliance('')}>
-                    <Text className="font-bold" style={{ color: theme.colors.primary[600] }}>×</Text>
+                    <Text className="font-bold" style={{ color: appTheme.colors.primary[600] }}>×</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -412,7 +438,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
         )}
 
         {/* Results Count */}
-        <Text className="text-sm text-gray-600 mb-2">
+        <Text className="text-sm mb-2" style={{ color: appTheme.colors.text.secondary }}>
           {isLoading ? 'Loading recipes...' : `${filteredRecipes.length} recipe${filteredRecipes.length !== 1 ? 's' : ''} found`}
         </Text>
       </View>
@@ -449,8 +475,8 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
               <RefreshControl
                 refreshing={isRefreshing}
                 onRefresh={handleRefresh}
-                tintColor={theme.colors.primary[500]}
-                colors={[theme.colors.primary[500]]}
+                tintColor={appTheme.colors.primary[500]}
+                colors={[appTheme.colors.primary[500]]}
               />
             }
           />
@@ -508,13 +534,13 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
               <RefreshControl
                 refreshing={isRefreshing}
                 onRefresh={handleRefresh}
-                tintColor={theme.colors.primary[500]}
-                colors={[theme.colors.primary[500]]}
+                tintColor={appTheme.colors.primary[500]}
+                colors={[appTheme.colors.primary[500]]}
               />
             }
             ListEmptyComponent={
               <View className="flex-1 items-center justify-center py-8 w-full">
-                <Text className="text-gray-500 text-center">
+                <Text className="text-center" style={{ color: appTheme.colors.text.tertiary }}>
                   No recipes found matching your criteria.
                 </Text>
               </View>

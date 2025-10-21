@@ -132,12 +132,12 @@ export default function RecipeInfoScreen() {
             </View>
           ))}
           {formData.tags.length > 2 && (
-            <Text className="text-sm text-gray-600">+{formData.tags.length - 2}</Text>
+            <Text className="text-sm" style={{ color: theme.colors.text.secondary }}>+{formData.tags.length - 2}</Text>
           )}
         </View>
       );
     }
-    return <Text className="text-base text-gray-400">None</Text>;
+    return <Text className="text-base" style={{ color: theme.colors.text.disabled }}>None</Text>;
   };
 
   return (

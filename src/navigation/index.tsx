@@ -11,6 +11,7 @@ import RecipeOCRImport from '@screens/RecipeOCRImport';
 import RecipeTextImport from '@screens/RecipeTextImport';
 import RecipePDFImport from '@screens/RecipePDFImport';
 import RecipeSelection from '@screens/RecipeSelection';
+import ThemeSettings from '@screens/ThemeSettings';
 import SignUpScreen from '@screens/signup';
 import SignInScreen from '@screens/signin';
 import TabNavigator from './tabNavigator';
@@ -136,6 +137,14 @@ const MainStack = createStackNavigator({
       options: {
         headerShown: true,
         presentation: 'card',
+      },
+    },
+    ThemeSettings: {
+      screen: ThemeSettings,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+        title: 'Theme Settings',
       },
     }
   },

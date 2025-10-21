@@ -9,18 +9,20 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { signOutUser } from '../modules/user/userAuth';
 import { useAuthStore, useThemeStore } from '../store/store';
 import { updateUserProfile } from '../modules/user/userService';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
-import { themeMetadata, ThemeVariant } from '@theme/variants';
+import { themeMetadata } from '@theme/variants';
 import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
   const { user, userProfile, setUserProfile, signOut } = useAuthStore();
-  const { themeVariant, setThemeVariant } = useThemeStore();
+  const { themeVariant } = useThemeStore();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const styles = useStyles(createStyles);
 
@@ -119,45 +121,35 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Theme Selector Section */}
+        {/* Appearance Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Appearance</Text>
-          <View style={styles.themeContainer}>
-            {(Object.keys(themeMetadata) as ThemeVariant[]).map((variant) => {
-              const meta = themeMetadata[variant];
-              const isSelected = themeVariant === variant;
-
-              return (
-                <TouchableOpacity
-                  key={variant}
-                  style={[
-                    styles.themeOption,
-                    isSelected && styles.themeOptionSelected,
-                  ]}
-                  onPress={() => setThemeVariant(variant)}
-                  activeOpacity={0.7}
-                >
-                  {/* Color Preview Circle */}
-                  <View
-                    style={[
-                      styles.colorPreview,
-                      { backgroundColor: meta.accentColor },
-                    ]}
-                  >
-                    {isSelected && (
-                      <Feather name="check" size={20} color="white" />
-                    )}
-                  </View>
-
-                  {/* Theme Info */}
-                  <View style={styles.themeInfo}>
-                    <Text style={styles.themeName}>{meta.name}</Text>
-                    <Text style={styles.themeDescription}>{meta.description}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <TouchableOpacity
+            style={styles.settingsOption}
+            onPress={() => {
+              // @ts-ignore - Navigation typing issue
+              navigation.navigate('ThemeSettings');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <View
+                style={[
+                  styles.optionIcon,
+                  { backgroundColor: themeMetadata[themeVariant].accentColor },
+                ]}
+              >
+                <Feather name="droplet" size={20} color="white" />
+              </View>
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>Theme</Text>
+                <Text style={styles.optionSubtitle}>
+                  {themeMetadata[themeVariant].name}
+                </Text>
+              </View>
+            </View>
+            <Feather name="chevron-right" size={20} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
         </View>
 
         {/* Account Section */}
@@ -262,41 +254,38 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     fontWeight: '600',
   },
-  themeContainer: {
-    gap: theme.spacing.md,
-  },
-  themeOption: {
+  settingsOption: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: theme.colors.surface.primary,
     borderRadius: theme.borderRadius.lg,
     padding: theme.spacing.lg,
-    borderWidth: 2,
-    borderColor: theme.colors.border.light,
     ...theme.shadows.sm,
   },
-  themeOptionSelected: {
-    borderColor: theme.colors.primary[500],
-    borderWidth: 2,
+  optionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
-  colorPreview: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+  optionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: theme.spacing.md,
   },
-  themeInfo: {
+  optionText: {
     flex: 1,
   },
-  themeName: {
+  optionTitle: {
     fontSize: theme.typography.fontSize.base,
     fontWeight: '600',
     color: theme.colors.text.primary,
-    marginBottom: theme.spacing.xs,
+    marginBottom: 2,
   },
-  themeDescription: {
+  optionSubtitle: {
     fontSize: theme.typography.fontSize.sm,
     color: theme.colors.text.secondary,
   },

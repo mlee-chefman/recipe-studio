@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Modal, FlatList, Image } from 'react-native';
 import { CHEFIQ_APPLIANCES, ChefIQAppliance } from '~/types/chefiq';
-import { theme } from '@theme/index';
+import { theme, useAppTheme } from '@theme/index';
 
 interface ApplianceDropdownProps {
   selectedAppliance: string;
@@ -15,6 +15,7 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
   placeholder = 'Select ChefIQ Appliance...'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const appTheme = useAppTheme();
 
   const selectedApplianceData = CHEFIQ_APPLIANCES.find(
     appliance => appliance.category_id === selectedAppliance
@@ -28,7 +29,8 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
   const renderApplianceItem = ({ item }: { item: ChefIQAppliance }) => (
     <TouchableOpacity
       onPress={() => handleSelect(item.category_id)}
-      className="flex-row items-center p-3 border-b border-gray-100"
+      className="flex-row items-center p-3 border-b"
+      style={{ borderBottomColor: appTheme.colors.border.light }}
     >
       <Image
         source={{ uri: item.picture }}
@@ -36,8 +38,8 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
         resizeMode="contain"
       />
       <View className="ml-3 flex-1">
-        <Text className="text-base font-medium text-gray-800">{item.name}</Text>
-        <Text className="text-sm text-gray-500 capitalize">{item.thing_category_name}</Text>
+        <Text className="text-base font-medium" style={{ color: appTheme.colors.text.primary }}>{item.name}</Text>
+        <Text className="text-sm capitalize" style={{ color: appTheme.colors.text.tertiary }}>{item.thing_category_name}</Text>
       </View>
       {selectedAppliance === item.category_id && (
         <Text style={{ color: theme.colors.primary[500] }} className="font-bold">✓</Text>
@@ -48,14 +50,15 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
   const renderNoneOption = () => (
     <TouchableOpacity
       onPress={() => handleSelect('')}
-      className="flex-row items-center p-3 border-b border-gray-100"
+      className="flex-row items-center p-3 border-b"
+      style={{ borderBottomColor: appTheme.colors.border.light }}
     >
-      <View className="w-8 h-8 bg-gray-200 rounded mr-3 items-center justify-center">
-        <Text className="text-gray-500">—</Text>
+      <View className="w-8 h-8 rounded mr-3 items-center justify-center" style={{ backgroundColor: appTheme.colors.gray[200] }}>
+        <Text style={{ color: appTheme.colors.text.tertiary }}>—</Text>
       </View>
       <View className="ml-3 flex-1">
-        <Text className="text-base font-medium text-gray-800">None</Text>
-        <Text className="text-sm text-gray-500">No appliance selected</Text>
+        <Text className="text-base font-medium" style={{ color: appTheme.colors.text.primary }}>None</Text>
+        <Text className="text-sm" style={{ color: appTheme.colors.text.tertiary }}>No appliance selected</Text>
       </View>
       {!selectedAppliance && (
         <Text style={{ color: theme.colors.primary[500] }} className="font-bold">✓</Text>
@@ -68,7 +71,11 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
       {/* Dropdown Button */}
       <TouchableOpacity
         onPress={() => setIsOpen(true)}
-        className="border border-gray-300 rounded-lg px-3 py-3 bg-white flex-row items-center justify-between"
+        className="border rounded-lg px-3 py-3 flex-row items-center justify-between"
+        style={{
+          backgroundColor: appTheme.colors.surface.primary,
+          borderColor: appTheme.colors.border.main
+        }}
       >
         <View className="flex-row items-center flex-1">
           {selectedApplianceData ? (
@@ -78,15 +85,15 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
                 style={{ width: 32, height: 20 }}
                 resizeMode="contain"
               />
-              <Text className="ml-2 text-base text-gray-700">
+              <Text className="ml-2 text-base" style={{ color: appTheme.colors.text.secondary }}>
                 {selectedApplianceData.name}
               </Text>
             </>
           ) : (
-            <Text className="text-base text-gray-500">{placeholder}</Text>
+            <Text className="text-base" style={{ color: appTheme.colors.text.disabled }}>{placeholder}</Text>
           )}
         </View>
-        <Text className="text-gray-400 ml-2">▼</Text>
+        <Text className="ml-2" style={{ color: appTheme.colors.text.disabled }}>▼</Text>
       </TouchableOpacity>
 
       {/* Dropdown Modal */}
@@ -101,9 +108,9 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
           activeOpacity={1}
           onPress={() => setIsOpen(false)}
         >
-          <View className="bg-white rounded-lg mx-4 max-w-sm w-full max-h-96">
-            <View className="p-4 border-b border-gray-200">
-              <Text className="text-lg font-semibold text-gray-800">
+          <View className="rounded-lg mx-4 max-w-sm w-full max-h-96" style={{ backgroundColor: appTheme.colors.surface.primary }}>
+            <View className="p-4 border-b" style={{ borderBottomColor: appTheme.colors.border.main }}>
+              <Text className="text-lg font-semibold" style={{ color: appTheme.colors.text.primary }}>
                 Select Appliance
               </Text>
             </View>
@@ -120,7 +127,8 @@ export const ApplianceDropdown: React.FC<ApplianceDropdownProps> = ({
 
             <TouchableOpacity
               onPress={() => setIsOpen(false)}
-              className="p-3 border-t border-gray-200"
+              className="p-3 border-t"
+              style={{ borderTopColor: appTheme.colors.border.main }}
             >
               <Text className="text-center font-medium" style={{ color: theme.colors.primary[500] }}>Cancel</Text>
             </TouchableOpacity>

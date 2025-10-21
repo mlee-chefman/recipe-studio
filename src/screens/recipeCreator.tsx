@@ -424,7 +424,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         {/* Title */}
         <View className="mb-4">
           <TextInput
-            className="text-xl font-medium text-gray-800 border-b border-gray-200 pb-2"
+            className="text-xl font-medium border-b pb-2"
             placeholder="Title"
             value={formData.title}
             onChangeText={(value) => updateFormData({ title: value })}
@@ -433,9 +433,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         </View>
 
         {/* Image */}
-        <View className="mb-4 border-b border-gray-200 pb-3">
+        <View className="mb-4 border-b pb-3" style={{ borderColor: theme.colors.border.main }}>
           <View className="flex-row items-center justify-between">
-            <Text className="text-lg text-gray-800">Image</Text>
+            <Text className="text-lg" style={{ color: theme.colors.text.primary }}>Image</Text>
             {formData.imageUrl ? (
               <TouchableOpacity
                 onPress={() => {
@@ -481,7 +481,8 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
         {/* Recipe Info Button */}
         <TouchableOpacity
-          className="mb-4 border border-gray-200 rounded-lg px-4 py-3 bg-white"
+          className="mb-4 border rounded-lg px-4 py-3"
+          style={{ borderColor: theme.colors.border.main, backgroundColor: theme.colors.surface.primary }}
           onPress={() => {
             // @ts-ignore - Navigation typing issue with static navigation
             navigation.navigate('RecipeInfo', {
@@ -496,9 +497,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           }}
         >
           <View className="flex-row items-center justify-between">
-            <Text className="text-base font-medium text-gray-800">Recipe Info</Text>
+            <Text className="text-base font-medium" style={{ color: theme.colors.text.primary }}>Recipe Info</Text>
             <View className="flex-row items-center">
-              <Text className="text-sm text-gray-500 mr-2">
+              <Text className="text-sm mr-2" style={{ color: theme.colors.text.tertiary }}>
                 {formatCookTime(formData.cookTimeHours, formData.cookTimeMinutes)} • {formData.servings} servings
               </Text>
               <Feather name="chevron-right" size={20} color={theme.colors.text.secondary} />
@@ -507,11 +508,11 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         </TouchableOpacity>
 
         {/* Published Toggle */}
-        <View className="mb-4 border border-gray-200 rounded-lg p-4 bg-white">
+        <View className="mb-4 border rounded-lg p-4" style={{ borderColor: theme.colors.border.main, backgroundColor: theme.colors.surface.primary }}>
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
-              <Text className="text-base font-medium text-gray-800">Published</Text>
-              <Text className="text-sm text-gray-500">Make this recipe visible to others</Text>
+              <Text className="text-base font-medium" style={{ color: theme.colors.text.primary }}>Published</Text>
+              <Text className="text-sm" style={{ color: theme.colors.text.tertiary }}>Make this recipe visible to others</Text>
             </View>
             <Switch
               value={formData.published}
@@ -524,7 +525,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
         {/* ChefIQ Smart Cooking */}
         <View className="mb-4">
-          <Text className="text-lg font-semibold text-gray-800 mb-2">CHEF iQ SMART COOKING</Text>
+          <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.text.primary }}>CHEF iQ SMART COOKING</Text>
 
           {/* Appliance Selection */}
           <View className="mb-3">
@@ -536,10 +537,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
           {/* Probe Toggle */}
           {formData.selectedAppliance && getApplianceById(formData.selectedAppliance)?.supports_probe && (
-            <View className="flex-row items-center justify-between mb-3 bg-gray-50 p-3 rounded-lg">
+            <View className="flex-row items-center justify-between mb-3 p-3 rounded-lg" style={{ backgroundColor: theme.colors.background.secondary }}>
               <View className="flex-1">
-                <Text className="text-base font-medium text-gray-800">Use Thermometer Probe</Text>
-                <Text className="text-sm text-gray-600">Monitor internal temperature during cooking</Text>
+                <Text className="text-base font-medium" style={{ color: theme.colors.text.primary }}>Use Thermometer Probe</Text>
+                <Text className="text-sm" style={{ color: theme.colors.text.secondary }}>Monitor internal temperature during cooking</Text>
               </View>
               <Switch
                 value={formData.useProbe}
@@ -554,7 +555,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         {/* Ingredients */}
         <View className="mb-4">
           <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-lg font-semibold text-gray-800">INGREDIENTS</Text>
+            <Text className="text-lg font-semibold" style={{ color: theme.colors.text.primary }}>INGREDIENTS</Text>
             {formData.ingredients.length >= 3 && (
               <TouchableOpacity
                 onPress={() => setIsIngredientsReorderMode(!isIngredientsReorderMode)}
@@ -575,13 +576,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             renderItem={(ingredient, index, isReorderMode) => (
               <View className="flex-row items-center">
                 {isReorderMode ? (
-                  <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2">
+                  <View className="flex-1 border rounded-lg px-3 py-2 mr-2" style={{ borderColor: theme.colors.border.main }}>
                     <Text className="text-base">{ingredient || `Ingredient ${index + 1}`}</Text>
                   </View>
                 ) : (
                   <TextInput
                     ref={(ref) => (ingredientRefs.current[index] = ref)}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
+                    className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
+                    style={{ borderColor: theme.colors.border.main }}
                     placeholder={`Ingredient ${index + 1}`}
                     value={ingredient}
                     onChangeText={(value) => updateIngredient(index, value)}
@@ -595,9 +597,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                 {formData.ingredients.length > 1 && !isReorderMode && (
                   <TouchableOpacity
                     onPress={() => removeIngredient(index)}
-                    className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
+                    className="w-8 h-8 rounded-full items-center justify-center"
+                    style={{ backgroundColor: theme.colors.error.light }}
                   >
-                    <Text className="text-red-600 font-bold">×</Text>
+                    <Text className="font-bold" style={{ color: theme.colors.error.dark }}>×</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -608,7 +611,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         {/* Instructions */}
         <View className="mb-4">
           <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-lg font-semibold text-gray-800">INSTRUCTIONS</Text>
+            <Text className="text-lg font-semibold" style={{ color: theme.colors.text.primary }}>INSTRUCTIONS</Text>
             {formData.steps.length >= 3 && (
               <TouchableOpacity
                 onPress={() => setIsStepsReorderMode(!isStepsReorderMode)}
@@ -632,13 +635,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                 <View>
                   <View className="flex-row items-center mb-1">
                     {isReorderMode ? (
-                      <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={styles.stepReorderView}>
+                      <View className="flex-1 border rounded-lg px-3 py-2 mr-2" style={styles.stepReorderView}>
                         <Text className="text-base">{step.text || `Step ${index + 1}`}</Text>
                       </View>
                     ) : (
                       <MultilineInstructionInput
                         ref={(ref) => (instructionRefs.current[index] = ref)}
-                        className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-base mr-2"
+                        className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
+                    style={{ borderColor: theme.colors.border.main }}
                         placeholder={`Step ${index + 1}`}
                         value={step.text}
                         onChangeText={(value) => updateStep(index, value)}
@@ -691,9 +695,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                         {formData.steps.length > 1 && (
                           <TouchableOpacity
                             onPress={() => removeStep(index)}
-                            className="w-8 h-8 bg-red-100 rounded-full items-center justify-center"
+                            className="w-8 h-8 rounded-full items-center justify-center"
+                    style={{ backgroundColor: theme.colors.error.light }}
                           >
-                            <Text className="text-red-600 font-bold">×</Text>
+                            <Text className="font-bold" style={{ color: theme.colors.error.dark }}>×</Text>
                           </TouchableOpacity>
                         )}
                       </View>
@@ -728,7 +733,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           <View className="flex-row items-center mt-2">
             <MultilineInstructionInput
               key="add-new-instruction"
-              className="flex-1 border border-dashed border-gray-300 rounded-lg px-3 py-2 text-base mr-2"
+              className="flex-1 border border-dashed rounded-lg px-3 py-2 text-base mr-2"
               placeholder="+ Add new instruction step"
               value={newInstructionText}
               onChangeText={setNewInstructionText}
@@ -752,9 +757,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
         {/* Notes */}
         <View className="mb-6">
-          <Text className="text-lg font-semibold text-gray-800 mb-2">NOTES</Text>
+          <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.text.primary }}>NOTES</Text>
           <TextInput
-            className="border border-gray-200 rounded-lg p-3 text-base min-h-[80px]"
+            className="border rounded-lg p-3 text-base min-h-[80px]"
+            style={{ borderColor: theme.colors.border.main }}
             placeholder="Add your recipe notes"
             value={formData.notes}
             onChangeText={(value) => updateFormData({ notes: value })}
@@ -893,6 +899,8 @@ const createStyles = (theme: Theme, fabScale: Animated.Value) => StyleSheet.crea
   },
   titleInput: {
     fontSize: 20,
+    borderColor: theme.colors.border.main,
+    color: theme.colors.text.primary,
   },
   recipeImage: {
     width: 80,
@@ -926,6 +934,7 @@ const createStyles = (theme: Theme, fabScale: Animated.Value) => StyleSheet.crea
   },
   stepReorderView: {
     minHeight: 40,
+    borderColor: theme.colors.border.main,
   },
   cookingActionButtonActive: {
     backgroundColor: theme.colors.primary[500],
@@ -941,6 +950,7 @@ const createStyles = (theme: Theme, fabScale: Animated.Value) => StyleSheet.crea
   addInstructionInput: {
     opacity: 0.6,
     minHeight: 40,
+    borderColor: theme.colors.border.main,
   },
   fabContainer: {
     position: 'absolute',

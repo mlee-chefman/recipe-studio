@@ -3,7 +3,7 @@
  * Three pre-defined color schemes that users can switch between
  */
 
-export type ThemeVariant = 'fresh' | 'professional' | 'warm';
+export type ThemeVariant = 'fresh' | 'fall' | 'ocean';
 
 export interface ThemeColors {
   // Primary Green Palette
@@ -202,191 +202,191 @@ export const freshTheme: ThemeColors = {
   },
 };
 
-// Option 2: Professional & Clean - Balanced green, gray accents
-export const professionalTheme: ThemeColors = {
+// Option 2: Fall Season - Warm pumpkin orange with autumn vibes
+export const fallTheme: ThemeColors = {
   primary: {
-    50: '#f0fdf4',
-    100: '#dcfce7',
-    200: '#bbf7d0',
-    300: '#86efac',
-    400: '#4ade80',
-    500: '#16a34a', // Main professional green
-    600: '#15803d',
-    700: '#166534',
-    800: '#14532d',
-    900: '#052e16',
+    50: '#fff7ed',
+    100: '#ffedd5',
+    200: '#fed7aa',
+    300: '#fdba74',
+    400: '#fb923c',
+    500: '#f97316', // Main pumpkin orange
+    600: '#ea580c',
+    700: '#c2410c',
+    800: '#9a3412',
+    900: '#7c2d12',
   },
 
   secondary: {
-    50: '#f0fdfa',
-    100: '#ccfbf1',
-    200: '#99f6e4',
-    300: '#5eead4',
-    400: '#2dd4bf',
-    500: '#14b8a6',
-    600: '#0d9488',
-    700: '#0f766e',
-    800: '#115e59',
-    900: '#134e4a',
+    50: '#fefce8',
+    100: '#fef9c3',
+    200: '#fef08a',
+    300: '#fde047',
+    400: '#facc15',
+    500: '#eab308', // Warm yellow
+    600: '#ca8a04',
+    700: '#a16207',
+    800: '#854d0e',
+    900: '#713f12',
   },
 
   gray: {
-    50: '#f9fafb',
-    100: '#f3f4f6',
-    200: '#e5e7eb',
-    300: '#d1d5db',
-    400: '#9ca3af',
-    500: '#6b7280',
-    600: '#4b5563',
-    700: '#374151',
-    800: '#1f2937',
-    900: '#111827',
+    50: '#fafaf9',
+    100: '#f5f5f4',
+    200: '#e7e5e4',
+    300: '#d6d3d1',
+    400: '#a8a29e',
+    500: '#78716c',
+    600: '#57534e',
+    700: '#44403c',
+    800: '#292524',
+    900: '#1c1917',
   },
 
   success: {
-    light: '#dcfce7',
-    main: '#16a34a',
-    dark: '#166534',
+    light: '#d1fae5',
+    main: '#10b981',
+    dark: '#047857',
   },
 
   warning: {
     light: '#fef3e0',
-    main: '#d4a574',
-    dark: '#b8864f',
+    main: '#fb923c',
+    dark: '#ea580c',
   },
 
   error: {
-    light: '#f5e6e6',
-    main: '#c97272',
-    dark: '#a85555',
+    light: '#fee2e2',
+    main: '#ef4444',
+    dark: '#dc2626',
   },
 
   info: {
-    light: '#e6eff2',
-    main: '#5a8fa6',
-    dark: '#3d6f87',
+    light: '#dbeafe',
+    main: '#3b82f6',
+    dark: '#1d4ed8',
   },
 
   background: {
     primary: '#ffffff',
-    secondary: '#f9fafb', // Very light gray
-    tertiary: '#f0fdf4', // Very light green
+    secondary: '#fffbf5', // Very light warm cream
+    tertiary: '#fff7ed', // Light orange tint
     white: '#ffffff',
   },
 
   text: {
-    primary: '#111827',
-    secondary: '#4b5563',
-    tertiary: '#6b7280',
-    disabled: '#9ca3af',
+    primary: '#1c1917',
+    secondary: '#57534e',
+    tertiary: '#78716c',
+    disabled: '#a8a29e',
     inverse: '#ffffff',
   },
 
   border: {
-    light: '#f3f4f6',
-    main: '#e5e7eb',
-    dark: '#d1d5db',
-    focus: '#16a34a',
+    light: '#f5f5f4',
+    main: '#e7e5e4',
+    dark: '#d6d3d1',
+    focus: '#f97316',
   },
 
   surface: {
     primary: '#ffffff',
-    secondary: '#f9fafb',
+    secondary: '#fffbf5',
     elevated: '#ffffff',
     overlay: 'rgba(0, 0, 0, 0.5)',
   },
 };
 
-// Option 3: Warm & Inviting - Vibrant green, warm cream accents
-export const warmTheme: ThemeColors = {
+// Option 3: Ocean Blue - Calming blue theme with serene vibes
+export const oceanTheme: ThemeColors = {
   primary: {
-    50: '#f0fdf4',
-    100: '#dcfce7',
-    200: '#bbf7d0',
-    300: '#86efac',
-    400: '#4ade80',
-    500: '#22c55e', // Main vibrant green
-    600: '#16a34a',
-    700: '#15803d',
-    800: '#166534',
-    900: '#14532d',
+    50: '#eff6ff',
+    100: '#dbeafe',
+    200: '#bfdbfe',
+    300: '#93c5fd',
+    400: '#60a5fa',
+    500: '#3b82f6', // Main ocean blue
+    600: '#2563eb',
+    700: '#1d4ed8',
+    800: '#1e40af',
+    900: '#1e3a8a',
   },
 
   secondary: {
-    50: '#f0fdfa',
-    100: '#ccfbf1',
-    200: '#99f6e4',
-    300: '#5eead4',
-    400: '#2dd4bf',
-    500: '#14b8a6',
-    600: '#0d9488',
-    700: '#0f766e',
-    800: '#115e59',
-    900: '#134e4a',
+    50: '#f0f9ff',
+    100: '#e0f2fe',
+    200: '#bae6fd',
+    300: '#7dd3fc',
+    400: '#38bdf8',
+    500: '#0ea5e9', // Sky blue
+    600: '#0284c7',
+    700: '#0369a1',
+    800: '#075985',
+    900: '#0c4a6e',
   },
 
   gray: {
-    50: '#f9fafb',
-    100: '#f3f4f6',
-    200: '#e5e7eb',
-    300: '#d1d5db',
-    400: '#9ca3af',
-    500: '#6b7280',
-    600: '#4b5563',
-    700: '#374151',
-    800: '#1f2937',
-    900: '#111827',
+    50: '#f8fafc',
+    100: '#f1f5f9',
+    200: '#e2e8f0',
+    300: '#cbd5e1',
+    400: '#94a3b8',
+    500: '#64748b',
+    600: '#475569',
+    700: '#334155',
+    800: '#1e293b',
+    900: '#0f172a',
   },
 
   success: {
-    light: '#dcfce7',
-    main: '#22c55e',
-    dark: '#15803d',
+    light: '#d1fae5',
+    main: '#10b981',
+    dark: '#047857',
   },
 
   warning: {
-    light: '#fef3e0',
-    main: '#d4a574',
-    dark: '#b8864f',
+    light: '#fef3c7',
+    main: '#f59e0b',
+    dark: '#d97706',
   },
 
   error: {
-    light: '#f5e6e6',
-    main: '#c97272',
-    dark: '#a85555',
+    light: '#fee2e2',
+    main: '#ef4444',
+    dark: '#dc2626',
   },
 
   info: {
-    light: '#e6eff2',
-    main: '#5a8fa6',
-    dark: '#3d6f87',
+    light: '#dbeafe',
+    main: '#3b82f6',
+    dark: '#1d4ed8',
   },
 
   background: {
     primary: '#ffffff',
-    secondary: '#faf8f3', // Almost white with tiniest warm hint
-    tertiary: '#f0fdf4', // Very light green
+    secondary: '#f8fafc', // Very light blue-gray
+    tertiary: '#eff6ff', // Light blue tint
     white: '#ffffff',
   },
 
   text: {
-    primary: '#111827',
-    secondary: '#4b5563',
-    tertiary: '#6b7280',
-    disabled: '#9ca3af',
+    primary: '#0f172a',
+    secondary: '#475569',
+    tertiary: '#64748b',
+    disabled: '#94a3b8',
     inverse: '#ffffff',
   },
 
   border: {
-    light: '#f3f4f6',
-    main: '#e5e7eb',
-    dark: '#d1d5db',
-    focus: '#22c55e',
+    light: '#f1f5f9',
+    main: '#e2e8f0',
+    dark: '#cbd5e1',
+    focus: '#3b82f6',
   },
 
   surface: {
     primary: '#ffffff',
-    secondary: '#faf8f3',
+    secondary: '#f8fafc',
     elevated: '#ffffff',
     overlay: 'rgba(0, 0, 0, 0.5)',
   },
@@ -399,15 +399,15 @@ export const themeMetadata = {
     description: 'Bright emerald green with clean white backgrounds',
     accentColor: '#10b981',
   },
-  professional: {
-    name: 'Professional & Clean',
-    description: 'Balanced green with subtle gray accents',
-    accentColor: '#16a34a',
+  fall: {
+    name: 'Fall Season',
+    description: 'Warm pumpkin orange with cozy autumn vibes',
+    accentColor: '#f97316',
   },
-  warm: {
-    name: 'Warm & Inviting',
-    description: 'Vibrant green with warm cream tones',
-    accentColor: '#22c55e',
+  ocean: {
+    name: 'Ocean Blue',
+    description: 'Calming ocean blue with serene, peaceful vibes',
+    accentColor: '#3b82f6',
   },
 };
 
@@ -416,10 +416,10 @@ export function getThemeColors(variant: ThemeVariant): ThemeColors {
   switch (variant) {
     case 'fresh':
       return freshTheme;
-    case 'professional':
-      return professionalTheme;
-    case 'warm':
-      return warmTheme;
+    case 'fall':
+      return fallTheme;
+    case 'ocean':
+      return oceanTheme;
     default:
       return freshTheme;
   }

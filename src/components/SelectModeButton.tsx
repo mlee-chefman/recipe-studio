@@ -1,7 +1,7 @@
 import { forwardRef } from 'react';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Pressable, StyleSheet } from 'react-native';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
 
 interface SelectModeButtonProps {
   isSelectionMode: boolean;
@@ -11,6 +11,8 @@ interface SelectModeButtonProps {
 
 export const SelectModeButton = forwardRef<typeof Pressable, SelectModeButtonProps>(
   ({ isSelectionMode, onToggle, disabled = false }, ref) => {
+    const theme = useAppTheme();
+
     return (
       <Pressable
         onPress={onToggle}

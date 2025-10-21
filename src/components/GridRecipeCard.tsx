@@ -4,7 +4,7 @@ import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Recipe } from "~/types/recipe";
 import { getApplianceById } from '~/types/chefiq';
 import { useStyles } from '@hooks/useStyles';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
 import type { Theme } from '@theme/index';
 
 interface GridRecipeCardProps {
@@ -23,12 +23,14 @@ export const GridRecipeCard = ({
   isSelected = false
 }: GridRecipeCardProps) => {
   const styles = useStyles(createStyles);
+  const appTheme = useAppTheme();
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7} className="flex-1">
-      <View className={`bg-white rounded-lg shadow-sm border-2 overflow-hidden ${
-        isSelected ? 'border-green-500' : 'border-gray-200'
-      }`}>
+      <View className="rounded-lg shadow-sm border-2 overflow-hidden" style={{
+        backgroundColor: appTheme.colors.surface.primary,
+        borderColor: isSelected ? appTheme.colors.primary[500] : appTheme.colors.border.main
+      }}>
         {/* Recipe Image */}
         <View style={{ position: 'relative' }}>
           {recipe.image ? (
@@ -38,15 +40,17 @@ export const GridRecipeCard = ({
               contentFit="cover"
             />
           ) : (
-            <View className="w-full h-[120px] bg-gray-100 items-center justify-center">
-              <Text className="text-3xl text-gray-400">🍽️</Text>
+            <View className="w-full h-[120px] items-center justify-center" style={{ backgroundColor: appTheme.colors.gray[100] }}>
+              <Text className="text-3xl" style={{ color: appTheme.colors.gray[400] }}>🍽️</Text>
             </View>
           )}
 
           {/* Status Badge - Absolutely positioned on image */}
           {showStatus && (
             <View style={styles.statusBadge}>
-              <View className={`px-2 py-1 rounded ${recipe.status === 'Published' ? 'bg-green-500' : 'bg-yellow-500'}`}>
+              <View className="px-2 py-1 rounded" style={{
+                backgroundColor: recipe.status === 'Published' ? appTheme.colors.success.main : appTheme.colors.warning.main
+              }}>
                 <Text className="text-xs font-bold text-white">
                   {recipe.status}
                 </Text>
@@ -57,7 +61,7 @@ export const GridRecipeCard = ({
 
         {/* Recipe Content */}
         <View className="p-2">
-          <Text className="text-sm font-bold text-gray-800 mb-1" numberOfLines={2}>
+          <Text className="text-sm font-bold mb-1" style={{ color: appTheme.colors.text.primary }} numberOfLines={2}>
             {recipe.title}
           </Text>
 
@@ -71,7 +75,7 @@ export const GridRecipeCard = ({
                   contentFit="cover"
                 />
               )}
-              <Text className="text-xs text-gray-500" numberOfLines={1}>
+              <Text className="text-xs" style={{ color: appTheme.colors.text.tertiary }} numberOfLines={1}>
                 {recipe.authorName}
               </Text>
             </View>
@@ -79,21 +83,21 @@ export const GridRecipeCard = ({
 
           {/* Quick Info */}
           <View className="flex-row items-center mb-1">
-            <Text className="text-xs text-gray-500 mr-2">⏱️ {recipe.cookTime}m</Text>
-            <Text className="text-xs text-gray-500">👥 {recipe.servings}</Text>
+            <Text className="text-xs mr-2" style={{ color: appTheme.colors.text.tertiary }}>⏱️ {recipe.cookTime}m</Text>
+            <Text className="text-xs" style={{ color: appTheme.colors.text.tertiary }}>👥 {recipe.servings}</Text>
           </View>
 
           {/* Category & Appliance */}
           <View className="flex-row items-center flex-wrap gap-1">
-            <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: theme.colors.primary[100] }}>
-              <Text className="text-xs font-medium" style={{ color: theme.colors.primary[600] }}>
+            <View className="px-2 py-0.5 rounded-full" style={{ backgroundColor: appTheme.colors.primary[100] }}>
+              <Text className="text-xs font-medium" style={{ color: appTheme.colors.primary[600] }}>
                 {recipe.category}
               </Text>
             </View>
             {recipe.chefiqAppliance && (
-              <View className="px-1.5 py-0.5 rounded-full flex-row items-center" style={{ backgroundColor: theme.colors.primary[100] }}>
+              <View className="px-1.5 py-0.5 rounded-full flex-row items-center" style={{ backgroundColor: appTheme.colors.primary[100] }}>
                 <Text className="text-xs mr-0.5">🍳</Text>
-                <Text className="text-xs font-medium" style={{ color: theme.colors.primary[500] }}>
+                <Text className="text-xs font-medium" style={{ color: appTheme.colors.primary[500] }}>
                   {getApplianceById(recipe.chefiqAppliance)?.short_code || 'iQ'}
                 </Text>
               </View>
@@ -103,7 +107,7 @@ export const GridRecipeCard = ({
           {/* First tag only */}
           {recipe.tags && recipe.tags.length > 0 && (
             <View className="mt-1">
-              <Text className="text-xs text-gray-500" numberOfLines={1}>
+              <Text className="text-xs" style={{ color: appTheme.colors.text.tertiary }} numberOfLines={1}>
                 {recipe.tags[0]}{recipe.tags.length > 1 ? ` +${recipe.tags.length - 1}` : ''}
               </Text>
             </View>
