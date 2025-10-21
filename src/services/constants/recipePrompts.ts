@@ -159,3 +159,172 @@ IMPORTANT: Extract ALL recipes from the text above. Do not stop after 10-15 reci
 
 Return the recipes as a JSON array:`;
 }
+
+/**
+ * Creates a prompt for analyzing cooking actions in a recipe using Gemini AI
+ * This provides more accurate cooking action detection than regex-based approaches
+ */
+export function createCookingActionAnalysisPrompt(
+  title: string,
+  description: string,
+  stepsText: string,
+  cookTime: number
+): string {
+  return `You are a cooking appliance expert analyzing recipes for ChefIQ smart appliances (pressure cooker and smart oven).
+
+Your task: Analyze this recipe and identify which cooking actions should be assigned to which steps, with precise cooking parameters.
+
+Recipe Title: ${title}
+Description: ${description}
+Total Cook Time: ${cookTime} minutes
+
+Recipe Steps:
+${stepsText}
+
+Available ChefIQ Appliances and Methods:
+1. **iQ Cooker (Pressure Cooker)**: Pressure Cook, Sear/Sauté, Steam, Slow Cook, Sous Vide
+2. **iQ MiniOven**: Bake, Air Fry, Roast, Broil, Toast, Dehydrate
+
+CRITICAL RULES:
+1. **Pressure Release Steps**: Steps that mention "pressure release", "natural release", "quick release", or "let pressure release" are NOT separate cooking actions. Instead, the pressure release type (natural/quick/pulse) should be part of the PREVIOUS pressure cook step's parameters.
+
+2. **Timing Accuracy**:
+   - Extract the EXACT cooking time mentioned in the step (e.g., "3 minutes" = 3, "25 minutes" = 25)
+   - Do NOT confuse release time with cook time (e.g., "natural release 10 minutes" does NOT mean cook for 10 minutes)
+   - Watch for common OCR errors like "250" when it should be "25"
+
+3. **Pressure Release Detection**:
+   - "natural release", "naturally release", "let pressure release naturally" = PressureRelease: 2 (Natural)
+   - "quick release", "quickly release", "release pressure immediately" = PressureRelease: 0 (Quick)
+   - "pulse release", "intermittent release" = PressureRelease: 1 (Pulse)
+   - If natural release has a time (e.g., "natural release 10 minutes"), that's the release duration, not cook time
+
+4. **Step Assignment**: Assign each cooking action to the step index where the cooking actually begins (not the release step)
+
+Return a JSON object with this structure:
+
+{
+  "suggestedAppliance": "category_id of appliance (e.g., 'c8ff3aef-3de6-4a74-bba6-03e943b2762c', '4a3cd4f1-839b-4f45-80ea-08f594ff74c3')",
+  "suggestedActions": [
+    {
+      "stepIndex": 0,
+      "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+      "methodId": "0",
+      "methodName": "Pressure Cook",
+      "parameters": {
+        "cooking_time": 180,
+        "pres_level": 1,
+        "pres_release": 2,
+        "keep_warm": 1,
+        "delay_time": 0
+      }
+    }
+  ],
+  "confidence": 0.9,
+  "reasoning": ["Explanation 1", "Explanation 2"]
+}
+
+ChefIQ Appliance IDs and Method IDs:
+
+**iQ Cooker** (category_id = "c8ff3aef-3de6-4a74-bba6-03e943b2762c"):
+- Pressure Cook: methodId = "0"
+  - Parameters: cooking_time, pres_level (0=Low, 1=High), pres_release (0=Quick, 1=Pulse, 2=Natural), keep_warm (0=Off, 1=On), delay_time
+- Sear/Sauté: methodId = "1"
+  - Parameters: cooking_time, temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm, delay_time
+- Steam: methodId = "2"
+  - Parameters: cooking_time, keep_warm, delay_time
+- Slow Cook: methodId = "3"
+  - Parameters: cooking_time, temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm, delay_time
+- Dehydrate: methodId = "4"
+  - Parameters: cooking_time, delay_time
+- Sous Vide: methodId = "5"
+  - Parameters: cooking_time, cooking_temp (in Fahrenheit), delay_time
+
+**iQ MiniOven** (category_id = "4a3cd4f1-839b-4f45-80ea-08f594ff74c3"):
+- Bake: methodId = "METHOD_BAKE"
+  - Parameters: cooking_time, target_cavity_temp (in Fahrenheit), fan_speed (0=Low, 1=Medium, 2=High)
+  - Optional: target_probe_temp, remove_probe_temp (for meat)
+- Air Fry: methodId = "METHOD_AIR_FRY"
+  - Parameters: cooking_time, target_cavity_temp, fan_speed (typically 2=High)
+  - Optional: target_probe_temp, remove_probe_temp
+- Roast: methodId = "METHOD_ROAST"
+  - Parameters: cooking_time, target_cavity_temp, fan_speed (typically 0=Low or 1=Medium)
+  - Optional: target_probe_temp, remove_probe_temp
+- Broil: methodId = "METHOD_BROIL"
+  - Parameters: cooking_time, temp_level (0=Low, 3=High)
+- Toast: methodId = "METHOD_TOAST"
+  - Parameters: cooking_time, shade_level (0=Light, 1=Medium-Light, 2=Medium, 3=Medium-Dark, 4=Dark)
+  - Optional: is_frozen (true/false), is_bagel (true/false)
+- Dehydrate: methodId = "METHOD_DEHYDRATE"
+  - Parameters: cooking_time, target_cavity_temp (typically 95-165°F), fan_speed (typically 0=Low)
+
+Parameter Guidelines:
+- **cooking_time**: Time in SECONDS (convert minutes to seconds: minutes * 60)
+- **target_cavity_temp**: Oven temperature in Fahrenheit
+- **cooking_temp**: Sous vide temperature in Fahrenheit
+- **target_probe_temp**: Internal meat temperature target in Fahrenheit
+- **remove_probe_temp**: Temperature to remove from heat (for carryover cooking, typically 5-10°F below target)
+- All numeric parameters should be integers
+
+Examples:
+
+Example 1 (Pressure Cook with Natural Release):
+Step 1: "Lock lid and cook on high pressure for 3 minutes"
+Step 2: "Let pressure release naturally for 10 minutes"
+→ Create ONE action at stepIndex 0:
+{
+  "stepIndex": 0,
+  "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+  "methodId": "0",
+  "methodName": "Pressure Cook",
+  "parameters": {
+    "cooking_time": 180,
+    "pres_level": 1,
+    "pres_release": 2,
+    "keep_warm": 1,
+    "delay_time": 0
+  }
+}
+
+Example 2 (Bake):
+Step 1: "Preheat oven to 350°F"
+Step 2: "Bake for 25 minutes until golden brown"
+→ Create ONE action at stepIndex 1:
+{
+  "stepIndex": 1,
+  "applianceId": "4a3cd4f1-839b-4f45-80ea-08f594ff74c3",
+  "methodId": "METHOD_BAKE",
+  "methodName": "Bake",
+  "parameters": {
+    "cooking_time": 1500,
+    "target_cavity_temp": 350,
+    "fan_speed": 0
+  }
+}
+
+Example 3 (Roast Chicken with Probe):
+Step 1: "Season chicken and place in oven"
+Step 2: "Roast at 375°F until internal temperature reaches 165°F, about 45 minutes"
+→ Create ONE action at stepIndex 1:
+{
+  "stepIndex": 1,
+  "applianceId": "4a3cd4f1-839b-4f45-80ea-08f594ff74c3",
+  "methodId": "METHOD_ROAST",
+  "methodName": "Roast",
+  "parameters": {
+    "cooking_time": 2700,
+    "target_cavity_temp": 375,
+    "fan_speed": 1,
+    "target_probe_temp": 165
+  }
+}
+
+IMPORTANT:
+- Return ONLY valid JSON
+- Ignore steps about mixing, prepping, serving - only extract actual cooking actions
+- If no ChefIQ-compatible cooking method is found, return empty suggestedActions array
+- Be precise with times - extract the exact number mentioned
+- Use the correct methodId format (numeric string for Cooker, enum string for Oven)
+
+Analyze the recipe above and return the cooking actions as JSON:`;
+}
