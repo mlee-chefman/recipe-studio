@@ -4,6 +4,7 @@ import { analyzeRecipeForChefIQ, RecipeAnalysisResult } from './recipeAnalyzer';
 import { processInstructions } from './helpers/instructionSplitter';
 import { Step } from '~/types/recipe';
 import { CookingAction } from '~/types/chefiq';
+import { analyzeCookingActionsWithGemini } from '@services/gemini.service';
 
 // Decode HTML entities using the html-entities library
 const decodeHtmlEntities = (text: string): string => {
@@ -405,33 +406,87 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
     const cookTime = parseDuration(data.cookTime) || parseDuration(data.totalTime) || 30;
     const description = decodeHtmlEntities(data.description || data.about || '');
 
-    // Analyze recipe for ChefIQ suggestions
+    // Analyze recipe for ChefIQ suggestions using Gemini AI
+    // Falls back to regex-based analysis on failure or rate limiting
     let chefiqSuggestions;
     let stepsWithActions = steps;
     try {
-      chefiqSuggestions = analyzeRecipeForChefIQ(
+      // Try Gemini AI analysis first for more accurate cooking actions
+      const geminiAnalysis = await analyzeCookingActionsWithGemini(
         title,
         description,
         steps,
         cookTime
       );
 
-      // Map cooking actions directly to their corresponding steps
-      if (chefiqSuggestions && chefiqSuggestions.suggestedActions.length > 0) {
+      // If Gemini analysis succeeds, use it
+      if (geminiAnalysis && geminiAnalysis.suggestedActions && geminiAnalysis.suggestedActions.length > 0) {
+        chefiqSuggestions = geminiAnalysis;
+        console.log(`Using Gemini AI cooking actions for website import: ${title}`);
+
+        // Map cooking actions directly to their corresponding steps
         stepsWithActions = steps.map((step, index) => {
           const actionForThisStep = chefiqSuggestions!.suggestedActions.find(
-            (action: CookingAction) => action.stepIndex === index
+            (action: any) => action.stepIndex === index
           );
           return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
         });
+      } else {
+        // Fallback to regex-based analysis if Gemini returns no actions
+        console.log(`Gemini returned no actions, falling back to regex analysis for: ${title}`);
+        chefiqSuggestions = analyzeRecipeForChefIQ(
+          title,
+          description,
+          steps,
+          cookTime
+        );
+
+        if (chefiqSuggestions && chefiqSuggestions.suggestedActions.length > 0) {
+          stepsWithActions = steps.map((step, index) => {
+            const actionForThisStep = chefiqSuggestions!.suggestedActions.find(
+              (action: CookingAction) => action.stepIndex === index
+            );
+            return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+          });
+        }
       }
-    } catch (error) {
-      console.error('ChefIQ analysis failed:', error);
-      chefiqSuggestions = {
-        suggestedActions: [],
-        confidence: 0,
-        reasoning: ['Analysis failed - manual setup required']
-      };
+    } catch (error: any) {
+      // Check if it's a 429 rate limit error
+      const is429Error = error?.response?.status === 429 ||
+                         error?.message?.includes('429') ||
+                         error?.message?.includes('rate limit');
+
+      if (is429Error) {
+        console.log(`Gemini rate limit (429) hit for ${title}, using regex fallback`);
+      } else {
+        console.error('Gemini analysis failed for website import:', error);
+      }
+
+      // Fallback to regex-based analysis on any error (including 429)
+      try {
+        chefiqSuggestions = analyzeRecipeForChefIQ(
+          title,
+          description,
+          steps,
+          cookTime
+        );
+
+        if (chefiqSuggestions && chefiqSuggestions.suggestedActions.length > 0) {
+          stepsWithActions = steps.map((step, index) => {
+            const actionForThisStep = chefiqSuggestions!.suggestedActions.find(
+              (action: CookingAction) => action.stepIndex === index
+            );
+            return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+          });
+        }
+      } catch (fallbackError) {
+        console.error('Regex fallback also failed:', fallbackError);
+        chefiqSuggestions = {
+          suggestedActions: [],
+          confidence: 0,
+          reasoning: ['Analysis failed - manual setup required']
+        };
+      }
     }
 
     return {
