@@ -186,20 +186,57 @@ Available ChefIQ Appliances and Methods:
 2. **iQ MiniOven**: Bake, Air Fry, Roast, Broil, Toast, Dehydrate
 
 CRITICAL RULES:
-1. **Pressure Release Steps**: Steps that mention "pressure release", "natural release", "quick release", or "let pressure release" are NOT separate cooking actions. Instead, the pressure release type (natural/quick/pulse) should be part of the PREVIOUS pressure cook step's parameters.
 
-2. **Timing Accuracy**:
+1. **Pressure Cooking Detection** ⚠️ VERY IMPORTANT:
+   - ONLY suggest Pressure Cook method if the step EXPLICITLY mentions: "pressure cook", "pressure cooker", "instant pot", "high pressure", "low pressure", "seal and cook under pressure"
+   - DO NOT use Pressure Cook for steps that only say "cook", "simmer", "boil", "stew", "braise" WITHOUT explicitly mentioning pressure
+   - Examples of when NOT to use Pressure Cook:
+     - ❌ "Simmer for 30 minutes" → Use Sear/Sauté OR Slow Cook instead
+     - ❌ "Cook for 1 hour until tender" → Use Slow Cook instead
+     - ❌ "Bring to a boil and cook" → Use Sear/Sauté instead
+     - ✅ "Cook on high pressure for 10 minutes" → Use Pressure Cook
+     - ✅ "Instant pot for 15 minutes" → Use Pressure Cook
+   - Pressure cooking is 3-5x faster than regular cooking - do NOT suggest it unless explicitly mentioned
+
+2. **Pressure Cook Time Conversion** (RARE - only if necessary):
+   - If converting a regular cooking recipe to pressure cooking (should be rare), reduce time by 70-80%:
+     - 60 minutes regular → 12-18 minutes pressure
+     - 30 minutes regular → 6-9 minutes pressure
+     - 2 hours regular → 24-36 minutes pressure
+   - IMPORTANT: Prefer NOT suggesting pressure cooking at all if recipe doesn't mention it
+   - Better to use Slow Cook or Sear/Sauté for non-pressure recipes
+
+3. **Pressure Release Steps**:
+   - Steps mentioning "pressure release", "natural release", "quick release" are NOT separate cooking actions
+   - The pressure release type should be part of the PREVIOUS pressure cook step's parameters
+   - Release duration is NOT cook time
+
+4. **Timing Accuracy**:
    - Extract the EXACT cooking time mentioned in the step (e.g., "3 minutes" = 3, "25 minutes" = 25)
    - Do NOT confuse release time with cook time (e.g., "natural release 10 minutes" does NOT mean cook for 10 minutes)
    - Watch for common OCR errors like "250" when it should be "25"
 
-3. **Pressure Release Detection**:
+5. **Pressure Release Detection**:
    - "natural release", "naturally release", "let pressure release naturally" = PressureRelease: 2 (Natural)
    - "quick release", "quickly release", "release pressure immediately" = PressureRelease: 0 (Quick)
    - "pulse release", "intermittent release" = PressureRelease: 1 (Pulse)
-   - If natural release has a time (e.g., "natural release 10 minutes"), that's the release duration, not cook time
+   - If natural release has a time, that's the release duration, not cook time
 
-4. **Step Assignment**: Assign each cooking action to the step index where the cooking actually begins (not the release step)
+6. **Step Assignment**: Assign each cooking action to the step index where the cooking actually begins (not the release step)
+
+7. **Combining Consecutive Actions** ⚠️ IMPORTANT:
+   - If multiple CONSECUTIVE steps use the same cooking method (Slow Cook or Sear/Sauté), combine them into ONE action
+   - Add up the total cooking time from all consecutive steps
+   - Assign the combined action to the FIRST step where that cooking method begins
+   - Examples:
+     - Step 1: "Sauté onions for 5 minutes"
+     - Step 2: "Add garlic and cook for 2 minutes"
+     - Step 3: "Add tomatoes and simmer for 10 minutes"
+     → Create ONE Slow Cook action at Step 1 with 17 minutes total (5+2+10)
+   - DO NOT combine if:
+     - Steps are not consecutive (prep steps in between)
+     - Different cooking methods (don't combine Sear/Sauté with Slow Cook)
+     - Different appliances (don't combine Cooker with Oven)
 
 Return a JSON object with this structure:
 
@@ -319,12 +356,69 @@ Step 2: "Roast at 375°F until internal temperature reaches 165°F, about 45 min
   }
 }
 
+Example 4 (Regular Simmer - NOT Pressure Cook):
+Step 1: "Add broth and bring to a boil"
+Step 2: "Reduce heat and simmer for 30 minutes until vegetables are tender"
+→ Create ONE action at stepIndex 1:
+{
+  "stepIndex": 1,
+  "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+  "methodId": "3",
+  "methodName": "Slow Cook",
+  "parameters": {
+    "cooking_time": 1800,
+    "temp_level": 1,
+    "keep_warm": 0,
+    "delay_time": 0
+  }
+}
+NOTE: "Simmer" does NOT mean pressure cooking. Use Slow Cook (Medium-Low) instead.
+
+Example 5 (When to Skip Cooking Action):
+Step 1: "Cook the pasta according to package directions"
+Step 2: "Drain and set aside"
+→ Return empty suggestedActions array []
+NOTE: Generic "cook" without specific method or appliance-compatible technique should not have a cooking action.
+
+Example 6 (Combining Consecutive Slow Cook Actions):
+Step 1: "Heat oil and sauté onions for 5 minutes until softened"
+Step 2: "Add garlic and cook for 2 minutes"
+Step 3: "Add tomatoes, reduce heat and simmer for 15 minutes"
+Step 4: "Season and serve"
+→ Create ONE Slow Cook action at stepIndex 0 (combines steps 1, 2, and 3):
+{
+  "stepIndex": 0,
+  "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+  "methodId": "3",
+  "methodName": "Slow Cook",
+  "parameters": {
+    "cooking_time": 1320,
+    "temp_level": 2,
+    "keep_warm": 0,
+    "delay_time": 0
+  }
+}
+NOTE: Combined 5 + 2 + 15 = 22 minutes (1320 seconds). Steps 1-3 are all continuous cooking on stovetop.
+
+Example 7 (DO NOT Combine - Non-Consecutive):
+Step 1: "Sauté onions for 5 minutes"
+Step 2: "While onions cook, dice the tomatoes"
+Step 3: "Add tomatoes and simmer for 10 minutes"
+→ Create TWO separate actions:
+Action 1 at stepIndex 0: Sear/Sauté for 5 minutes
+Action 2 at stepIndex 2: Slow Cook for 10 minutes
+NOTE: Step 2 is prep work, not cooking, so actions should NOT be combined.
+
 IMPORTANT:
 - Return ONLY valid JSON
 - Ignore steps about mixing, prepping, serving - only extract actual cooking actions
 - If no ChefIQ-compatible cooking method is found, return empty suggestedActions array
 - Be precise with times - extract the exact number mentioned
 - Use the correct methodId format (numeric string for Cooker, enum string for Oven)
+- ⚠️ CRITICAL: Only use Pressure Cook when EXPLICITLY mentioned - do NOT assume "cook" or "simmer" means pressure cooking
+- When in doubt between Pressure Cook and Slow Cook, choose Slow Cook for safety
+- ⚠️ COMBINE consecutive Slow Cook or Sear/Sauté actions into ONE action with total time (e.g., 5min + 2min + 10min = 17min total)
+- Only combine if steps are truly consecutive without prep steps in between
 
 Analyze the recipe above and return the cooking actions as JSON:`;
 }
