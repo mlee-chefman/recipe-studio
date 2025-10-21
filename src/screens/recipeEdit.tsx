@@ -1,17 +1,18 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Switch } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Switch, StyleSheet } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
-import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { Recipe } from "~/types/recipe";
 import { useRecipeForm } from '@hooks/useRecipeForm';
-import { CookingAction, getApplianceById } from '~/types/chefiq';
+import { getApplianceById } from '~/types/chefiq';
 import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '@components/ApplianceDropdown';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 import { SimpleDraggableList } from '@components/DraggableList';
 import { DraggableCookingAction } from '@components/DraggableCookingAction';
 import { useImagePicker } from '@hooks/useImagePicker';
@@ -30,6 +31,8 @@ type RootStackParamList = {
 type RecipeEditRouteProp = RouteProp<RootStackParamList, 'RecipeEdit'>;
 
 export default function RecipeEditScreen() {
+  const theme = useAppTheme();
+  const styles = useStyles(createStyles);
   const navigation = useNavigation();
   const route = useRoute<RecipeEditRouteProp>();
   const { recipe } = route.params;
@@ -78,24 +81,17 @@ export default function RecipeEditScreen() {
       headerLeft: () => (
         <TouchableOpacity
           onPress={handleCancel}
-          style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+          style={styles.headerButton}
         >
-          <Text style={{
-            color: theme.colors.info.main,
-            fontSize: theme.typography.fontSize.lg
-          }}>Cancel</Text>
+          <Text style={styles.cancelText}>Cancel</Text>
         </TouchableOpacity>
       ),
       headerRight: () => (
         <TouchableOpacity
           onPress={handleSave}
-          style={{ paddingHorizontal: theme.spacing.lg, paddingVertical: theme.spacing.xs }}
+          style={styles.headerButton}
         >
-          <Text style={{
-            color: theme.colors.primary[500],
-            fontSize: theme.typography.fontSize.lg,
-            fontWeight: theme.typography.fontWeight.semibold
-          }}>Save</Text>
+          <Text style={styles.saveText}>Save</Text>
         </TouchableOpacity>
       ),
     });
@@ -197,11 +193,8 @@ export default function RecipeEditScreen() {
 
   return (
     <KeyboardAwareScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
-      contentContainerStyle={{
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.lg
-      }}
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
       showsVerticalScrollIndicator={false}
       bottomOffset={40}
     >
@@ -212,7 +205,7 @@ export default function RecipeEditScreen() {
             placeholder="Title"
             value={formData.title}
             onChangeText={(value) => updateFormData({ title: value })}
-            style={{ fontSize: 20 }}
+            style={styles.titleInput}
           />
         </View>
 
@@ -241,12 +234,12 @@ export default function RecipeEditScreen() {
               >
                 <Image
                   source={{ uri: formData.imageUrl }}
-                  style={{ width: 80, height: 80, borderRadius: 8 }}
+                  style={styles.recipeImage}
                   contentFit="cover"
                 />
                 <View
                   className="absolute bottom-0 right-0 w-6 h-6 rounded-full items-center justify-center"
-                  style={{ backgroundColor: theme.colors.primary[500] }}
+                  style={styles.editImageBadge}
                 >
                   <Ionicons name="pencil" size={14} color="white" />
                 </View>
@@ -255,9 +248,9 @@ export default function RecipeEditScreen() {
               <TouchableOpacity
                 onPress={showImageOptions}
                 className="w-12 h-12 border-2 rounded-lg items-center justify-center"
-                style={{ borderColor: theme.colors.primary[500] }}
+                style={styles.addImageButton}
               >
-                <Text className="text-xl" style={{ color: theme.colors.primary[500] }}>📷</Text>
+                <Text className="text-xl" style={styles.cameraEmoji}>📷</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -343,15 +336,9 @@ export default function RecipeEditScreen() {
               <TouchableOpacity
                 onPress={() => setIsIngredientsReorderMode(!isIngredientsReorderMode)}
                 className="px-3 py-1 rounded-lg"
-                style={{
-                  backgroundColor: isIngredientsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
-                }}
+                style={isIngredientsReorderMode ? styles.reorderButtonActive : styles.reorderButtonInactive}
               >
-                <Text style={{
-                  color: isIngredientsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium
-                }}>
+                <Text style={isIngredientsReorderMode ? styles.reorderTextActive : styles.reorderTextInactive}>
                   {isIngredientsReorderMode ? 'Done' : 'Reorder'}
                 </Text>
               </TouchableOpacity>
@@ -403,15 +390,9 @@ export default function RecipeEditScreen() {
               <TouchableOpacity
                 onPress={() => setIsStepsReorderMode(!isStepsReorderMode)}
                 className="px-3 py-1 rounded-lg"
-                style={{
-                  backgroundColor: isStepsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
-                }}
+                style={isStepsReorderMode ? styles.reorderButtonActive : styles.reorderButtonInactive}
               >
-                <Text style={{
-                  color: isStepsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium
-                }}>
+                <Text style={isStepsReorderMode ? styles.reorderTextActive : styles.reorderTextInactive}>
                   {isStepsReorderMode ? 'Done' : 'Reorder'}
                 </Text>
               </TouchableOpacity>
@@ -428,7 +409,7 @@ export default function RecipeEditScreen() {
               <View>
                 <View className="flex-row items-center mb-1">
                   {isReorderMode ? (
-                    <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={{ minHeight: 40 }}>
+                    <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={styles.stepReorderView}>
                       <Text className="text-base">{step.text || `Step ${index + 1}`}</Text>
                     </View>
                   ) : (
@@ -469,20 +450,14 @@ export default function RecipeEditScreen() {
                           updateModalStates({ showCookingSelector: true });
                         }}
                         className="w-8 h-8 rounded-full items-center justify-center"
-                        style={{
-                          backgroundColor: getCookingActionForStep(index) ? theme.colors.primary[500] : theme.colors.primary[100]
-                        }}
+                        style={getCookingActionForStep(index) ? styles.cookingActionButtonActive : styles.cookingActionButtonInactive}
                       >
                         {getCookingActionForStep(index) ? (
                           <Text className="text-sm">🍳</Text>
                         ) : (
                           <Image
                             source={{ uri: getApplianceById(formData.selectedAppliance)?.icon }}
-                            style={{
-                              width: 16,
-                              height: 16,
-                              tintColor: theme.colors.primary[600]
-                            }}
+                            style={styles.applianceIcon}
                             contentFit="contain"
                           />
                         )}
@@ -543,7 +518,7 @@ export default function RecipeEditScreen() {
                 }
               }}
               isLastStep={true}
-              style={{ opacity: 0.6, minHeight: 40 }}
+              style={styles.addInstructionInput}
             />
           </View>
         </View>
@@ -566,7 +541,7 @@ export default function RecipeEditScreen() {
           <TouchableOpacity
             onPress={handleDelete}
             className="border border-red-300 rounded-lg py-3 px-4 items-center"
-            style={{ backgroundColor: theme.colors.error.light }}
+            style={styles.deleteButton}
           >
             <Text className="text-red-600 font-medium text-base">Delete Recipe</Text>
           </TouchableOpacity>
@@ -602,3 +577,81 @@ export default function RecipeEditScreen() {
     </KeyboardAwareScrollView>
   );
 }
+
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background.primary,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+  },
+  headerButton: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.xs,
+  },
+  cancelText: {
+    color: theme.colors.info.main,
+    fontSize: theme.typography.fontSize.lg,
+  },
+  saveText: {
+    color: theme.colors.primary[500],
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.semibold,
+  },
+  titleInput: {
+    fontSize: 20,
+  },
+  recipeImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  editImageBadge: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  addImageButton: {
+    borderColor: theme.colors.primary[500],
+  },
+  cameraEmoji: {
+    color: theme.colors.primary[500],
+  },
+  reorderButtonActive: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  reorderButtonInactive: {
+    backgroundColor: theme.colors.gray[100],
+  },
+  reorderTextActive: {
+    color: theme.colors.text.inverse,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  reorderTextInactive: {
+    color: theme.colors.primary[500],
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  stepReorderView: {
+    minHeight: 40,
+  },
+  cookingActionButtonActive: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  cookingActionButtonInactive: {
+    backgroundColor: theme.colors.primary[100],
+  },
+  applianceIcon: {
+    width: 16,
+    height: 16,
+    tintColor: theme.colors.primary[600],
+  },
+  addInstructionInput: {
+    opacity: 0.6,
+    minHeight: 40,
+  },
+  deleteButton: {
+    backgroundColor: theme.colors.error.light,
+  },
+});

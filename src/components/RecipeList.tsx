@@ -11,7 +11,9 @@ import { GridRecipeCard } from './GridRecipeCard';
 import { RecipeCardSkeleton } from './RecipeCardSkeleton';
 import { getApplianceById } from '~/types/chefiq';
 import RecipeCreatorScreen from '@screens/recipeCreator';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 
 const RecipeCard = ({
   recipe,
@@ -26,6 +28,8 @@ const RecipeCard = ({
   isSelectionMode?: boolean;
   isSelected?: boolean;
 }) => {
+  const styles = useStyles(createStyles);
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <View className={`bg-white rounded-lg mb-3 shadow-sm border-2 overflow-hidden ${
@@ -176,6 +180,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   const navigation = useNavigation();
   const recipeStore = useRecipeStore();
   const { user } = useAuthStore();
+  const styles = useStyles(createStyles);
 
   // Determine if we're on the home tab
   const isHomeTab = tabType === 'home';
@@ -338,9 +343,9 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   };
 
   return (
-    <View className="flex-1 w-full bg-cream">
+    <View className="flex-1 w-full" style={styles.container}>
       {/* Fixed Header */}
-      <View className="px-4 pb-2 bg-cream w-full">
+      <View className="px-4 pb-2 w-full" style={styles.header}>
         {/* Search Input and Filter Button */}
         <View className="flex-row mb-3 gap-2">
           <TextInput
@@ -582,7 +587,13 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: {
+    backgroundColor: theme.colors.background.secondary,
+  },
+  header: {
+    backgroundColor: theme.colors.background.secondary,
+  },
   statusBadge: {
     position: 'absolute',
     top: 8,

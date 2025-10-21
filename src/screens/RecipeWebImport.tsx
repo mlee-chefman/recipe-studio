@@ -1,10 +1,12 @@
-import React, { useState, useRef, useLayoutEffect, useEffect } from 'react';
+import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Platform, Keyboard, Animated } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import { RECIPE_DETECTION_SCRIPT, DEBUG_LOGGING_SCRIPT } from '@constants/webViewScripts';
 import { isExcludedUrl, formatAndValidateUrl } from '@utils/helpers/urlHelpers';
 import { useWebViewImport } from '@hooks/useWebViewImport';
@@ -12,6 +14,8 @@ import { useWebViewImport } from '@hooks/useWebViewImport';
 type RecipeWebImportRouteProp = RouteProp<{ RecipeWebImport: { initialUrl?: string } }, 'RecipeWebImport'>;
 
 export default function RecipeWebImportScreen() {
+  const styles = useStyles(createStyles);
+
   const navigation = useNavigation();
   const route = useRoute<RecipeWebImportRouteProp>();
   const webViewRef = useRef<WebView>(null);
@@ -296,7 +300,7 @@ export default function RecipeWebImportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,

@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -9,10 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { useRecipeStore } from '@store/store';
-import { Recipe } from '~/types/recipe';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 type RecipeSelectionRouteProp = RouteProp<{
@@ -24,6 +25,8 @@ type RecipeSelectionRouteProp = RouteProp<{
 }, 'RecipeSelection'>;
 
 export default function RecipeSelectionScreen() {
+  const styles = useStyles(createStyles);
+
   const navigation = useNavigation();
   const route = useRoute<RecipeSelectionRouteProp>();
   const { recipes = [], source, filename } = route.params || {};
@@ -239,7 +242,7 @@ export default function RecipeSelectionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,

@@ -1,13 +1,9 @@
 import React, { useLayoutEffect, useRef, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Switch, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Switch, Animated, StyleSheet } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Crypto from 'expo-crypto';
-
-// UUID generator using expo-crypto
-const uuidv4 = () => Crypto.randomUUID();
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
-import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import { Image } from 'expo-image';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { ScrapedRecipe } from '@utils/recipeScraper';
@@ -15,7 +11,9 @@ import { CookingAction, getApplianceById } from '~/types/chefiq';
 import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '@components/ApplianceDropdown';
 import { TemperatureInfoModal } from '@components/TemperatureInfoModal';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 import { useRecipeForm } from '@hooks/useRecipeForm';
 import { SimpleDraggableList } from '@components/DraggableList';
 import { DraggableCookingAction } from '@components/DraggableCookingAction';
@@ -30,6 +28,9 @@ import {
   AIAssistantModal,
 } from '@components/modals';
 
+// UUID generator using expo-crypto
+const uuidv4 = () => Crypto.randomUUID();
+
 interface RecipeCreatorProps {
   onComplete?: () => void;
 }
@@ -37,6 +38,7 @@ interface RecipeCreatorProps {
 type RecipeCreatorRouteProp = RouteProp<{ RecipeCreator: { importedRecipe?: ScrapedRecipe, fromWebImport?: boolean } }, 'RecipeCreator'>;
 
 export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps = {}) {
+  const theme = useAppTheme();
   const navigation = useNavigation();
   const route = useRoute<RecipeCreatorRouteProp>();
   const [newInstructionText, setNewInstructionText] = React.useState('');
@@ -44,7 +46,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const [showTempInfo, setShowTempInfo] = useState(false);
   const [tempInfoStepIndex, setTempInfoStepIndex] = useState<number | null>(null);
   const fabScale = useRef(new Animated.Value(1)).current;
-
+  const styles = useStyles((theme) => createStyles(theme, fabScale));
   const {
     formData,
     modalStates,
@@ -193,11 +195,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       headerLeft: () => (
         <TouchableOpacity
           onPress={handleCancel}
-          style={{
-            paddingLeft: theme.spacing.lg,
-            paddingRight: theme.spacing.md,
-            paddingVertical: theme.spacing.sm,
-          }}
+          style={styles.headerLeftButton}
         >
           <Feather name="x" size={28} color={theme.colors.text.secondary} />
         </TouchableOpacity>
@@ -205,16 +203,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       headerRight: () => (
         <TouchableOpacity
           onPress={handleSave}
-          style={{
-            paddingHorizontal: theme.spacing.lg,
-            paddingVertical: theme.spacing.sm,
-          }}
+          style={styles.headerRightButton}
         >
-          <Text style={{
-            color: theme.colors.primary[500],
-            fontSize: theme.typography.fontSize.base,
-            fontWeight: theme.typography.fontWeight.semibold as any,
-          }}>Save</Text>
+          <Text style={styles.saveText}>Save</Text>
         </TouchableOpacity>
       ),
     });
@@ -423,14 +414,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={styles.rootContainer}>
       <KeyboardAwareScrollView
-        style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
-        contentContainerStyle={{
-          paddingHorizontal: theme.spacing.lg,
-          paddingVertical: theme.spacing.lg,
-          paddingBottom: 100, // Extra padding for FAB
-        }}
+        style={styles.scrollView}
+        contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         bottomOffset={40}
       >
@@ -441,7 +428,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             placeholder="Title"
             value={formData.title}
             onChangeText={(value) => updateFormData({ title: value })}
-            style={{ fontSize: 20 }}
+            style={styles.titleInput}
           />
         </View>
 
@@ -470,12 +457,12 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
               >
                 <Image
                   source={{ uri: formData.imageUrl }}
-                  style={{ width: 80, height: 80, borderRadius: 8 }}
+                  style={styles.recipeImage}
                   contentFit="cover"
                 />
                 <View
                   className="absolute bottom-0 right-0 w-6 h-6 rounded-full items-center justify-center"
-                  style={{ backgroundColor: theme.colors.primary[500] }}
+                  style={styles.editImageBadge}
                 >
                   <Ionicons name="pencil" size={14} color="white" />
                 </View>
@@ -484,9 +471,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
               <TouchableOpacity
                 onPress={showImageOptions}
                 className="w-12 h-12 border-2 rounded-lg items-center justify-center"
-                style={{ borderColor: theme.colors.primary[500] }}
+                style={styles.addImageButton}
               >
-                <Text className="text-xl" style={{ color: theme.colors.primary[500] }}>📷</Text>
+                <Text className="text-xl" style={styles.cameraEmoji}>📷</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -572,15 +559,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
               <TouchableOpacity
                 onPress={() => setIsIngredientsReorderMode(!isIngredientsReorderMode)}
                 className="px-3 py-1 rounded-lg"
-                style={{
-                  backgroundColor: isIngredientsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
-                }}
+                style={isIngredientsReorderMode ? styles.reorderButtonActive : styles.reorderButtonInactive}
               >
-                <Text style={{
-                  color: isIngredientsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium
-                }}>
+                <Text style={isIngredientsReorderMode ? styles.reorderTextActive : styles.reorderTextInactive}>
                   {isIngredientsReorderMode ? 'Done' : 'Reorder'}
                 </Text>
               </TouchableOpacity>
@@ -632,15 +613,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
               <TouchableOpacity
                 onPress={() => setIsStepsReorderMode(!isStepsReorderMode)}
                 className="px-3 py-1 rounded-lg"
-                style={{
-                  backgroundColor: isStepsReorderMode ? theme.colors.primary[500] : theme.colors.gray[100]
-                }}
+                style={isStepsReorderMode ? styles.reorderButtonActive : styles.reorderButtonInactive}
               >
-                <Text style={{
-                  color: isStepsReorderMode ? theme.colors.text.inverse : theme.colors.primary[500],
-                  fontSize: theme.typography.fontSize.sm,
-                  fontWeight: theme.typography.fontWeight.medium
-                }}>
+                <Text style={isStepsReorderMode ? styles.reorderTextActive : styles.reorderTextInactive}>
                   {isStepsReorderMode ? 'Done' : 'Reorder'}
                 </Text>
               </TouchableOpacity>
@@ -657,7 +632,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                 <View>
                   <View className="flex-row items-center mb-1">
                     {isReorderMode ? (
-                      <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={{ minHeight: 40 }}>
+                      <View className="flex-1 border border-gray-200 rounded-lg px-3 py-2 mr-2" style={styles.stepReorderView}>
                         <Text className="text-base">{step.text || `Step ${index + 1}`}</Text>
                       </View>
                     ) : (
@@ -698,20 +673,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                               updateModalStates({ showCookingSelector: true });
                             }}
                             className="w-8 h-8 rounded-full items-center justify-center"
-                            style={{
-                              backgroundColor: getCookingActionForStep(index) ? theme.colors.primary[500] : theme.colors.primary[100]
-                            }}
+                            style={getCookingActionForStep(index) ? styles.cookingActionButtonActive : styles.cookingActionButtonInactive}
                           >
                             {getCookingActionForStep(index) ? (
                               <Text className="text-sm">🍳</Text>
                             ) : (
                               <Image
                                 source={{ uri: getApplianceById(formData.selectedAppliance)?.icon }}
-                                style={{
-                                  width: 16,
-                                  height: 16,
-                                  tintColor: theme.colors.primary[600]
-                                }}
+                                style={styles.applianceIcon}
                                 contentFit="contain"
                               />
                             )}
@@ -776,7 +745,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                 }
               }}
               isLastStep={true}
-              style={{ opacity: 0.6, minHeight: 40 }}
+              style={styles.addInstructionInput}
             />
           </View>
         </View>
@@ -860,58 +829,21 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     </KeyboardAwareScrollView>
 
     {/* Floating Action Button for AI Helper */}
-    <Animated.View
-      style={{
-        position: 'absolute',
-        bottom: 24,
-        right: 24,
-        transform: [{ scale: fabScale }],
-        ...theme.shadows.lg,
-      }}
-    >
+    <Animated.View style={styles.fabContainer}>
       <TouchableOpacity
         onPress={handleFabPress}
-        style={{
-          height: 56,
-          borderRadius: 28,
-          backgroundColor: theme.colors.primary[500],
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexDirection: 'row',
-          paddingHorizontal: 20,
-          paddingVertical: 12,
-        }}
+        style={styles.fabButton}
         activeOpacity={0.8}
       >
         <MaterialCommunityIcons name="robot-excited" size={28} color="white" />
-        <Text style={{
-          color: 'white',
-          fontSize: 16,
-          fontWeight: '600',
-          marginLeft: 8,
-        }}>
+        <Text style={styles.fabText}>
           AI Assistant
         </Text>
       </TouchableOpacity>
       {/* Badge for remaining generations */}
       {remainingGenerations && remainingGenerations.daily > 0 && (
-        <View
-          style={{
-            position: 'absolute',
-            top: -6,
-            right: -6,
-            backgroundColor: theme.colors.secondary[500],
-            borderRadius: 12,
-            minWidth: 24,
-            height: 24,
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingHorizontal: 6,
-            borderWidth: 2,
-            borderColor: 'white',
-          }}
-        >
-          <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+        <View style={styles.fabBadge}>
+          <Text style={styles.fabBadgeText}>
             {remainingGenerations.daily}
           </Text>
         </View>
@@ -931,3 +863,125 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   </View>
   );
 }
+
+const createStyles = (theme: Theme, fabScale: Animated.Value) => StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: theme.colors.background.primary,
+  },
+  contentContainer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+    paddingBottom: 100, // Extra padding for FAB
+  },
+  headerLeftButton: {
+    paddingLeft: theme.spacing.lg,
+    paddingRight: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  headerRightButton: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  saveText: {
+    color: theme.colors.primary[500],
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+  },
+  titleInput: {
+    fontSize: 20,
+  },
+  recipeImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 8,
+  },
+  editImageBadge: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  addImageButton: {
+    borderColor: theme.colors.primary[500],
+  },
+  cameraEmoji: {
+    color: theme.colors.primary[500],
+  },
+  reorderButtonActive: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  reorderButtonInactive: {
+    backgroundColor: theme.colors.gray[100],
+  },
+  reorderTextActive: {
+    color: theme.colors.text.inverse,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  reorderTextInactive: {
+    color: theme.colors.primary[500],
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  stepReorderView: {
+    minHeight: 40,
+  },
+  cookingActionButtonActive: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  cookingActionButtonInactive: {
+    backgroundColor: theme.colors.primary[100],
+  },
+  applianceIcon: {
+    width: 16,
+    height: 16,
+    tintColor: theme.colors.primary[600],
+  },
+  addInstructionInput: {
+    opacity: 0.6,
+    minHeight: 40,
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    transform: [{ scale: fabScale }],
+    ...theme.shadows.lg,
+  },
+  fabButton: {
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  fabText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  fabBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: theme.colors.secondary[500],
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  fabBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+});

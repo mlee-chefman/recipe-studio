@@ -3,7 +3,9 @@ import { Image } from 'expo-image';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Recipe } from '~/types/recipe';
 import { getApplianceById } from '~/types/chefiq';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 
 interface CompactRecipeCardProps {
   recipe: Recipe;
@@ -20,6 +22,8 @@ export const CompactRecipeCard = ({
   isSelectionMode = false,
   isSelected = false
 }: CompactRecipeCardProps) => {
+  const styles = useStyles(createStyles);
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
       <View className={`bg-white rounded-lg mb-2 shadow-sm border-2 overflow-hidden ${
@@ -134,7 +138,7 @@ export const CompactRecipeCard = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   statusBadge: {
     position: 'absolute',
     top: 4,

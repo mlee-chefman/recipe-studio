@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -11,16 +11,18 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
-import { ScrapedRecipe } from '@utils/recipeScraper';
+import type { Theme } from '@theme/index';
 import { parseMultipleRecipes } from '@services/gemini.service';
 import { extractTextFromPDF } from '@utils/pdfExtractor';
 import { useRecipeStore } from '@store/store';
-import { Recipe } from '~/types/recipe';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_SUCCESS, IMPORT_ALERTS, IMPORT_BUTTONS } from '@constants/importMessages';
 
 export default function RecipePDFImportScreen() {
+  const styles = useStyles(createStyles);
+
   const navigation = useNavigation();
   const addRecipe = useRecipeStore((state) => state.addRecipe);
   const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
@@ -296,7 +298,7 @@ export default function RecipePDFImportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,

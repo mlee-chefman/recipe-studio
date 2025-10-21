@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import BaseModal from './BaseModal';
 
 interface CreateRecipeOptionsModalProps {
@@ -22,6 +24,8 @@ export default function CreateRecipeOptionsModal({
   onSelectPDFImport,
   onSelectStartFromScratch
 }: CreateRecipeOptionsModalProps) {
+  const styles = useStyles(createStyles);
+
   return (
     <BaseModal
       visible={visible}
@@ -131,7 +135,7 @@ export default function CreateRecipeOptionsModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   header: {
     padding: theme.spacing.xl,
     alignItems: 'center',

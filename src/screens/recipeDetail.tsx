@@ -1,15 +1,17 @@
-import React, { useLayoutEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { useLayoutEffect, useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useRecipeStore, useAuthStore } from '@store/store';
 import { Recipe } from '~/types/recipe';
-import { getApplianceById, formatCookingAction, CookingAction } from '~/types/chefiq';
+import { getApplianceById } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
-import { generateExportJSON, validateChefIQExport, exportToChefIQFormat } from '@utils/chefiqExport';
+import { generateExportJSON } from '@utils/chefiqExport';
 import { ChefIQExportModal } from '@components/ChefIQExportModal';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 import StepImage from '@components/StepImage';
 
 type RootStackParamList = {
@@ -20,6 +22,8 @@ type RootStackParamList = {
 type RecipeDetailRouteProp = RouteProp<RootStackParamList, 'RecipeDetail'>;
 
 export default function RecipeDetailScreen() {
+  const theme = useAppTheme();
+  const styles = useStyles(createStyles);
   const navigation = useNavigation();
   const route = useRoute<RecipeDetailRouteProp>();
   const { recipe: routeRecipe } = route.params;
@@ -73,10 +77,7 @@ export default function RecipeDetailScreen() {
       headerRight: () => isOwner ? (
         <TouchableOpacity
           onPress={handleEdit}
-          style={{
-            paddingHorizontal: theme.spacing.md,
-            paddingVertical: theme.spacing.sm,
-          }}
+          style={styles.headerButton}
         >
           <Feather
             name="edit-3"
@@ -89,13 +90,13 @@ export default function RecipeDetailScreen() {
   }, [navigation, recipe, handleEdit, isOwner]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
+    <View style={styles.container}>
       <ScrollView className="flex-1">
         {/* Recipe Image */}
         {recipe.image && (
           <Image
             source={{ uri: recipe.image }}
-            style={{ width: '100%', height: 250 }}
+            style={styles.recipeImage}
             contentFit="cover"
           />
         )}
@@ -112,7 +113,7 @@ export default function RecipeDetailScreen() {
               {recipe.authorProfilePicture && (
                 <Image
                   source={{ uri: recipe.authorProfilePicture }}
-                  style={{ width: 32, height: 32, borderRadius: 16, marginRight: 8 }}
+                  style={styles.authorProfilePicture}
                   contentFit="cover"
                 />
               )}
@@ -152,8 +153,8 @@ export default function RecipeDetailScreen() {
           {/* Category */}
           <View className="mb-6">
             <Text className="text-lg font-semibold text-gray-800 mb-2">Category</Text>
-            <View className="px-3 py-2 rounded-lg self-start" style={{ backgroundColor: theme.colors.primary[100] }}>
-              <Text className="font-medium" style={{ color: theme.colors.primary[600] }}>{recipe.category}</Text>
+            <View className="px-3 py-2 rounded-lg self-start" style={styles.categoryBadge}>
+              <Text className="font-medium" style={styles.categoryText}>{recipe.category}</Text>
             </View>
           </View>
 
@@ -179,7 +180,7 @@ export default function RecipeDetailScreen() {
                 <View className="flex-row items-center">
                   <Image
                     source={{ uri: getApplianceById(recipe.chefiqAppliance)?.picture }}
-                    style={{ width: 40, height: 40, marginRight: 12 }}
+                    style={styles.applianceImage}
                     contentFit="contain"
                   />
                   <Text className="text-lg font-semibold text-green-800">
@@ -197,9 +198,9 @@ export default function RecipeDetailScreen() {
               <TouchableOpacity
                 onPress={handleExportToChefIQ}
                 className="mt-3 flex-row items-center justify-center py-3 rounded-lg"
-                style={{ backgroundColor: theme.colors.primary[500] }}
+                style={styles.exportButton}
               >
-                <Feather name="download" size={18} color="white" style={{ marginRight: 8 }} />
+                <Feather name="download" size={18} color="white" style={styles.exportButtonIcon} />
                 <Text className="text-white font-semibold text-base">Export to ChefIQ Format</Text>
               </TouchableOpacity>
             </View>
@@ -211,7 +212,7 @@ export default function RecipeDetailScreen() {
             <View className="bg-gray-50 p-4 rounded-lg">
               {recipe.ingredients.map((ingredient, index) => (
                 <View key={index} className="flex-row items-center mb-2">
-                  <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: theme.colors.primary[500] }} />
+                  <View className="w-2 h-2 rounded-full mr-3" style={styles.ingredientBullet} />
                   <Text className="text-base text-gray-700 flex-1">{ingredient}</Text>
                 </View>
               ))}
@@ -229,7 +230,7 @@ export default function RecipeDetailScreen() {
                 return (
                   <View key={index} className="mb-4">
                     <View className="flex-row mb-2">
-                      <View className="rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5" style={{ backgroundColor: theme.colors.primary[500] }}>
+                      <View className="rounded-full w-6 h-6 items-center justify-center mr-3 mt-0.5" style={styles.stepNumberBadge}>
                         <Text className="text-white text-sm font-bold">{index + 1}</Text>
                       </View>
                       <Text className="text-base text-gray-700 leading-6 flex-1">{step.text}</Text>
@@ -284,3 +285,47 @@ export default function RecipeDetailScreen() {
     </View>
   );
 }
+
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background.primary,
+  },
+  headerButton: {
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  recipeImage: {
+    width: '100%',
+    height: 250,
+  },
+  authorProfilePicture: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+  },
+  categoryBadge: {
+    backgroundColor: theme.colors.primary[100],
+  },
+  categoryText: {
+    color: theme.colors.primary[600],
+  },
+  applianceImage: {
+    width: 40,
+    height: 40,
+    marginRight: 12,
+  },
+  exportButton: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  exportButtonIcon: {
+    marginRight: 8,
+  },
+  ingredientBullet: {
+    backgroundColor: theme.colors.primary[500],
+  },
+  stepNumberBadge: {
+    backgroundColor: theme.colors.primary[500],
+  },
+});

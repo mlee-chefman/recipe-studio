@@ -13,11 +13,15 @@ import { Image } from 'expo-image';
 import * as DocumentPicker from 'expo-document-picker';
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import { useOCRImport } from '@hooks/useOCRImport';
 import { useImagePicker } from '@hooks/useImagePicker';
 
 export default function RecipeOCRImportScreen() {
+  const styles = useStyles(createStyles);
+
   const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
 
@@ -240,7 +244,7 @@ export default function RecipeOCRImportScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,

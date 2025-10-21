@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import { useImagePicker } from '@hooks/useImagePicker';
 import ImagePreviewModal from './ImagePreviewModal';
 
@@ -21,6 +23,8 @@ interface StepImageProps {
  * - Compact mode for inline display
  */
 export default function StepImage({ imageUri, onImageChange, editable = false, compact = false }: StepImageProps) {
+  const styles = useStyles(createStyles);
+
   const [previewVisible, setPreviewVisible] = useState(false);
 
   const { showImageOptions } = useImagePicker({
@@ -119,7 +123,7 @@ export default function StepImage({ imageUri, onImageChange, editable = false, c
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'relative',
   },

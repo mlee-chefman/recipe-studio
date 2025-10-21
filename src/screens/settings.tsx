@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,16 @@ import { signOutUser } from '../modules/user/userAuth';
 import { useAuthStore, useThemeStore } from '../store/store';
 import { updateUserProfile } from '../modules/user/userService';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
-import { theme } from '@theme/index';
 import { themeMetadata, ThemeVariant } from '@theme/variants';
+import { useStyles } from '@hooks/useStyles';
+import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 
 export default function SettingsScreen() {
   const { user, userProfile, setUserProfile, signOut } = useAuthStore();
   const { themeVariant, setThemeVariant } = useThemeStore();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const styles = useStyles(createStyles);
 
   const handleAvatarSelect = async (avatarUrl: string) => {
     if (!user?.uid) {
@@ -174,7 +177,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,

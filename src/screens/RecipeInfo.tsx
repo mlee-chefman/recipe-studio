@@ -1,9 +1,11 @@
 import React, { useLayoutEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { theme } from '@theme/index';
+import { useAppTheme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 import {
   ServingsPickerModal,
   CookTimePickerModal,
@@ -35,6 +37,8 @@ type RecipeInfoRouteProp = RouteProp<{
 }, 'RecipeInfo'>;
 
 export default function RecipeInfoScreen() {
+  const theme = useAppTheme();
+  const styles = useStyles(createStyles);
   const navigation = useNavigation();
   const route = useRoute<RecipeInfoRouteProp>();
 
@@ -95,11 +99,7 @@ export default function RecipeInfoScreen() {
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{
-            paddingLeft: theme.spacing.lg,
-            paddingRight: theme.spacing.md,
-            paddingVertical: theme.spacing.sm,
-          }}
+          style={styles.headerButton}
         >
           <Feather name="chevron-left" size={28} color={theme.colors.text.secondary} />
         </TouchableOpacity>
@@ -107,16 +107,9 @@ export default function RecipeInfoScreen() {
       headerRight: () => (
         <TouchableOpacity
           onPress={handleSave}
-          style={{
-            paddingHorizontal: theme.spacing.lg,
-            paddingVertical: theme.spacing.sm,
-          }}
+          style={styles.headerRightButton}
         >
-          <Text style={{
-            color: theme.colors.primary[500],
-            fontSize: theme.typography.fontSize.base,
-            fontWeight: theme.typography.fontWeight.semibold as any,
-          }}>Done</Text>
+          <Text style={styles.doneText}>Done</Text>
         </TouchableOpacity>
       ),
     });
@@ -126,14 +119,14 @@ export default function RecipeInfoScreen() {
   const renderTagsValue = () => {
     if (formData.tags && formData.tags.length > 0) {
       return (
-        <View className="flex-row items-center flex-wrap justify-end gap-1 flex-1" style={{ maxWidth: '70%' }}>
+        <View className="flex-row items-center flex-wrap justify-end gap-1 flex-1" style={styles.tagsContainer}>
           {formData.tags.slice(0, 2).map((tag, index) => (
             <View
               key={index}
               className="px-2 py-1 rounded-full"
-              style={{ backgroundColor: theme.colors.primary[100] }}
+              style={styles.tagBadge}
             >
-              <Text style={{ color: theme.colors.primary[700], fontSize: 12 }}>
+              <Text style={styles.tagText}>
                 {tag}
               </Text>
             </View>
@@ -149,11 +142,8 @@ export default function RecipeInfoScreen() {
 
   return (
     <KeyboardAwareScrollView
-      style={{ flex: 1, backgroundColor: theme.colors.background.primary }}
-      contentContainerStyle={{
-        paddingHorizontal: theme.spacing.lg,
-        paddingVertical: theme.spacing.lg
-      }}
+      style={styles.container}
+      contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
       {/* Cook Time */}
@@ -241,3 +231,38 @@ export default function RecipeInfoScreen() {
     </KeyboardAwareScrollView>
   );
 }
+
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.background.primary,
+  },
+  content: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.lg,
+  },
+  headerButton: {
+    paddingLeft: theme.spacing.lg,
+    paddingRight: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  headerRightButton: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingVertical: theme.spacing.sm,
+  },
+  doneText: {
+    color: theme.colors.primary[500],
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+  },
+  tagsContainer: {
+    maxWidth: '70%',
+  },
+  tagBadge: {
+    backgroundColor: theme.colors.primary[100],
+  },
+  tagText: {
+    color: theme.colors.primary[700],
+    fontSize: 12,
+  },
+});

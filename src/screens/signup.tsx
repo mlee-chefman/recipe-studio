@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -13,17 +13,20 @@ import {
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { signUp } from '../modules/user/userAuth';
+import { signUp , convertToAuthUser } from '../modules/user/userAuth';
 import { createUserProfile, updateUserProfile } from '../modules/user/userService';
 import { useAuthStore } from '../store/store';
-import { convertToAuthUser } from '../modules/user/userAuth';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
 import { generateAvatarUrl } from '../utils/avatarGenerator';
 import { saveCredentials } from '../services/keychainService';
 import { setHasSignedUpBefore } from '../services/authStorageService';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 
 export default function SignUpScreen() {
+  const styles = useStyles(createStyles);
+
   const navigation = useNavigation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -222,7 +225,7 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.secondary,

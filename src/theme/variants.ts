@@ -174,7 +174,7 @@ export const freshTheme: ThemeColors = {
 
   background: {
     primary: '#ffffff',
-    secondary: '#f5f3e4', // Light cream for cards
+    secondary: '#faf8f3', // Almost white with subtle cream hint
     tertiary: '#ecfdf5', // Very light green
     white: '#ffffff',
   },
@@ -196,7 +196,7 @@ export const freshTheme: ThemeColors = {
 
   surface: {
     primary: '#ffffff',
-    secondary: '#f5f3e4',
+    secondary: '#faf8f3',
     elevated: '#ffffff',
     overlay: 'rgba(0, 0, 0, 0.5)',
   },
@@ -364,7 +364,7 @@ export const warmTheme: ThemeColors = {
 
   background: {
     primary: '#ffffff',
-    secondary: '#faf8f3', // Warm light cream
+    secondary: '#faf8f3', // Almost white with tiniest warm hint
     tertiary: '#f0fdf4', // Very light green
     white: '#ffffff',
   },

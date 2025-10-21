@@ -3,7 +3,9 @@ import { Image } from 'expo-image';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Recipe } from "~/types/recipe";
 import { getApplianceById } from '~/types/chefiq';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 
 interface GridRecipeCardProps {
   recipe: Recipe;
@@ -20,6 +22,8 @@ export const GridRecipeCard = ({
   isSelectionMode = false,
   isSelected = false
 }: GridRecipeCardProps) => {
+  const styles = useStyles(createStyles);
+
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7} className="flex-1">
       <View className={`bg-white rounded-lg shadow-sm border-2 overflow-hidden ${
@@ -121,7 +125,7 @@ export const GridRecipeCard = ({
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   statusBadge: {
     position: 'absolute',
     top: 4,
