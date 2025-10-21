@@ -17,7 +17,7 @@ import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
 
 import { parseMultipleRecipes } from '@services/gemini.service';
-import { useRecipeStore } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
 
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
@@ -25,6 +25,7 @@ export default function RecipeTextImportScreen() {
   const styles = useStyles(createStyles);
 
   const navigation = useNavigation();
+  const user = useAuthStore((state) => state.user);
   const addRecipe = useRecipeStore((state) => state.addRecipe);
   const [importText, setImportText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -108,8 +109,14 @@ export default function RecipeTextImportScreen() {
       // Navigate based on number of recipes found
       if (result.recipes.length === 1) {
         // Single recipe - save directly
+        if (!user?.uid) {
+          Alert.alert('Error', 'User not authenticated. Please sign in and try again.');
+          setIsProcessing(false);
+          return;
+        }
+
         const recipe = convertScrapedToRecipe(result.recipes[0]);
-        addRecipe(recipe);
+        await addRecipe(recipe, user.uid);
 
         Alert.alert(
           'Success!',

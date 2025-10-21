@@ -16,7 +16,7 @@ import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
 import { parseMultipleRecipes } from '@services/gemini.service';
 import { extractTextFromPDF } from '@utils/pdfExtractor';
-import { useRecipeStore } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_SUCCESS, IMPORT_ALERTS, IMPORT_BUTTONS } from '@constants/importMessages';
 
@@ -24,6 +24,7 @@ export default function RecipePDFImportScreen() {
   const styles = useStyles(createStyles);
 
   const navigation = useNavigation();
+  const user = useAuthStore((state) => state.user);
   const addRecipe = useRecipeStore((state) => state.addRecipe);
   const [selectedFile, setSelectedFile] = useState<{ name: string; uri: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -135,8 +136,14 @@ export default function RecipePDFImportScreen() {
       // Navigate based on number of recipes found
       if (parseResult.recipes.length === 1) {
         // Single recipe - save directly
+        if (!user?.uid) {
+          Alert.alert(IMPORT_ALERTS.ERROR, 'User not authenticated. Please sign in and try again.');
+          setIsProcessing(false);
+          return;
+        }
+
         const recipe = convertScrapedToRecipe(parseResult.recipes[0]);
-        addRecipe(recipe);
+        await addRecipe(recipe, user.uid);
 
         Alert.alert(
           IMPORT_ALERTS.SUCCESS,
