@@ -11,7 +11,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import { CookingAction, getApplianceById } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
-import { theme } from '@theme/index';
+import { theme, useAppTheme } from '@theme/index';
 
 interface DraggableCookingActionProps {
   cookingAction: CookingAction;
@@ -36,6 +36,7 @@ export function DraggableCookingAction({
   selectedAppliance,
   isReorderMode = false,
 }: DraggableCookingActionProps) {
+  const appTheme = useAppTheme();
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const opacity = useSharedValue(1);
@@ -107,22 +108,25 @@ export function DraggableCookingAction({
           onPress={!isReorderMode ? onEdit : undefined}
           activeOpacity={isReorderMode ? 1 : 0.7}
         >
-          <View className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2">
+          <View className="border rounded-lg p-3 mt-2" style={{
+            backgroundColor: appTheme.colors.primary[50],
+            borderColor: appTheme.colors.primary[200]
+          }}>
             <View className="flex-row items-center justify-between">
               {isReorderMode && (
                 <View className="mr-2">
-                  <Feather name="move" size={16} color="#22c55e" />
+                  <Feather name="move" size={16} color={theme.colors.primary[500]} />
                 </View>
               )}
               <View className="flex-1">
-                <Text className="text-sm font-medium text-green-800">
+                <Text className="text-sm font-medium" style={{ color: appTheme.colors.primary[800] }}>
                   {getCookingMethodIcon(
                     cookingAction.methodId,
                     selectedAppliance ? getApplianceById(selectedAppliance)?.thing_category_name : undefined
                   )} {cookingAction.methodName}
                 </Text>
                 <View className="flex-row items-center">
-                  <Text className="text-xs text-green-600 mt-1 flex-1">
+                  <Text className="text-xs mt-1 flex-1" style={{ color: appTheme.colors.primary[600] }}>
                     {formatKeyParameters(cookingAction)}
                   </Text>
                   {cookingAction.parameters.target_probe_temp && onShowTempInfo && !isReorderMode && (
@@ -138,7 +142,7 @@ export function DraggableCookingAction({
                   )}
                 </View>
                 {selectedAppliance && (
-                  <Text className="text-xs text-green-500 mt-0.5">
+                  <Text className="text-xs mt-0.5" style={{ color: appTheme.colors.primary[500] }}>
                     {getApplianceById(selectedAppliance)?.name}
                   </Text>
                 )}
@@ -146,9 +150,10 @@ export function DraggableCookingAction({
               {!isReorderMode && (
                 <TouchableOpacity
                   onPress={onRemove}
-                  className="w-6 h-6 bg-red-100 rounded-full items-center justify-center ml-2"
+                  className="w-6 h-6 rounded-full items-center justify-center ml-2"
+                  style={{ backgroundColor: appTheme.colors.error.light }}
                 >
-                  <Text className="text-red-600 text-xs font-bold">×</Text>
+                  <Text className="text-xs font-bold" style={{ color: appTheme.colors.error.dark }}>×</Text>
                 </TouchableOpacity>
               )}
             </View>

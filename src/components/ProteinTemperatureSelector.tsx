@@ -54,11 +54,11 @@ export function ProteinTemperatureSelector({
 
   // Get color based on temperature (visual indicator)
   const getTempColor = (temp: number): string => {
-    if (temp < 130) return '#ef4444'; // red - rare
-    if (temp < 145) return '#f97316'; // orange - medium rare
-    if (temp < 155) return '#f59e0b'; // amber - medium
-    if (temp < 170) return '#84cc16'; // lime - medium well
-    return '#78716c'; // stone - well done
+    if (temp < 130) return theme.colors.error.main; // red - rare
+    if (temp < 145) return theme.colors.warning.dark; // orange - medium rare
+    if (temp < 155) return theme.colors.warning.main; // amber - medium
+    if (temp < 170) return theme.colors.success.main; // lime - medium well
+    return theme.colors.gray[500]; // stone - well done
   };
 
   // Get status bar height

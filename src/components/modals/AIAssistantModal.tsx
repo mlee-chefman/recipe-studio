@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import BaseModal from '../BaseModal';
 
 interface RemainingGenerations {
@@ -28,6 +30,8 @@ export function AIAssistantModal({
   isGenerating,
   remainingGenerations,
 }: AIAssistantModalProps) {
+  const styles = useStyles(createStyles);
+
   return (
     <BaseModal
       visible={visible}
@@ -103,7 +107,7 @@ export function AIAssistantModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     padding: 24,
     paddingBottom: 32,

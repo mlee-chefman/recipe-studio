@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "recipe-studio",
-    "slug": "recipe-studio",
+    "name": "RecipeiQ",
+    "slug": "recipeiq",
     "version": "1.0.0",
     "web": {
       "favicon": "./assets/favicon.png"
@@ -16,21 +16,21 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#EBE8D4"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.recipestudio"
+      "bundleIdentifier": "com.anonymous.recipeiq"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#EBE8D4"
       },
-      "package": "com.anonymous.recipestudio"
+      "package": "com.anonymous.recipeiq"
     }
   }
 }

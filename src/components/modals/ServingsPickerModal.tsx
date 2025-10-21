@@ -1,7 +1,7 @@
-import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { theme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import BaseModal from '../BaseModal';
 
@@ -18,6 +18,8 @@ export function ServingsPickerModal({
   onValueChange,
   onClose,
 }: ServingsPickerModalProps) {
+  const styles = useStyles(createStyles);
+
   return (
     <BaseModal
       visible={visible}
@@ -48,7 +50,7 @@ export function ServingsPickerModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

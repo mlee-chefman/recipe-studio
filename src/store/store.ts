@@ -14,6 +14,7 @@ import {
   CreateRecipeData,
   Recipe as FirebaseRecipe
 } from '../modules/recipe/recipeService';
+import { ThemeVariant } from '@theme/variants';
 
 export type ViewMode = 'detailed' | 'compact' | 'grid';
 
@@ -83,6 +84,11 @@ export interface RecipeState {
   deleteRecipe: (id: string, userId: string) => Promise<void>;
   deleteRecipes: (ids: string[], userId: string) => Promise<void>;
   updateRecipe: (id: string, recipe: Partial<Omit<Recipe, 'id'>>, userId: string) => Promise<void>;
+}
+
+export interface ThemeState {
+  themeVariant: ThemeVariant;
+  setThemeVariant: (variant: ThemeVariant) => void;
 }
 
 export const useStore = create<BearState>((set) => ({
@@ -529,3 +535,19 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     }
   },
 }));
+
+// Theme store with persistence
+export const useThemeStore = create<ThemeState>()(
+  persist(
+    (set) => ({
+      themeVariant: 'fresh',
+      setThemeVariant: (variant: ThemeVariant) => {
+        set({ themeVariant: variant });
+      },
+    }),
+    {
+      name: 'theme-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);

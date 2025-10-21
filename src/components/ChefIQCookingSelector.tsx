@@ -20,7 +20,7 @@ const uuidv4 = () => Crypto.randomUUID();
 import { cookingFunctions as rj40Functions, getSmartCookerDefaultState } from '@utils/rj40CookingFunctions';
 import { cookingFunctions as cq50Functions } from '@utils/cq50CookingFunctions';
 import { CookingAction, getApplianceById } from '~/types/chefiq';
-import { theme } from '@theme/index';
+import { theme, useAppTheme } from '@theme/index';
 import {
   TEMPERATURE_GUIDE,
   PROTEIN_LABELS,
@@ -81,6 +81,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
   useProbe = false,
   initialAction,
 }) => {
+  const appTheme = useAppTheme();
   const [selectedMethod, setSelectedMethod] = useState<any>(null);
   const [parameters, setParameters] = useState<any>({});
   const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
@@ -490,9 +491,9 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             </View>
           </View>
           {validationErrors.cooking_time && (
-            <Text className="text-red-500 text-sm mt-1">{validationErrors.cooking_time}</Text>
+            <Text className="text-sm mt-1" style={{ color: appTheme.colors.error.main }}>{validationErrors.cooking_time}</Text>
           )}
-          <Text className="text-gray-500 text-xs mt-1">
+          <Text className="text-xs mt-1" style={{ color: appTheme.colors.text.tertiary }}>
             Range: {Math.floor((methodSettings.cookingTime?.min || 0) / 60)} - {Math.floor((methodSettings.cookingTime?.max || 14400) / 60)} minutes
           </Text>
         </View>
@@ -547,9 +548,9 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
               </View>
             </View>
             {validationErrors.cooking_temp && (
-              <Text className="text-red-500 text-sm mt-1">{validationErrors.cooking_temp}</Text>
+              <Text className="text-sm mt-1" style={{ color: appTheme.colors.error.main }}>{validationErrors.cooking_temp}</Text>
             )}
-            <Text className="text-gray-500 text-xs mt-1">
+            <Text className="text-xs mt-1" style={{ color: appTheme.colors.text.tertiary }}>
               Range: {methodSettings.cookingTemp.min}°F - {methodSettings.cookingTemp.max}°F
             </Text>
           </View>
@@ -567,9 +568,9 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                   backgroundColor: parameters.pres_level === 1 ? theme.colors.primary[500] : theme.colors.gray[200]
                 }}
               >
-                <Text className={`text-center font-semibold ${
-                  parameters.pres_level === 1 ? 'text-white' : 'text-gray-700'
-                }`}>High</Text>
+                <Text className="text-center font-semibold" style={{
+                  color: parameters.pres_level === 1 ? theme.colors.text.inverse : theme.colors.text.secondary
+                }}>High</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => updateParameter('pres_level', 0)}
@@ -578,9 +579,9 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                   backgroundColor: parameters.pres_level === 0 ? theme.colors.primary[500] : theme.colors.gray[200]
                 }}
               >
-                <Text className={`text-center font-semibold ${
-                  parameters.pres_level === 0 ? 'text-white' : 'text-gray-700'
-                }`}>Low</Text>
+                <Text className="text-center font-semibold" style={{
+                  color: parameters.pres_level === 0 ? theme.colors.text.inverse : theme.colors.text.secondary
+                }}>Low</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -597,13 +598,14 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                   onPress={() => updateParameter('pres_release', index)}
                   className={`flex-1 py-2 px-4 ${
                     index === 0 ? 'rounded-l-lg' : index === 2 ? 'rounded-r-lg' : ''
-                  } ${
-                    parameters.pres_release === index ? 'bg-green-500' : 'bg-gray-200'
                   } ${index > 0 ? 'border-l' : ''}`}
+                  style={{
+                    backgroundColor: parameters.pres_release === index ? theme.colors.primary[500] : theme.colors.gray[200]
+                  }}
                 >
-                  <Text className={`text-center font-semibold text-sm ${
-                    parameters.pres_release === index ? 'text-white' : 'text-gray-700'
-                  }`}>{release}</Text>
+                  <Text className="text-center font-semibold text-sm" style={{
+                    color: parameters.pres_release === index ? theme.colors.text.inverse : theme.colors.text.secondary
+                  }}>{release}</Text>
                 </TouchableOpacity>
               ))}
             </View>
@@ -1000,7 +1002,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             )}
 
             {validationErrors.target_probe_temp && (
-              <Text className="text-red-500 text-sm mt-1">{validationErrors.target_probe_temp}</Text>
+              <Text className="text-sm mt-1" style={{ color: appTheme.colors.error.main }}>{validationErrors.target_probe_temp}</Text>
             )}
           </View>
         ) : (
@@ -1056,9 +1058,9 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                 </View>
               </View>
               {validationErrors.cooking_time && (
-                <Text className="text-red-500 text-sm mt-1">{validationErrors.cooking_time}</Text>
+                <Text className="text-sm mt-1" style={{ color: appTheme.colors.error.main }}>{validationErrors.cooking_time}</Text>
               )}
-              <Text className="text-gray-500 text-xs mt-1">
+              <Text className="text-xs mt-1" style={{ color: appTheme.colors.text.tertiary }}>
                 Range: {Math.floor(settings.cooking_time.min / 60)} - {Math.floor(settings.cooking_time.max / 60)} minutes
               </Text>
             </View>
@@ -1118,9 +1120,9 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
               </View>
             </View>
             {validationErrors.target_cavity_temp && (
-              <Text className="text-red-500 text-sm mt-1">{validationErrors.target_cavity_temp}</Text>
+              <Text className="text-sm mt-1" style={{ color: appTheme.colors.error.main }}>{validationErrors.target_cavity_temp}</Text>
             )}
-            <Text className="text-gray-500 text-xs mt-1">
+            <Text className="text-xs mt-1" style={{ color: appTheme.colors.text.tertiary }}>
               Range: {settings.target_cavity_temp[0].min}°F - {settings.target_cavity_temp[0].max}°F
             </Text>
           </View>
@@ -1133,23 +1135,25 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             <View className="flex-row">
               <TouchableOpacity
                 onPress={() => updateParameter('temp_level', 0)}
-                className={`flex-1 py-2 px-4 rounded-l-lg ${
-                  parameters.temp_level === 0 ? 'bg-green-500' : 'bg-gray-200'
-                }`}
+                className="flex-1 py-2 px-4 rounded-l-lg"
+                style={{
+                  backgroundColor: parameters.temp_level === 0 ? theme.colors.primary[500] : theme.colors.gray[200]
+                }}
               >
-                <Text className={`text-center font-semibold ${
-                  parameters.temp_level === 0 ? 'text-white' : 'text-gray-700'
-                }`}>Low</Text>
+                <Text className="text-center font-semibold" style={{
+                  color: parameters.temp_level === 0 ? theme.colors.text.inverse : theme.colors.text.secondary
+                }}>Low</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => updateParameter('temp_level', 1)}
-                className={`flex-1 py-2 px-4 rounded-r-lg border-l ${
-                  parameters.temp_level === 1 ? 'bg-green-500' : 'bg-gray-200'
-                }`}
+                className="flex-1 py-2 px-4 rounded-r-lg border-l"
+                style={{
+                  backgroundColor: parameters.temp_level === 1 ? theme.colors.primary[500] : theme.colors.gray[200]
+                }}
               >
-                <Text className={`text-center font-semibold ${
-                  parameters.temp_level === 1 ? 'text-white' : 'text-gray-700'
-                }`}>High</Text>
+                <Text className="text-center font-semibold" style={{
+                  color: parameters.temp_level === 1 ? theme.colors.text.inverse : theme.colors.text.secondary
+                }}>High</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1168,13 +1172,14 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                     onPress={() => updateParameter('fan_speed', index)}
                     className={`flex-1 py-2 px-3 ${
                       index === 0 ? 'rounded-l-lg' : index === 3 ? 'rounded-r-lg' : ''
-                    } ${
-                      parameters.fan_speed === index ? 'bg-green-500' : 'bg-gray-200'
                     } ${index > 0 ? 'border-l' : ''}`}
+                    style={{
+                      backgroundColor: parameters.fan_speed === index ? theme.colors.primary[500] : theme.colors.gray[200]
+                    }}
                   >
-                    <Text className={`text-center font-semibold text-xs ${
-                      parameters.fan_speed === index ? 'text-white' : 'text-gray-700'
-                    }`}>{speed}</Text>
+                    <Text className="text-center font-semibold text-xs" style={{
+                      color: parameters.fan_speed === index ? theme.colors.text.inverse : theme.colors.text.secondary
+                    }}>{speed}</Text>
                   </TouchableOpacity>
                 );
               })}
@@ -1218,23 +1223,24 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1 bg-white"
+        className="flex-1"
+        style={{ backgroundColor: appTheme.colors.surface.primary }}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
         {/* Header */}
-        <View className="flex-row justify-between items-center p-4 border-b border-gray-200">
+        <View className="flex-row justify-between items-center p-4 border-b" style={{ borderColor: appTheme.colors.border.main }}>
           <View className="flex-1">
             <Text className="text-xl font-bold">
               {appliance?.name || 'ChefIQ'} Settings
             </Text>
             {useProbe && (
-              <Text className="text-sm text-orange-600 mt-1">
+              <Text className="text-sm mt-1" style={{ color: appTheme.colors.warning.dark }}>
                 🌡️ Thermometer Probe Mode
               </Text>
             )}
           </View>
           <TouchableOpacity onPress={onClose}>
-            <Text className="text-lg text-gray-600 font-bold">×</Text>
+            <Text className="text-lg font-bold" style={{ color: appTheme.colors.text.secondary }}>×</Text>
           </TouchableOpacity>
         </View>
 
@@ -1251,14 +1257,15 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
                 <TouchableOpacity
                   key={method.id}
                   onPress={() => handleMethodChange(method.id)}
-                  className={`mr-3 px-4 py-3 rounded-lg ${
-                    selectedMethod === method.id ? 'bg-green-500' : 'bg-gray-100'
-                  }`}
+                  className="mr-3 px-4 py-3 rounded-lg"
+                  style={{
+                    backgroundColor: selectedMethod === method.id ? appTheme.colors.primary[500] : appTheme.colors.gray[100]
+                  }}
                 >
                   <Text className="text-2xl text-center mb-1">{method.icon}</Text>
-                  <Text className={`text-sm font-semibold ${
-                    selectedMethod === method.id ? 'text-white' : 'text-gray-700'
-                  }`}>{method.name}</Text>
+                  <Text className="text-sm font-semibold" style={{
+                    color: selectedMethod === method.id ? appTheme.colors.text.inverse : appTheme.colors.text.secondary
+                  }}>{method.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -1269,7 +1276,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         </ScrollView>
 
         {/* Save Button */}
-        <View className="p-4 border-t border-gray-200">
+        <View className="p-4 border-t" style={{ borderColor: appTheme.colors.border.main }}>
           <TouchableOpacity
             onPress={handleSave}
             disabled={Object.keys(validationErrors).length > 0}
@@ -1285,7 +1292,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             </Text>
           </TouchableOpacity>
           {Object.keys(validationErrors).length > 0 && (
-            <Text className="text-red-500 text-sm text-center mt-2">
+            <Text className="text-sm text-center mt-2" style={{ color: appTheme.colors.error.main }}>
               Please fix validation errors before saving
             </Text>
           )}

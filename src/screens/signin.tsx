@@ -17,10 +17,14 @@ import { useAuthStore } from '../store/store';
 import { convertToAuthUser } from '../modules/user/userAuth';
 import { getCredentials, saveCredentials } from '../services/keychainService';
 import { setHasSignedUpBefore } from '../services/authStorageService';
-import { theme } from '../theme';
+import { useAppTheme } from '../theme';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '../theme';
 
 export default function SignInScreen() {
   const navigation = useNavigation();
+  const theme = useAppTheme();
+  const styles = useStyles(createStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -154,7 +158,7 @@ export default function SignInScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.secondary,

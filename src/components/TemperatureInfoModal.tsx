@@ -15,9 +15,10 @@ import {
   TextInput,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import {
-  TEMPERATURE_GUIDE,
   PROTEIN_LABELS,
   DONENESS_LABELS,
   TemperatureGuide,
@@ -42,6 +43,8 @@ export function TemperatureInfoModal({
   recipeText,
   onTemperatureChange,
 }: TemperatureInfoModalProps) {
+  const styles = useStyles(createStyles);
+
   const [detectedProtein, setDetectedProtein] = useState<TemperatureGuide | null>(null);
   const [currentDoneness, setCurrentDoneness] = useState<DonenesLevel | null>(null);
   const [manualTemp, setManualTemp] = useState<string>(currentTemperature?.toString() || '');
@@ -220,7 +223,7 @@ export function TemperatureInfoModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',

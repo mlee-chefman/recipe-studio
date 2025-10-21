@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, ReactNode } from 'react';
+import { useEffect, useRef, ReactNode } from 'react';
 import { View, Modal, StyleSheet, Animated, TouchableOpacity, ViewStyle } from 'react-native';
-import { theme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 
 type ModalVariant = 'bottom-sheet' | 'centered' | 'full-screen';
 
@@ -29,6 +30,7 @@ export default function BaseModal({
 }: BaseModalProps) {
   const slideAnim = useRef(new Animated.Value(500)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const styles = useStyles(createStyles);
 
   useEffect(() => {
     if (visible) {
@@ -136,7 +138,7 @@ export default function BaseModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   backdropBottomSheet: {
     flex: 1,
     justifyContent: 'flex-end',

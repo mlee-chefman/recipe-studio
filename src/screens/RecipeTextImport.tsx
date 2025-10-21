@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from 'react';
+import { useState, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,9 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 
 import { parseMultipleRecipes } from '@services/gemini.service';
 import { useRecipeStore } from '@store/store';
@@ -20,6 +22,8 @@ import { useRecipeStore } from '@store/store';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 
 export default function RecipeTextImportScreen() {
+  const styles = useStyles(createStyles);
+
   const navigation = useNavigation();
   const addRecipe = useRecipeStore((state) => state.addRecipe);
   const [importText, setImportText] = useState('');
@@ -266,7 +270,7 @@ Instructions:
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,

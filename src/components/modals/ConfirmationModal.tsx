@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { theme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 import BaseModal from '../BaseModal';
 
 interface ConfirmationModalProps {
@@ -24,6 +25,8 @@ export function ConfirmationModal({
   onConfirm,
   onCancel,
 }: ConfirmationModalProps) {
+  const styles = useStyles(createStyles);
+
   const confirmButtonStyle = confirmStyle === 'danger'
     ? styles.dangerButton
     : styles.primaryButton;
@@ -55,13 +58,9 @@ export function ConfirmationModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   modalContent: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    ...theme.shadows.md,
   },
   title: {
     fontSize: 18,

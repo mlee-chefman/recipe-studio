@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
+import { TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import BaseModal from './BaseModal';
 
 interface ImagePreviewModalProps {
@@ -16,6 +17,8 @@ interface ImagePreviewModalProps {
  * Displays an image in full screen with a close button
  */
 export default function ImagePreviewModal({ visible, imageUri, onClose }: ImagePreviewModalProps) {
+  const styles = useStyles(createStyles);
+
   if (!imageUri) return null;
 
   return (
@@ -37,13 +40,13 @@ export default function ImagePreviewModal({ visible, imageUri, onClose }: ImageP
 
       {/* Close button */}
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Feather name="x" size={28} color="#FFFFFF" />
+        <Feather name="x" size={28} color={theme.colors.text.inverse} />
       </TouchableOpacity>
     </BaseModal>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',

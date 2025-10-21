@@ -1,22 +1,18 @@
 import './global.css';
 
-import { DefaultTheme, DarkTheme } from '@react-navigation/native';
-import { useColorScheme } from 'react-native';
-import { useMemo } from 'react';
-
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import Navigation from '@navigation/index';
+import { useAppTheme } from '@theme/index';
 
 export default function App() {
-  const colorScheme = useColorScheme();
-  const theme = useMemo(() => (colorScheme === 'dark' ? DarkTheme : DefaultTheme), [colorScheme]);
+  const theme = useAppTheme();
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
       <KeyboardProvider>
-        <Navigation theme={theme} />
+        <Navigation />
       </KeyboardProvider>
     </GestureHandlerRootView>
   );

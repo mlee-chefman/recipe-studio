@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
 import { ViewToggleButton, ViewMode } from '@components/ViewToggleButton';
 import { SelectModeButton } from '@components/SelectModeButton';
 import { TabBarIcon } from '@components/TabBarIcon';
@@ -10,11 +9,51 @@ import MyRecipes from '@screens/MyRecipes';
 import Settings from '@screens/settings';
 import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
 import { useRecipeStore } from '@store/store';
-import { theme } from '@theme/index';
+import { useAppTheme, theme } from '@theme/index';
 
 // Custom Tab Bar Component with centered + button
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const appTheme = useAppTheme();
+
+  const styles = useMemo(() => StyleSheet.create({
+    tabBarContainer: {
+      flexDirection: 'row',
+      height: 60,
+      backgroundColor: appTheme.colors.background.primary,
+      borderTopWidth: 1,
+      borderTopColor: appTheme.colors.gray[200],
+      paddingBottom: 8,
+      paddingTop: 8,
+    },
+    tabButton: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    centerButtonContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: -30, // Raise button above tab bar
+    },
+    centerButton: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: appTheme.colors.primary[500],
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: 4,
+      },
+      shadowOpacity: 0.3,
+      shadowRadius: 4.65,
+      elevation: 8,
+    },
+  }), [appTheme]);
 
   const handleWebImport = () => {
     setShowCreateModal(false);
@@ -74,7 +113,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                 style={styles.tabButton}
               >
                 {options.tabBarIcon?.({
-                  color: isFocused ? theme.colors.primary[500] : theme.colors.gray[400]
+                  color: isFocused ? appTheme.colors.primary[500] : appTheme.colors.gray[400]
                 })}
               </TouchableOpacity>
             );
@@ -105,7 +144,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                   style={styles.tabButton}
                 >
                   {options.tabBarIcon?.({
-                    color: isFocused ? theme.colors.primary[500] : theme.colors.gray[400]
+                    color: isFocused ? appTheme.colors.primary[500] : appTheme.colors.gray[400]
                   })}
                 </TouchableOpacity>
               </React.Fragment>
@@ -125,7 +164,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
                 style={styles.tabButton}
               >
                 {options.tabBarIcon?.({
-                  color: isFocused ? theme.colors.primary[500] : theme.colors.gray[400]
+                  color: isFocused ? appTheme.colors.primary[500] : appTheme.colors.gray[400]
                 })}
               </TouchableOpacity>
             );
@@ -227,45 +266,6 @@ const Tab = createBottomTabNavigator({
         tabBarIcon: ({ color }) => <TabBarIcon name="cog" color={color} />,
       },
     },
-  },
-});
-
-const styles = StyleSheet.create({
-  tabBarContainer: {
-    flexDirection: 'row',
-    height: 60,
-    backgroundColor: theme.colors.background.primary,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.gray[200],
-    paddingBottom: 8,
-    paddingTop: 8,
-  },
-  tabButton: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerButtonContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: -30, // Raise button above tab bar
-  },
-  centerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: theme.colors.primary[500],
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
   },
 });
 

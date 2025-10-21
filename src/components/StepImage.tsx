@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { View, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 import { useImagePicker } from '@hooks/useImagePicker';
 import ImagePreviewModal from './ImagePreviewModal';
 
@@ -21,6 +23,8 @@ interface StepImageProps {
  * - Compact mode for inline display
  */
 export default function StepImage({ imageUri, onImageChange, editable = false, compact = false }: StepImageProps) {
+  const styles = useStyles(createStyles);
+
   const [previewVisible, setPreviewVisible] = useState(false);
 
   const { showImageOptions } = useImagePicker({
@@ -85,7 +89,7 @@ export default function StepImage({ imageUri, onImageChange, editable = false, c
               />
               {editable && !compact && (
                 <View style={styles.overlay}>
-                  <Feather name="maximize-2" size={16} color="#FFFFFF" />
+                  <Feather name="maximize-2" size={16} color={theme.colors.text.inverse} />
                 </View>
               )}
             </>
@@ -102,7 +106,7 @@ export default function StepImage({ imageUri, onImageChange, editable = false, c
             style={removeButtonStyle}
             onPress={handleRemoveImage}
           >
-            <Feather name="x" size={compact ? 10 : 14} color="#FFFFFF" />
+            <Feather name="x" size={compact ? 10 : 14} color={theme.colors.text.inverse} />
           </TouchableOpacity>
         )}
       </View>
@@ -119,7 +123,7 @@ export default function StepImage({ imageUri, onImageChange, editable = false, c
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     position: 'relative',
   },
@@ -166,11 +170,11 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#EF4444', // red-500
+    backgroundColor: theme.colors.error.main,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: theme.colors.text.inverse,
   },
   removeButtonCompact: {
     position: 'absolute',
@@ -179,10 +183,10 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#EF4444', // red-500
+    backgroundColor: theme.colors.error.main,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#FFFFFF',
+    borderColor: theme.colors.text.inverse,
   },
 });

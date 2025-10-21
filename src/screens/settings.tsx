@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   Text,
@@ -9,14 +9,22 @@ import {
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { signOutUser } from '../modules/user/userAuth';
-import { useAuthStore } from '../store/store';
+import { useAuthStore, useThemeStore } from '../store/store';
 import { updateUserProfile } from '../modules/user/userService';
 import { AvatarPickerModal } from '../components/AvatarPickerModal';
+import { themeMetadata } from '@theme/variants';
+import { useStyles } from '@hooks/useStyles';
+import { theme } from '@theme/index';
+import type { Theme } from '@theme/index';
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
   const { user, userProfile, setUserProfile, signOut } = useAuthStore();
+  const { themeVariant } = useThemeStore();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const styles = useStyles(createStyles);
 
   const handleAvatarSelect = async (avatarUrl: string) => {
     if (!user?.uid) {
@@ -76,17 +84,14 @@ export default function SettingsScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Settings</Text>
-        
         {/* User Profile Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
+          <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.profileCard}>
             {/* Profile Picture */}
             <TouchableOpacity
               style={styles.profilePictureContainer}
-              onPress={() => setShowAvatarPicker(true)}
-            >
+              onPress={() => setShowAvatarPicker(true)}>
               {userProfile?.profilePicture ? (
                 <Image
                   source={{ uri: userProfile.profilePicture }}
@@ -95,7 +100,7 @@ export default function SettingsScreen() {
                 />
               ) : (
                 <View style={styles.placeholderPicture}>
-                  <Feather name="user" size={48} color="#999" />
+                  <Feather name="user" size={48} color={theme.colors.gray[400]} />
                 </View>
               )}
               <View style={styles.editBadge}>
@@ -105,7 +110,9 @@ export default function SettingsScreen() {
 
             <View style={styles.profileInfo}>
               <Text style={styles.label}>Name</Text>
-              <Text style={styles.value}>{userProfile?.name || user?.displayName || 'Not set'}</Text>
+              <Text style={styles.value}>
+                {userProfile?.name || user?.displayName || 'Not set'}
+              </Text>
             </View>
             <View style={styles.profileInfo}>
               <Text style={styles.label}>Email</Text>
@@ -114,13 +121,41 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Account Section */}
+        {/* Appearance Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-            <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={styles.sectionTitle}>Appearance</Text>
+          <TouchableOpacity
+            style={styles.settingsOption}
+            onPress={() => {
+              // @ts-ignore - Navigation typing issue
+              navigation.navigate('ThemeSettings');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <View
+                style={[
+                  styles.optionIcon,
+                  { backgroundColor: themeMetadata[themeVariant].accentColor },
+                ]}
+              >
+                <Feather name="droplet" size={20} color="white" />
+              </View>
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>Theme</Text>
+                <Text style={styles.optionSubtitle}>
+                  {themeMetadata[themeVariant].name}
+                </Text>
+              </View>
+            </View>
+            <Feather name="chevron-right" size={20} color={theme.colors.text.secondary} />
           </TouchableOpacity>
         </View>
+
+        {/* Account Section */}
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Avatar Picker Modal */}
@@ -134,58 +169,51 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: theme.colors.background.primary,
   },
   content: {
-    padding: 20,
+    padding: theme.spacing.xl,
   },
   title: {
-    fontSize: 28,
+    fontSize: theme.typography.fontSize['3xl'],
     fontWeight: 'bold',
-    marginBottom: 30,
-    color: '#333',
+    marginBottom: theme.spacing['3xl'],
+    color: theme.colors.text.primary,
   },
   section: {
-    marginBottom: 30,
+    marginBottom: theme.spacing['3xl'],
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: theme.typography.fontSize.xl,
     fontWeight: '600',
-    marginBottom: 15,
-    color: '#333',
+    marginBottom: theme.spacing.lg,
+    color: theme.colors.text.primary,
   },
   profileCard: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    backgroundColor: theme.colors.surface.primary,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.xl,
+    ...theme.shadows.md,
   },
   profilePictureContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: theme.spacing.xl,
     position: 'relative',
   },
   profilePicture: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.gray[100],
   },
   placeholderPicture: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.gray[100],
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -193,37 +221,72 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: '35%',
-    backgroundColor: '#007AFF',
+    backgroundColor: theme.colors.info.main,
     borderRadius: 16,
     width: 32,
     height: 32,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: 'white',
+    borderColor: theme.colors.surface.primary,
   },
   profileInfo: {
-    marginBottom: 15,
+    marginBottom: theme.spacing.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: theme.typography.fontSize.sm,
     fontWeight: '600',
-    color: '#666',
-    marginBottom: 5,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
   },
   value: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text.primary,
   },
   signOutButton: {
-    backgroundColor: '#FF3B30',
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: theme.colors.error.main,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
     alignItems: 'center',
   },
   signOutText: {
-    color: 'white',
-    fontSize: 16,
+    color: theme.colors.text.inverse,
+    fontSize: theme.typography.fontSize.base,
     fontWeight: '600',
+  },
+  settingsOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: theme.colors.surface.primary,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing.lg,
+    ...theme.shadows.sm,
+  },
+  optionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  optionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: theme.spacing.md,
+  },
+  optionText: {
+    flex: 1,
+  },
+  optionTitle: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: '600',
+    color: theme.colors.text.primary,
+    marginBottom: 2,
+  },
+  optionSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
   },
 });

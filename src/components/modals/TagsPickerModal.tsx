@@ -1,7 +1,7 @@
-import React from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { theme } from '@theme/index';
+import { useStyles } from '@hooks/useStyles';
+import type { Theme } from '@theme/index';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 import BaseModal from '../BaseModal';
 
@@ -20,6 +20,8 @@ export function TagsPickerModal({
   onAddCustomTag,
   onClose,
 }: TagsPickerModalProps) {
+  const styles = useStyles(createStyles);
+
   return (
     <BaseModal
       visible={visible}
@@ -87,7 +89,7 @@ export function TagsPickerModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
