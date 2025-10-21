@@ -408,20 +408,56 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
 
     // Analyze recipe for ChefIQ suggestions using Gemini AI
     // Falls back to regex-based analysis on failure or rate limiting
+    // Retries on 503 (Service Unavailable) errors
     let chefiqSuggestions;
     let stepsWithActions = steps;
-    try {
-      // Try Gemini AI analysis first for more accurate cooking actions
-      const geminiAnalysis = await analyzeCookingActionsWithGemini(
-        title,
-        description,
-        steps,
-        cookTime
-      );
 
-      // If Gemini analysis succeeds, use it
-      if (geminiAnalysis && geminiAnalysis.suggestedActions && geminiAnalysis.suggestedActions.length > 0) {
-        chefiqSuggestions = geminiAnalysis;
+    // Retry helper function for Gemini API calls
+    const tryGeminiWithRetry = async (maxRetries = 2): Promise<any> => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const geminiAnalysis = await analyzeCookingActionsWithGemini(
+            title,
+            description,
+            steps,
+            cookTime
+          );
+          return { success: true, data: geminiAnalysis };
+        } catch (error: any) {
+          // Check if it's a retryable error (503 or 429)
+          const is503Error = error?.response?.status === 503 ||
+                             error?.message?.includes('503') ||
+                             error?.message?.includes('Service Unavailable');
+          const is429Error = error?.response?.status === 429 ||
+                             error?.message?.includes('429') ||
+                             error?.message?.includes('rate limit');
+
+          const isRetryable = is503Error || is429Error;
+          const isLastAttempt = attempt === maxRetries;
+
+          if (isRetryable && !isLastAttempt) {
+            // Wait with exponential backoff before retrying
+            const waitTime = is503Error ? (attempt + 1) * 5000 : (attempt + 1) * 3000; // 5s for 503, 3s for 429
+            const errorType = is503Error ? '503 Service Unavailable' : '429 Rate Limit';
+
+            console.log(`Gemini ${errorType} for ${title}, retrying in ${waitTime/1000}s... (attempt ${attempt + 1}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue; // Retry
+          }
+
+          // Not retryable or last attempt - return the error
+          return { success: false, error };
+        }
+      }
+    };
+
+    try {
+      // Try Gemini AI analysis with retry logic
+      const result = await tryGeminiWithRetry(2); // Max 2 retries (3 total attempts)
+
+      if (result.success && result.data && result.data.suggestedActions && result.data.suggestedActions.length > 0) {
+        // Gemini analysis succeeded
+        chefiqSuggestions = result.data;
         console.log(`Using Gemini AI cooking actions for website import: ${title}`);
 
         // Map cooking actions directly to their corresponding steps
@@ -431,8 +467,8 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
           );
           return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
         });
-      } else {
-        // Fallback to regex-based analysis if Gemini returns no actions
+      } else if (result.success && result.data) {
+        // Gemini succeeded but returned no actions - fallback to regex
         console.log(`Gemini returned no actions, falling back to regex analysis for: ${title}`);
         chefiqSuggestions = analyzeRecipeForChefIQ(
           title,
@@ -449,20 +485,55 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
             return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
           });
         }
+      } else {
+        // Gemini failed after retries - handle error and fallback
+        const error = result.error;
+        const is503Error = error?.response?.status === 503 ||
+                           error?.message?.includes('503') ||
+                           error?.message?.includes('Service Unavailable');
+        const is429Error = error?.response?.status === 429 ||
+                           error?.message?.includes('429') ||
+                           error?.message?.includes('rate limit');
+
+        if (is503Error) {
+          console.log(`Gemini service unavailable (503) after retries for ${title}, using regex fallback`);
+        } else if (is429Error) {
+          console.log(`Gemini rate limit (429) persists for ${title}, using regex fallback`);
+        } else {
+          console.error('Gemini analysis failed for website import:', error);
+        }
+
+        // Fallback to regex-based analysis
+        try {
+          chefiqSuggestions = analyzeRecipeForChefIQ(
+            title,
+            description,
+            steps,
+            cookTime
+          );
+
+          if (chefiqSuggestions && chefiqSuggestions.suggestedActions.length > 0) {
+            stepsWithActions = steps.map((step, index) => {
+              const actionForThisStep = chefiqSuggestions!.suggestedActions.find(
+                (action: CookingAction) => action.stepIndex === index
+              );
+              return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+            });
+          }
+        } catch (fallbackError) {
+          console.error('Regex fallback also failed:', fallbackError);
+          chefiqSuggestions = {
+            suggestedActions: [],
+            confidence: 0,
+            reasoning: ['Analysis failed - manual setup required']
+          };
+        }
       }
     } catch (error: any) {
-      // Check if it's a 429 rate limit error
-      const is429Error = error?.response?.status === 429 ||
-                         error?.message?.includes('429') ||
-                         error?.message?.includes('rate limit');
+      // Unexpected error in retry logic itself
+      console.error('Unexpected error in Gemini retry logic:', error);
 
-      if (is429Error) {
-        console.log(`Gemini rate limit (429) hit for ${title}, using regex fallback`);
-      } else {
-        console.error('Gemini analysis failed for website import:', error);
-      }
-
-      // Fallback to regex-based analysis on any error (including 429)
+      // Fallback to regex-based analysis
       try {
         chefiqSuggestions = analyzeRecipeForChefIQ(
           title,
