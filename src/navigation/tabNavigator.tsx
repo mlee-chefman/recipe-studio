@@ -5,7 +5,7 @@ import { ViewToggleButton, ViewMode } from '@components/ViewToggleButton';
 import { SelectModeButton } from '@components/SelectModeButton';
 import { TabBarIcon } from '@components/TabBarIcon';
 import Home from '@screens/home';
-import Favorites from '@screens/favorites';
+import MyFridge from '@screens/MyFridge';
 import MyRecipes from '@screens/MyRecipes';
 import Settings from '@screens/settings';
 import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
@@ -242,22 +242,9 @@ function HomeHeaderRightButtons() {
   );
 }
 
-// Header Right Component for Favorites Tab
-function FavoritesHeaderRightButtons() {
-  const { allRecipesViewMode, setAllRecipesViewMode } = useRecipeStore();
-
-  const toggleViewMode = () => {
-    const modes: ViewMode[] = ['detailed', 'compact', 'grid'];
-    const currentIndex = modes.indexOf(allRecipesViewMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    setAllRecipesViewMode(modes[nextIndex]);
-  };
-
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <ViewToggleButton viewMode={allRecipesViewMode} onToggle={toggleViewMode} />
-    </View>
-  );
+// Header Right Component for MyFridge Tab (empty for now)
+function MyFridgeHeaderRightButtons() {
+  return null;
 }
 
 // Header Right Component for MyRecipes Tab
@@ -322,13 +309,13 @@ const Tab = createBottomTabNavigator({
         headerRight: () => <MyRecipesHeaderRightButtons />,
       },
     },
-    Favorites: {
-      screen: Favorites,
+    MyFridge: {
+      screen: MyFridge,
       options: () => ({
-        title: 'Favorites',
-        tabBarLabel: 'Favorites',
-        tabBarIcon: ({ color }) => <TabBarIcon name="heart" color={color} />,
-        headerRight: () => <FavoritesHeaderRightButtons />,
+        title: 'My Fridge',
+        tabBarLabel: 'My Fridge',
+        tabBarIcon: ({ color }) => <TabBarIcon name="cube" color={color} />,
+        headerRight: () => <MyFridgeHeaderRightButtons />,
       }),
     },
     Settings: {

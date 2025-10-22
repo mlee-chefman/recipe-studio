@@ -78,28 +78,38 @@ export const formatKeyParameters = (action: CookingAction): string => {
   const params = action.parameters || {};
   const keyParams: string[] = [];
 
-  // Time parameters
-  if (params.time) {
-    keyParams.push(`${params.time} min`);
-  } else if (params.cooking_time) {
-    const minutes = Math.round(params.cooking_time / 60);
-    keyParams.push(`${minutes} min`);
-  } else if (params.duration) {
-    keyParams.push(`${params.duration} min`);
+  // Check if using probe first (probe takes priority)
+  const usingProbe = params.target_probe_temp !== undefined;
+
+  // Time parameters (skip if using probe, as probe controls the timing)
+  if (!usingProbe) {
+    if (params.time) {
+      keyParams.push(`${params.time} min`);
+    } else if (params.cooking_time) {
+      const minutes = Math.round(params.cooking_time / 60);
+      keyParams.push(`${minutes} min`);
+    } else if (params.duration) {
+      keyParams.push(`${params.duration} min`);
+    }
   }
 
   // Temperature parameters
-  if (params.temperature) {
-    keyParams.push(`${params.temperature}°F`);
-  } else if (params.target_cavity_temp) {
-    keyParams.push(`${params.target_cavity_temp}°F`);
-  } else if (params.target_probe_temp) {
-    // If remove_probe_temp is different from target, show both
+  if (params.target_probe_temp) {
+    // Probe temperature takes priority - show target and remove temps
     if (params.remove_probe_temp && params.remove_probe_temp !== params.target_probe_temp) {
-      keyParams.push(`Probe: ${params.target_probe_temp}°F (remove at ${params.remove_probe_temp}°F)`);
+      keyParams.push(`Target: ${params.target_probe_temp}°F`);
+      keyParams.push(`Remove: ${params.remove_probe_temp}°F`);
     } else {
       keyParams.push(`Probe: ${params.target_probe_temp}°F`);
     }
+    // Also show cavity temp for context (but after probe temps)
+    if (params.target_cavity_temp) {
+      keyParams.push(`Oven: ${params.target_cavity_temp}°F`);
+    }
+  } else if (params.temperature) {
+    keyParams.push(`${params.temperature}°F`);
+  } else if (params.target_cavity_temp) {
+    keyParams.push(`${params.target_cavity_temp}°F`);
   } else if (params.internalTemp) {
     keyParams.push(`Internal: ${params.internalTemp}°F`);
   } else if (params.targetTemperature) {

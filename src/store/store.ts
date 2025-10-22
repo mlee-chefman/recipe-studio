@@ -15,6 +15,15 @@ import {
   Recipe as FirebaseRecipe
 } from '../modules/recipe/recipeService';
 import { ThemeVariant } from '@theme/variants';
+import {
+  FridgeIngredient,
+  FridgePreferences,
+  DietaryPreference,
+  CuisinePreference,
+  CookingTimePreference,
+  MatchingStrictness,
+  RecipeSource,
+} from '~/types/ingredient';
 
 export type ViewMode = 'detailed' | 'compact' | 'grid';
 
@@ -89,6 +98,28 @@ export interface RecipeState {
 export interface ThemeState {
   themeVariant: ThemeVariant;
   setThemeVariant: (variant: ThemeVariant) => void;
+}
+
+export interface FridgeState {
+  // Ingredients in user's fridge
+  ingredients: FridgeIngredient[];
+  // User preferences for recipe generation
+  preferences: FridgePreferences;
+  // Loading and error states
+  isLoading: boolean;
+  error: string | null;
+  // Actions for managing ingredients
+  addIngredient: (ingredient: FridgeIngredient) => void;
+  removeIngredient: (id: string) => void;
+  clearIngredients: () => void;
+  // Actions for managing preferences
+  setDietaryPreference: (dietary: DietaryPreference) => void;
+  setCuisinePreference: (cuisine: CuisinePreference) => void;
+  setCookingTimePreference: (time: CookingTimePreference) => void;
+  setMatchingStrictness: (strictness: MatchingStrictness) => void;
+  setRecipeSource: (source: RecipeSource) => void;
+  // Reset all preferences to default
+  resetPreferences: () => void;
 }
 
 export const useStore = create<BearState>((set) => ({
@@ -547,6 +578,81 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: 'theme-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+
+// Fridge store with persistence
+export const useFridgeStore = create<FridgeState>()(
+  persist(
+    (set, get) => ({
+      // Initial state
+      ingredients: [],
+      preferences: {
+        dietary: 'None',
+        cuisine: 'Any',
+        cookingTime: 'Any',
+        matchingStrictness: 'substitutions',
+        recipeSource: 'ai',
+      },
+      isLoading: false,
+      error: null,
+
+      // Ingredient management actions
+      addIngredient: (ingredient: FridgeIngredient) => {
+        const { ingredients } = get();
+        // Check if ingredient already exists
+        const exists = ingredients.some((i) => i.id === ingredient.id);
+        if (!exists) {
+          set({ ingredients: [...ingredients, ingredient] });
+        }
+      },
+
+      removeIngredient: (id: string) => {
+        const { ingredients } = get();
+        set({ ingredients: ingredients.filter((i) => i.id !== id) });
+      },
+
+      clearIngredients: () => {
+        set({ ingredients: [] });
+      },
+
+      // Preference management actions
+      setDietaryPreference: (dietary: DietaryPreference) => {
+        set({ preferences: { ...get().preferences, dietary } });
+      },
+
+      setCuisinePreference: (cuisine: CuisinePreference) => {
+        set({ preferences: { ...get().preferences, cuisine } });
+      },
+
+      setCookingTimePreference: (time: CookingTimePreference) => {
+        set({ preferences: { ...get().preferences, cookingTime: time } });
+      },
+
+      setMatchingStrictness: (strictness: MatchingStrictness) => {
+        set({ preferences: { ...get().preferences, matchingStrictness: strictness } });
+      },
+
+      setRecipeSource: (source: RecipeSource) => {
+        set({ preferences: { ...get().preferences, recipeSource: source } });
+      },
+
+      resetPreferences: () => {
+        set({
+          preferences: {
+            dietary: 'None',
+            cuisine: 'Any',
+            cookingTime: 'Any',
+            matchingStrictness: 'substitutions',
+            recipeSource: 'ai',
+          },
+        });
+      },
+    }),
+    {
+      name: 'fridge-storage',
       storage: createJSONStorage(() => AsyncStorage),
     }
   )

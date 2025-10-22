@@ -149,6 +149,13 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
       // Populate form fields with scraped data
       setCookTimeFromMinutes(scrapedRecipe.cookTime);
+
+      console.log(`📸 Recipe Creator: Received ${scrapedRecipe.steps.length} steps from web import`);
+      console.log(`📸 Recipe Creator: ${scrapedRecipe.steps.filter(s => s.image).length} steps have images`);
+      if (scrapedRecipe.steps.some(s => s.image)) {
+        console.log(`📸 Sample step images:`, scrapedRecipe.steps.filter(s => s.image).slice(0, 2).map(s => s.image));
+      }
+
       updateFormData({
         title: scrapedRecipe.title,
         notes: scrapedRecipe.description,

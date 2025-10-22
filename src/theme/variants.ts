@@ -18,6 +18,10 @@ export interface ThemeColors {
     700: string;
     800: string;
     900: string;
+    // Convenience properties
+    light: string;
+    main: string;
+    dark: string;
   };
 
   // Secondary Palette
@@ -32,6 +36,10 @@ export interface ThemeColors {
     700: string;
     800: string;
     900: string;
+    // Convenience properties
+    light: string;
+    main: string;
+    dark: string;
   };
 
   // Neutral Grays
@@ -96,6 +104,7 @@ export interface ThemeColors {
     main: string;
     dark: string;
     focus: string;
+    default: string;
   };
 
   // Surface Colors
@@ -120,6 +129,9 @@ export const freshTheme: ThemeColors = {
     700: '#047857',
     800: '#065f46',
     900: '#064e3b',
+    light: '#d1fae5',
+    main: '#10b981',
+    dark: '#047857',
   },
 
   secondary: {
@@ -133,6 +145,9 @@ export const freshTheme: ThemeColors = {
     700: '#0f766e',
     800: '#115e59',
     900: '#134e4a',
+    light: '#ccfbf1',
+    main: '#14b8a6',
+    dark: '#0f766e',
   },
 
   gray: {
@@ -192,6 +207,7 @@ export const freshTheme: ThemeColors = {
     main: '#e5e7eb',
     dark: '#d1d5db',
     focus: '#10b981',
+    default: '#e5e7eb',
   },
 
   surface: {
@@ -215,6 +231,9 @@ export const fallTheme: ThemeColors = {
     700: '#c2410c',
     800: '#9a3412',
     900: '#7c2d12',
+    light: '#ffedd5',
+    main: '#f97316',
+    dark: '#c2410c',
   },
 
   secondary: {
@@ -228,6 +247,9 @@ export const fallTheme: ThemeColors = {
     700: '#a16207',
     800: '#854d0e',
     900: '#713f12',
+    light: '#fef9c3',
+    main: '#eab308',
+    dark: '#a16207',
   },
 
   gray: {
@@ -287,6 +309,7 @@ export const fallTheme: ThemeColors = {
     main: '#e7e5e4',
     dark: '#d6d3d1',
     focus: '#f97316',
+    default: '#e7e5e4',
   },
 
   surface: {
@@ -310,6 +333,9 @@ export const oceanTheme: ThemeColors = {
     700: '#1d4ed8',
     800: '#1e40af',
     900: '#1e3a8a',
+    light: '#dbeafe',
+    main: '#3b82f6',
+    dark: '#1d4ed8',
   },
 
   secondary: {
@@ -323,6 +349,9 @@ export const oceanTheme: ThemeColors = {
     700: '#0369a1',
     800: '#075985',
     900: '#0c4a6e',
+    light: '#e0f2fe',
+    main: '#0ea5e9',
+    dark: '#0369a1',
   },
 
   gray: {
@@ -382,6 +411,7 @@ export const oceanTheme: ThemeColors = {
     main: '#e2e8f0',
     dark: '#cbd5e1',
     focus: '#3b82f6',
+    default: '#e2e8f0',
   },
 
   surface: {
