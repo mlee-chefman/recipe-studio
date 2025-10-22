@@ -25,7 +25,7 @@ import {
 } from '~/components/modals';
 
 type RootStackParamList = {
-  RecipeEdit: { recipe: Recipe };
+  RecipeEdit: { recipe: Recipe; previewMode?: boolean };
 };
 
 type RecipeEditRouteProp = RouteProp<RootStackParamList, 'RecipeEdit'>;
@@ -35,7 +35,7 @@ export default function RecipeEditScreen() {
   const styles = useStyles(createStyles);
   const navigation = useNavigation();
   const route = useRoute<RecipeEditRouteProp>();
-  const { recipe } = route.params;
+  const { recipe, previewMode } = route.params;
   const [newInstructionText, setNewInstructionText] = React.useState('');
 
   const {
@@ -64,12 +64,13 @@ export default function RecipeEditScreen() {
     removeCookingAction
   } = useRecipeForm({
     editingRecipe: recipe,
+    previewMode: previewMode || false,
   });
 
   // Configure navigation header
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: 'Edit Recipe',
+      title: previewMode ? 'Edit Preview' : 'Edit Recipe',
       headerStyle: {
         backgroundColor: theme.colors.background.primary,
       },
@@ -91,11 +92,11 @@ export default function RecipeEditScreen() {
           onPress={handleSave}
           style={styles.headerButton}
         >
-          <Text style={styles.saveText}>Save</Text>
+          <Text style={styles.saveText}>{previewMode ? 'Apply' : 'Save'}</Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, handleSave, handleCancel]);
+  }, [navigation, handleSave, handleCancel, previewMode]);
 
   // Image picker hook
   const { showImageOptions } = useImagePicker({

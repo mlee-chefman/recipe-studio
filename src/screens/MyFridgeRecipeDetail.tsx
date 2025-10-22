@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,11 @@ import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import { createStyles } from './MyFridgeRecipeDetail.styles';
 import { ScrapedRecipe } from '@utils/recipeScraper';
-import { convertScrapedToRecipe } from '~/utils/helpers/recipeConversion';
+import { convertScrapedToRecipe, convertRecipeToScraped } from '~/utils/helpers/recipeConversion';
 import { useRecipeStore, useAuthStore } from '@store/store';
+import { getApplianceById } from '~/types/chefiq';
+import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
+import StepImage from '@components/StepImage';
 
 interface RouteParams {
   recipe: ScrapedRecipe & {
@@ -31,15 +34,52 @@ export default function MyFridgeRecipeDetailScreen() {
   const styles = useStyles(createStyles);
   const navigation = useNavigation();
   const route = useRoute();
-  const { recipe, source } = route.params as RouteParams;
+  const params = route.params as RouteParams;
   const { user } = useAuthStore();
   const { addRecipe } = useRecipeStore();
 
+  // Initialize recipe state, handling potential undefined
+  const [recipe, setRecipe] = useState(params?.recipe || {} as any);
   const [isSaving, setIsSaving] = useState(false);
   const [activeSubstitutions, setActiveSubstitutions] = useState<Record<string, string>>({});
 
-  const hasSubstitutions = recipe.substitutions && recipe.substitutions.length > 0;
-  const hasMissingIngredients = recipe.missingIngredients && recipe.missingIngredients.length > 0;
+  // Safely access properties with optional chaining
+  const hasSubstitutions = recipe?.substitutions && recipe.substitutions.length > 0;
+  const hasMissingIngredients = recipe?.missingIngredients && recipe.missingIngredients.length > 0;
+
+  // Get ChefIQ appliance info from recipe suggestions
+  const chefiqAppliance = recipe?.chefiqSuggestions?.suggestedAppliance;
+  const hasChefIQActions = recipe?.steps?.some(step => step.cookingAction) || false;
+
+  // Listen for edited recipe returning from RecipeEdit screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('MyFridgeRecipeDetail focused, checking for editedRecipe...');
+      // @ts-ignore - navigation params
+      const editedRecipe = route.params?.editedRecipe;
+      if (editedRecipe) {
+        console.log('Found editedRecipe, updating state');
+        // Convert the edited Recipe back to ScrapedRecipe format
+        const updatedScrapedRecipe = convertRecipeToScraped(editedRecipe);
+
+        // Preserve original fields that aren't in Recipe format
+        setRecipe((prevRecipe: any) => ({
+          ...updatedScrapedRecipe,
+          missingIngredients: prevRecipe?.missingIngredients,
+          substitutions: prevRecipe?.substitutions,
+          matchPercentage: prevRecipe?.matchPercentage,
+        }));
+
+        // Clear the param to avoid re-applying on future focuses
+        // @ts-ignore
+        navigation.setParams({ editedRecipe: undefined });
+      } else {
+        console.log('No editedRecipe found in params');
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, route.params]);
 
   // Handle applying a substitution
   const handleApplySubstitution = (missing: string, substitute: string) => {
@@ -49,6 +89,42 @@ export default function MyFridgeRecipeDetailScreen() {
     }));
   };
 
+  // Handle editing the recipe
+  const handleEdit = () => {
+    if (!recipe) return;
+
+    // Convert the scraped recipe to Recipe format for editing
+    let finalIngredients = [...(recipe.ingredients || [])];
+    Object.entries(activeSubstitutions).forEach(([missing, substitute]) => {
+      const index = finalIngredients.findIndex((ing) =>
+        ing.toLowerCase().includes(missing.toLowerCase())
+      );
+      if (index !== -1) {
+        finalIngredients[index] = finalIngredients[index].replace(
+          new RegExp(missing, 'gi'),
+          substitute
+        );
+      }
+    });
+
+    const convertedRecipe = convertScrapedToRecipe({
+      ...recipe,
+      ingredients: finalIngredients,
+    });
+
+    const recipeToEdit = {
+      ...convertedRecipe,
+      id: 'temp-preview-recipe', // Temporary ID for preview mode
+      source: 'my-fridge-ai',
+    };
+
+    // @ts-ignore - navigation types
+    navigation.navigate('RecipeEdit', {
+      recipe: recipeToEdit,
+      previewMode: true, // Flag to indicate this is a preview edit, not a save
+    });
+  };
+
   // Handle saving recipe to collection
   const handleSaveRecipe = async () => {
     if (!user?.uid) {
@@ -56,11 +132,16 @@ export default function MyFridgeRecipeDetailScreen() {
       return;
     }
 
+    if (!recipe) {
+      alert('No recipe to save');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
       // Apply active substitutions to ingredients
-      let finalIngredients = [...recipe.ingredients];
+      let finalIngredients = [...(recipe.ingredients || [])];
       Object.entries(activeSubstitutions).forEach(([missing, substitute]) => {
         const index = finalIngredients.findIndex((ing) =>
           ing.toLowerCase().includes(missing.toLowerCase())
@@ -79,15 +160,8 @@ export default function MyFridgeRecipeDetailScreen() {
         ingredients: finalIngredients,
       });
 
-      // Add metadata (userId is passed separately to addRecipe)
-      const recipeToSave = {
-        ...convertedRecipe,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        source: 'my-fridge-ai',
-      };
-
-      await addRecipe(recipeToSave, user.uid);
+      // addRecipe handles createdAt, updatedAt, and userId automatically
+      await addRecipe(convertedRecipe, user.uid);
 
       // Reset navigation stack to prevent going back and creating duplicates
       // Navigate to MyRecipes tab to show the saved recipe
@@ -112,7 +186,23 @@ export default function MyFridgeRecipeDetailScreen() {
     }
   };
 
-  const totalTime = (recipe.prepTime || 0) + recipe.cookTime;
+  const totalTime = (recipe?.prepTime || 0) + (recipe?.cookTime || 0);
+
+  // Return early if recipe is not loaded
+  if (!recipe || !recipe.title) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text style={{ color: theme.colors.text.secondary }}>Loading recipe...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -121,6 +211,9 @@ export default function MyFridgeRecipeDetailScreen() {
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
+            <Ionicons name="create-outline" size={24} color={theme.colors.primary.main} />
           </TouchableOpacity>
         </View>
 
@@ -172,6 +265,40 @@ export default function MyFridgeRecipeDetailScreen() {
             </View>
           )}
         </View>
+
+        {/* ChefIQ Appliance Info */}
+        {chefiqAppliance && (
+          <View style={styles.chefiqSection}>
+            <View style={styles.sectionHeader}>
+              <Ionicons name="hardware-chip" size={20} color={theme.colors.primary.main} />
+              <Text style={styles.chefiqSectionTitle}>ChefIQ Appliance</Text>
+            </View>
+            <View style={styles.applianceCard}>
+              {getApplianceById(chefiqAppliance)?.picture && (
+                <Image
+                  source={{ uri: getApplianceById(chefiqAppliance)?.picture }}
+                  style={styles.applianceImage}
+                />
+              )}
+              <View style={styles.applianceInfo}>
+                <Text style={styles.applianceName}>
+                  {getApplianceById(chefiqAppliance)?.name}
+                </Text>
+                {hasChefIQActions && (
+                  <Text style={styles.applianceHint}>
+                    Cooking actions assigned to steps
+                  </Text>
+                )}
+              </View>
+              {recipe.chefiqSuggestions?.useProbe && (
+                <View style={styles.probeBadge}>
+                  <Ionicons name="thermometer" size={14} color={theme.colors.warning.dark} />
+                  <Text style={styles.probeText}>Probe</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Missing Ingredients Section */}
         {hasMissingIngredients && (
@@ -269,16 +396,56 @@ export default function MyFridgeRecipeDetailScreen() {
         {/* Instructions Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Instructions</Text>
-          {recipe.steps.map((step, index) => (
-            <View key={index} style={styles.stepItem}>
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
+          {recipe.steps.map((step, index) => {
+            const cookingAction = typeof step === 'object' ? step.cookingAction : undefined;
+            const stepText = typeof step === 'string' ? step : step.text;
+            const stepImage = typeof step === 'object' ? step.image : undefined;
+
+            return (
+              <View key={index} style={styles.stepContainer}>
+                <View style={styles.stepItem}>
+                  <View style={styles.stepNumber}>
+                    <Text style={styles.stepNumberText}>{index + 1}</Text>
+                  </View>
+                  <View style={styles.stepContent}>
+                    <Text style={styles.stepText}>{stepText}</Text>
+
+                    {/* Step Image */}
+                    {stepImage && (
+                      <View style={styles.stepImageContainer}>
+                        <StepImage imageUri={stepImage} editable={false} compact={true} />
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* Cooking Action for this step */}
+                {cookingAction && (
+                  <View style={styles.cookingActionCard}>
+                    <View style={styles.cookingActionHeader}>
+                      <Text style={styles.cookingActionIcon}>
+                        {getCookingMethodIcon(
+                          cookingAction.methodId,
+                          getApplianceById(cookingAction.applianceId)?.thing_category_name
+                        )}
+                      </Text>
+                      <View style={styles.cookingActionInfo}>
+                        <Text style={styles.cookingActionMethod}>
+                          {cookingAction.methodName}
+                        </Text>
+                        <Text style={styles.cookingActionParams}>
+                          {formatKeyParameters(cookingAction)}
+                        </Text>
+                        <Text style={styles.cookingActionAppliance}>
+                          {getApplianceById(cookingAction.applianceId)?.name}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
               </View>
-              <Text style={styles.stepText}>
-                {typeof step === 'string' ? step : step.text}
-              </Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
 
         {/* Tags */}

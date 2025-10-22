@@ -14,12 +14,15 @@ export const createStyles = (theme: Theme) =>
     // Header
     header: {
       flexDirection: 'row',
-      justifyContent: 'flex-start',
+      justifyContent: 'space-between',
       alignItems: 'center',
       paddingHorizontal: theme.spacing.lg,
       paddingVertical: theme.spacing.md,
     },
     backButton: {
+      padding: theme.spacing.sm,
+    },
+    editButton: {
       padding: theme.spacing.sm,
     },
 
@@ -44,7 +47,7 @@ export const createStyles = (theme: Theme) =>
     },
     title: {
       flex: 1,
-      fontSize: theme.typography.fontSize.xxl,
+      fontSize: theme.typography.fontSize['2xl'],
       fontWeight: '700',
       color: theme.colors.text.primary,
       marginRight: theme.spacing.md,
@@ -104,6 +107,62 @@ export const createStyles = (theme: Theme) =>
       fontSize: theme.typography.fontSize.sm,
       color: theme.colors.text.secondary,
       fontWeight: '500',
+    },
+
+    // ChefIQ Appliance Section
+    chefiqSection: {
+      paddingHorizontal: theme.spacing.lg,
+      paddingVertical: theme.spacing.md,
+      backgroundColor: theme.colors.primary.light + '20',
+      borderBottomWidth: 1,
+      borderColor: theme.colors.primary.light,
+    },
+    chefiqSectionTitle: {
+      fontSize: theme.typography.fontSize.lg,
+      fontWeight: '600',
+      color: theme.colors.primary.main,
+    },
+    applianceCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: theme.colors.background.primary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.md,
+      borderWidth: 1,
+      borderColor: theme.colors.primary.light,
+    },
+    applianceImage: {
+      width: 48,
+      height: 48,
+      marginRight: theme.spacing.md,
+    },
+    applianceInfo: {
+      flex: 1,
+    },
+    applianceName: {
+      fontSize: theme.typography.fontSize.base,
+      fontWeight: '600',
+      color: theme.colors.text.primary,
+      marginBottom: 2,
+    },
+    applianceHint: {
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.text.secondary,
+      fontStyle: 'italic',
+    },
+    probeBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      backgroundColor: theme.colors.warning.light,
+      borderRadius: theme.borderRadius.md,
+    },
+    probeText: {
+      fontSize: theme.typography.fontSize.xs,
+      fontWeight: '600',
+      color: theme.colors.warning.dark,
     },
 
     // Missing Ingredients Section
@@ -251,10 +310,12 @@ export const createStyles = (theme: Theme) =>
     },
 
     // Instructions
+    stepContainer: {
+      marginBottom: theme.spacing.md,
+    },
     stepItem: {
       flexDirection: 'row',
       gap: theme.spacing.md,
-      marginBottom: theme.spacing.md,
     },
     stepNumber: {
       width: 32,
@@ -269,12 +330,55 @@ export const createStyles = (theme: Theme) =>
       fontWeight: '700',
       color: '#fff',
     },
-    stepText: {
+    stepContent: {
       flex: 1,
+    },
+    stepText: {
       fontSize: theme.typography.fontSize.base,
       color: theme.colors.text.primary,
       lineHeight: 24,
       paddingTop: 4,
+    },
+    stepImageContainer: {
+      marginTop: theme.spacing.sm,
+    },
+
+    // Cooking Actions
+    cookingActionCard: {
+      marginTop: theme.spacing.sm,
+      marginLeft: 44, // Offset to align with step text (32px step number + 12px gap)
+      backgroundColor: theme.colors.primary.light + '20',
+      borderRadius: theme.borderRadius.lg,
+      borderWidth: 1,
+      borderColor: theme.colors.primary.light,
+      padding: theme.spacing.md,
+    },
+    cookingActionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    cookingActionIcon: {
+      fontSize: 24,
+      marginRight: theme.spacing.md,
+    },
+    cookingActionInfo: {
+      flex: 1,
+    },
+    cookingActionMethod: {
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: '600',
+      color: theme.colors.primary.main,
+      marginBottom: 2,
+    },
+    cookingActionParams: {
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.text.secondary,
+      marginBottom: 2,
+    },
+    cookingActionAppliance: {
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.text.tertiary,
+      fontStyle: 'italic',
     },
 
     // Tags

@@ -45,14 +45,14 @@ export default function RecipeWebImportScreen() {
     },
   });
 
-  // Debug log
-  useEffect(() => {
-    console.log('RecipeWebImport mounted with URL:', currentUrl);
-  }, []);
+  // // Debug log
+  // useEffect(() => {
+  //   console.log('RecipeWebImport mounted with URL:', currentUrl);
+  // }, []);
 
-  useEffect(() => {
-    console.log('currentUrl changed to:', currentUrl);
-  }, [currentUrl]);
+  // useEffect(() => {
+  //   console.log('currentUrl changed to:', currentUrl);
+  // }, [currentUrl]);
 
   // Animate progress bar
   useEffect(() => {

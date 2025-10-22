@@ -77,6 +77,20 @@ export type CookingTimePreference =
   | 'Over 1 hour';
 
 /**
+ * Recipe category preference
+ */
+export type CategoryPreference =
+  | 'Any'
+  | 'Main Dish'
+  | 'Appetizer'
+  | 'Side Dish'
+  | 'Dessert'
+  | 'Soup'
+  | 'Salad'
+  | 'Breakfast'
+  | 'Snack';
+
+/**
  * Recipe matching strictness
  */
 export type MatchingStrictness =
@@ -96,6 +110,7 @@ export interface FridgePreferences {
   dietary: DietaryPreference;
   cuisine: CuisinePreference;
   cookingTime: CookingTimePreference;
+  category: CategoryPreference;
   matchingStrictness: MatchingStrictness;
   recipeSource: RecipeSource; // Toggle between AI and existing recipes
 }

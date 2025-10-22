@@ -273,4 +273,84 @@ export const createStyles = (theme: Theme) =>
       textAlign: 'center',
       marginTop: 6,
     },
+
+    // Recipe Card Styles
+    recipeCardContainer: {
+      marginTop: theme.spacing.lg,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.md,
+    },
+    recipeCardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: theme.spacing.md,
+    },
+    recipeCardHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+    },
+    recipeCardHeaderText: {
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: '600',
+      color: theme.colors.primary.main,
+    },
+    refreshButton: {
+      padding: theme.spacing.xs,
+    },
+    recipeCard: {
+      backgroundColor: theme.colors.background.primary,
+      borderRadius: theme.borderRadius.lg,
+      overflow: 'hidden',
+      ...theme.shadows.sm,
+    },
+    recipeCardImage: {
+      width: '100%',
+      height: 180,
+      backgroundColor: theme.colors.gray[200],
+    },
+    recipeCardContent: {
+      padding: theme.spacing.md,
+    },
+    recipeCardTitle: {
+      fontSize: theme.typography.fontSize.lg,
+      fontWeight: '700',
+      color: theme.colors.text.primary,
+      marginBottom: theme.spacing.xs,
+    },
+    recipeCardDescription: {
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.text.secondary,
+      lineHeight: 20,
+      marginBottom: theme.spacing.sm,
+    },
+    recipeCardMeta: {
+      flexDirection: 'row',
+      gap: theme.spacing.md,
+      marginBottom: theme.spacing.sm,
+    },
+    recipeCardMetaItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.xs,
+    },
+    recipeCardMetaText: {
+      fontSize: theme.typography.fontSize.xs,
+      color: theme.colors.text.secondary,
+    },
+    recipeCardAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingTop: theme.spacing.sm,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border.default,
+    },
+    recipeCardActionText: {
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: '600',
+      color: theme.colors.primary.main,
+    },
   });

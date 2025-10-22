@@ -1,5 +1,5 @@
 import { ScrapedRecipe } from '~/utils/recipeScraper';
-import { Recipe } from '~/store/store';
+import { Recipe } from '~/types/recipe';
 
 /**
  * Estimates recipe difficulty based on cook time and number of steps
@@ -49,5 +49,34 @@ export function convertScrapedToRecipe(
     useProbe: scrapedRecipe.chefiqSuggestions?.useProbe,
     published: false, // New recipes are drafts by default
     status: 'Draft',
+  };
+}
+
+/**
+ * Converts a Recipe back to ScrapedRecipe format
+ * Used when passing edited recipes back to preview screens
+ * @param recipe - Recipe object from the store
+ * @returns ScrapedRecipe object
+ */
+export function convertRecipeToScraped(recipe: Recipe): ScrapedRecipe {
+  return {
+    title: recipe.title,
+    description: recipe.description || '',
+    ingredients: recipe.ingredients,
+    steps: recipe.steps,
+    cookTime: recipe.cookTime,
+    prepTime: 0, // Recipes don't track prepTime separately
+    servings: recipe.servings,
+    category: recipe.category,
+    tags: recipe.tags || [],
+    image: recipe.image,
+    // Preserve ChefIQ suggestions if available
+    chefiqSuggestions: recipe.chefiqAppliance ? {
+      suggestedAppliance: recipe.chefiqAppliance,
+      suggestedActions: [],
+      confidence: 1,
+      reasoning: [],
+      useProbe: recipe.useProbe,
+    } : undefined,
   };
 }

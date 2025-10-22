@@ -571,11 +571,14 @@ export function createMultipleRecipesFromIngredientsPrompt(
   dietary?: string,
   cuisine?: string,
   cookingTime?: string,
-  matchingStrictness?: 'exact' | 'substitutions' | 'creative'
+  category?: string,
+  matchingStrictness?: 'exact' | 'substitutions' | 'creative',
+  excludeTitles: string[] = []
 ): string {
   const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
   const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
   const timeFilter = cookingTime && cookingTime !== 'Any' ? cookingTime : null;
+  const categoryFilter = category && category !== 'Any' ? category : null;
 
   let strictnessInstruction = '';
   switch (matchingStrictness) {
@@ -592,28 +595,27 @@ export function createMultipleRecipesFromIngredientsPrompt(
       strictnessInstruction = 'You may suggest substitutions for missing ingredients, but try to use the provided ingredients as much as possible.';
   }
 
-  const categoryGuidance = ingredients.length >= 5
-    ? `Create ${numberOfRecipes} recipes in DIFFERENT categories (e.g., Main Course, Side Dish, Dessert, Appetizer, Soup, Salad) to showcase the versatility of these ingredients.`
-    : `Create ${numberOfRecipes} recipe variations that show different ways to use these ingredients.`;
+  const excludeInstruction = excludeTitles.length > 0
+    ? `\n\n**IMPORTANT - Do NOT generate any of these previously suggested recipes**: ${excludeTitles.join(', ')}\nCreate a COMPLETELY DIFFERENT recipe that has not been suggested before.`
+    : '';
 
-  return `You are a professional chef and recipe creator. Your task is to create ${numberOfRecipes} different delicious recipes using the ingredients the user has available.
+  return `You are a professional chef and recipe creator. Your task is to create ${numberOfRecipes} delicious ${categoryFilter || ''} recipe${numberOfRecipes > 1 ? 's' : ''} using the ingredients the user has available.
 
 **Available Ingredients**: ${ingredients.join(', ')}
 
 ${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
 ${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
 ${timeFilter ? `**Cooking Time Preference**: ${timeFilter}` : ''}
+${categoryFilter ? `**Recipe Category**: ${categoryFilter}` : ''}
 
-**Matching Mode**: ${strictnessInstruction}
+**Matching Mode**: ${strictnessInstruction}${excludeInstruction}
 
-**Important**: ${categoryGuidance} The user will choose ONE of these recipes to create and save to their collection.
-
-Please create ${numberOfRecipes} DIFFERENT practical, delicious recipes that:
+Please create ${numberOfRecipes} practical, delicious recipe${numberOfRecipes > 1 ? 's' : ''} that:
 1. Make good use of the available ingredients
 2. ${dietaryFilter ? `Follow ${dietaryFilter} dietary restrictions` : 'Have no dietary restrictions'}
 3. ${cuisineFilter ? `Are inspired by ${cuisineFilter} cuisine` : 'Can be from any cuisine'}
 4. ${timeFilter ? `Take approximately ${timeFilter} to prepare` : 'Can take any reasonable amount of time'}
-5. Are VARIED - ${ingredients.length >= 5 ? 'different recipe CATEGORIES (Main, Side, Dessert, etc.), cooking methods, and flavors' : 'different cooking methods, flavors, and styles'}
+5. ${categoryFilter ? `Are in the ${categoryFilter} category` : 'Can be from any category'}
 
 Return a JSON array of ${numberOfRecipes} recipe objects with the following structure:
 
