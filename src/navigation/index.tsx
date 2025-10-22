@@ -12,6 +12,7 @@ import RecipeTextImport from '@screens/RecipeTextImport';
 import RecipePDFImport from '@screens/RecipePDFImport';
 import RecipeSelection from '@screens/RecipeSelection';
 import ThemeSettings from '@screens/ThemeSettings';
+import MyFridgeRecipeDetail from '@screens/MyFridgeRecipeDetail';
 import SignUpScreen from '@screens/signup';
 import SignInScreen from '@screens/signin';
 import TabNavigator from './tabNavigator';
@@ -80,6 +81,13 @@ const MainStack = createStackNavigator({
       screen: RecipeDetail,
       options: {
         headerShown: true,
+        presentation: 'card',
+      },
+    },
+    MyFridgeRecipeDetail: {
+      screen: MyFridgeRecipeDetail,
+      options: {
+        headerShown: false,
         presentation: 'card',
       },
     },

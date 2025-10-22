@@ -6,7 +6,9 @@ import {
   createRecipeGenerationPrompt,
   createRecipeParsingPrompt,
   createMultiRecipeParsingPrompt,
-  createCookingActionAnalysisPrompt
+  createCookingActionAnalysisPrompt,
+  createRecipeFromIngredientsPrompt,
+  createMultipleRecipesFromIngredientsPrompt,
 } from './constants/recipePrompts';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
@@ -912,6 +914,20 @@ function parseCookingActionResponse(responseText: string): any {
       return null;
     }
 
+    // Check if any cooking action uses the meat probe (MiniOven with probe parameters)
+    const usesProbe = analysis.suggestedActions.some((action: any) => {
+      return action.parameters && (
+        action.parameters.target_probe_temp !== undefined ||
+        action.parameters.remove_probe_temp !== undefined
+      );
+    });
+
+    // Set useProbe flag if probe is detected
+    if (usesProbe) {
+      analysis.useProbe = true;
+      console.log('Detected meat probe usage in Gemini cooking actions');
+    }
+
     console.log('Gemini cooking action analysis:', analysis);
     return analysis;
   } catch (error) {
@@ -1075,5 +1091,363 @@ async function parseMultiRecipeResponse(responseText: string, onProgress?: Progr
     console.error('Failed to parse multi-recipe response:', error);
     console.error('Response text:', responseText);
     return [];
+  }
+}
+
+/**
+ * Generates recipes from available ingredients with preferences
+ * @param ingredients - List of available ingredient names
+ * @param dietary - Dietary restriction preference
+ * @param cuisine - Cuisine preference
+ * @param cookingTime - Cooking time preference
+ * @param matchingStrictness - How strict to match ingredients
+ * @returns ParsedRecipeResult with generated recipe including substitutions
+ */
+export async function generateRecipeFromIngredients(
+  ingredients: string[],
+  dietary?: string,
+  cuisine?: string,
+  cookingTime?: string,
+  matchingStrictness?: 'exact' | 'substitutions' | 'creative'
+): Promise<ParsedRecipeResult> {
+  try {
+    if (!GEMINI_API_KEY) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
+      };
+    }
+
+    if (!ingredients || ingredients.length === 0) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'No ingredients provided.',
+      };
+    }
+
+    console.log('Generating recipe from ingredients:', ingredients);
+    console.log('Preferences:', { dietary, cuisine, cookingTime, matchingStrictness });
+
+    // Prepare the prompt for Gemini
+    const prompt = createRecipeFromIngredientsPrompt(
+      ingredients,
+      dietary,
+      cuisine,
+      cookingTime,
+      matchingStrictness
+    );
+
+    // Call Gemini API
+    const response = await axios.post(
+      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7, // Higher temperature for more creative recipes
+          maxOutputTokens: 4096,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000, // 30 second timeout
+      }
+    );
+
+    const data: GeminiResponse = response.data;
+
+    // Check for errors in response
+    if (data.error) {
+      return {
+        recipe: null,
+        success: false,
+        error: `Gemini API error: ${data.error.message}`,
+      };
+    }
+
+    // Extract text response
+    if (!data.candidates || data.candidates.length === 0) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'No response from Gemini API',
+      };
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    console.log('Gemini response:', responseText);
+
+    // Parse JSON response
+    try {
+      // Extract JSON from markdown code blocks if present
+      let jsonStr = responseText;
+      const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+      }
+
+      const parsed = JSON.parse(jsonStr);
+
+      // Build ScrapedRecipe with additional fields
+      const recipe: ScrapedRecipe & {
+        missingIngredients?: string[];
+        substitutions?: Array<{ missing: string; substitutes: string[] }>;
+        matchPercentage?: number;
+      } = {
+        title: parsed.title || 'Generated Recipe',
+        description: parsed.description || '',
+        ingredients: parsed.ingredients || [],
+        steps: parsed.steps || [],
+        cookTime: parsed.cookTime || 30,
+        prepTime: parsed.prepTime || 15,
+        servings: parsed.servings || 4,
+        category: parsed.category || 'Main Course',
+        tags: parsed.tags || [],
+        missingIngredients: parsed.missingIngredients || [],
+        substitutions: parsed.substitutions || [],
+        matchPercentage: parsed.matchPercentage || 100,
+      };
+
+      console.log('Successfully generated recipe:', recipe.title);
+
+      return {
+        recipe,
+        success: true,
+      };
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', parseError);
+      return {
+        recipe: null,
+        success: false,
+        error: 'Failed to parse recipe data from Gemini response',
+      };
+    }
+  } catch (error) {
+    console.error('Error generating recipe from ingredients:', error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'API rate limit exceeded. Please try again in a few moments.',
+        };
+      }
+      if (status === 403) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'API key is invalid or expired. Please check your EXPO_PUBLIC_GEMINI_API_KEY.',
+        };
+      }
+    }
+
+    return {
+      recipe: null,
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
+}
+
+/**
+ * Generates multiple recipe options from available ingredients with preferences
+ * @param ingredients - List of available ingredient names
+ * @param numberOfRecipes - Number of recipe options to generate (default: 3)
+ * @param dietary - Dietary restriction preference
+ * @param cuisine - Cuisine preference
+ * @param cookingTime - Cooking time preference
+ * @param matchingStrictness - How strict to match ingredients
+ * @returns Array of recipes with substitutions
+ */
+export async function generateMultipleRecipesFromIngredients(
+  ingredients: string[],
+  numberOfRecipes: number = 3,
+  dietary?: string,
+  cuisine?: string,
+  cookingTime?: string,
+  matchingStrictness?: 'exact' | 'substitutions' | 'creative'
+): Promise<MultiRecipeResult> {
+  try {
+    if (!GEMINI_API_KEY) {
+      return {
+        recipes: [],
+        success: false,
+        error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
+        totalFound: 0,
+      };
+    }
+
+    if (!ingredients || ingredients.length === 0) {
+      return {
+        recipes: [],
+        success: false,
+        error: 'No ingredients provided.',
+        totalFound: 0,
+      };
+    }
+
+    console.log(`Generating ${numberOfRecipes} recipes from ingredients:`, ingredients);
+    console.log('Preferences:', { dietary, cuisine, cookingTime, matchingStrictness });
+
+    // Prepare the prompt for Gemini
+    const prompt = createMultipleRecipesFromIngredientsPrompt(
+      ingredients,
+      numberOfRecipes,
+      dietary,
+      cuisine,
+      cookingTime,
+      matchingStrictness
+    );
+
+    // Call Gemini API
+    const response = await axios.post(
+      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.8, // Higher temperature for more variety
+          maxOutputTokens: 8192, // More tokens for multiple recipes
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000, // 60 second timeout for multiple recipes
+      }
+    );
+
+    const data: GeminiResponse = response.data;
+
+    // Check for errors in response
+    if (data.error) {
+      return {
+        recipes: [],
+        success: false,
+        error: `Gemini API error: ${data.error.message}`,
+        totalFound: 0,
+      };
+    }
+
+    // Extract text response
+    if (!data.candidates || data.candidates.length === 0) {
+      return {
+        recipes: [],
+        success: false,
+        error: 'No response from Gemini API',
+        totalFound: 0,
+      };
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    console.log('Gemini response received');
+
+    // Parse JSON response
+    try {
+      // Extract JSON from markdown code blocks if present
+      let jsonStr = responseText;
+      const jsonMatch = responseText.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+      }
+
+      const parsedArray = JSON.parse(jsonStr);
+
+      if (!Array.isArray(parsedArray)) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'Expected array of recipes from Gemini',
+          totalFound: 0,
+        };
+      }
+
+      // Build ScrapedRecipe array with additional fields
+      const recipes: Array<ScrapedRecipe & {
+        missingIngredients?: string[];
+        substitutions?: Array<{ missing: string; substitutes: string[] }>;
+        matchPercentage?: number;
+      }> = parsedArray.map((parsed) => ({
+        title: parsed.title || 'Generated Recipe',
+        description: parsed.description || '',
+        ingredients: parsed.ingredients || [],
+        steps: parsed.steps || [],
+        cookTime: parsed.cookTime || 30,
+        prepTime: parsed.prepTime || 15,
+        servings: parsed.servings || 4,
+        category: parsed.category || 'Main Course',
+        tags: parsed.tags || [],
+        chefiqAppliance: parsed.chefiqAppliance,
+        missingIngredients: parsed.missingIngredients || [],
+        substitutions: parsed.substitutions || [],
+        matchPercentage: parsed.matchPercentage || 100,
+      }));
+
+      console.log(`Successfully generated ${recipes.length} recipes`);
+
+      return {
+        recipes,
+        success: true,
+        totalFound: recipes.length,
+      };
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', parseError);
+      return {
+        recipes: [],
+        success: false,
+        error: 'Failed to parse recipe data from Gemini response',
+        totalFound: 0,
+      };
+    }
+  } catch (error) {
+    console.error('Error generating multiple recipes from ingredients:', error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'API rate limit exceeded. Please try again in a few moments.',
+          totalFound: 0,
+        };
+      }
+      if (status === 403) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'API key is invalid or expired. Please check your EXPO_PUBLIC_GEMINI_API_KEY.',
+          totalFound: 0,
+        };
+      }
+    }
+
+    return {
+      recipes: [],
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      totalFound: 0,
+    };
   }
 }

@@ -23,7 +23,8 @@ export interface ScrapedRecipe {
   category?: string;
   tags?: string[];
   image?: string;
-  // ChefIQ suggestions
+  // ChefIQ integration
+  chefiqAppliance?: string; // ChefIQ appliance ID
   chefiqSuggestions?: RecipeAnalysisResult;
 }
 
@@ -381,6 +382,12 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
     // Extract instruction images if available
     let instructionImages = parseStepImages(data.recipeInstructions || data.recipeSteps);
 
+    console.log(`📸 Extracted ${instructionImages.length} step images from recipe data`);
+    if (instructionImages.length > 0) {
+      const imagesWithUrls = instructionImages.filter(img => img).length;
+      console.log(`📸 ${imagesWithUrls} steps have image URLs`);
+    }
+
     // Ensure instructionImages array matches instructions length
     if (instructionImages.length > 0 && instructionImages.length !== instructionTexts.length) {
       // If lengths don't match (e.g., due to splitting), pad or truncate
@@ -399,6 +406,8 @@ const parseRecipeFromJsonLd = async (data: any, url: string = '', html: string =
       text,
       image: instructionImages[index] || undefined,
     }));
+
+    console.log(`📸 Created ${steps.length} steps, ${steps.filter(s => s.image).length} have images`);
 
     const title = decodeHtmlEntities(data.name || 'Untitled Recipe');
     const category = extractCategory(data, title, url);

@@ -259,6 +259,7 @@ export default function RecipeEditScreen() {
         {/* Recipe Info Button */}
         <TouchableOpacity
           className="mb-4 border rounded-lg px-4 py-3 bg-white"
+          style={{ borderColor: theme.colors.border.main }}
           onPress={() => {
             // @ts-ignore - Navigation typing issue with static navigation
             navigation.navigate('RecipeInfo', {
@@ -284,7 +285,7 @@ export default function RecipeEditScreen() {
         </TouchableOpacity>
 
         {/* Published Toggle */}
-        <View className="mb-4 border rounded-lg p-4 bg-white">
+        <View className="mb-4 border rounded-lg p-4 bg-white" style={{ borderColor: theme.colors.border.main }}>
           <View className="flex-row items-center justify-between">
             <View className="flex-1">
               <Text className="text-base font-medium" style={{ color: theme.colors.text.primary }}>Published</Text>
@@ -352,13 +353,14 @@ export default function RecipeEditScreen() {
             renderItem={(ingredient, index, isReorderMode) => (
               <View className="flex-row items-center">
                 {isReorderMode ? (
-                  <View className="flex-1 border rounded-lg px-3 py-2 mr-2">
+                  <View className="flex-1 border rounded-lg px-3 py-2 mr-2" style={{ borderColor: theme.colors.border.main }}>
                     <Text className="text-base">{ingredient || `Ingredient ${index + 1}`}</Text>
                   </View>
                 ) : (
                   <TextInput
                     ref={(ref) => (ingredientRefs.current[index] = ref)}
                     className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
+                    style={{ borderColor: theme.colors.border.main }}
                     placeholder={`Ingredient ${index + 1}`}
                     value={ingredient}
                     onChangeText={(value) => updateIngredient(index, value)}
@@ -416,6 +418,7 @@ export default function RecipeEditScreen() {
                     <MultilineInstructionInput
                       ref={(ref) => (instructionRefs.current[index] = ref)}
                       className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
+                      style={{ borderColor: theme.colors.border.main }}
                       placeholder={`Step ${index + 1}`}
                       value={step.text}
                       onChangeText={(value) => updateStep(index, value)}
@@ -528,6 +531,7 @@ export default function RecipeEditScreen() {
           <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.text.primary }}>NOTES</Text>
           <TextInput
             className="border rounded-lg p-3 text-base min-h-[80px]"
+            style={{ borderColor: theme.colors.border.main }}
             placeholder="Add your recipe notes"
             value={formData.notes}
             onChangeText={(value) => updateFormData({ notes: value })}
@@ -602,6 +606,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   titleInput: {
     fontSize: 20,
+    borderColor: theme.colors.border.main,
   },
   recipeImage: {
     width: 80,

@@ -182,12 +182,23 @@ Recipe Steps:
 ${stepsText}
 
 Available ChefIQ Appliances and Methods:
-1. **iQ Cooker (Pressure Cooker)**: Pressure Cook, Sear/Sauté, Steam, Slow Cook, Sous Vide
-2. **iQ MiniOven**: Bake, Air Fry, Roast, Broil, Toast, Dehydrate
+1. **iQ Cooker (Multi Cooker)**: Pressure Cook, Sear/Sauté, Steam, Slow Cook, Sous Vide
+2. **iQ MiniOven** (supports meat probe): Bake, Air Fry, Roast, Broil, Toast, Dehydrate
 
 CRITICAL RULES:
 
-1. **Pressure Cooking Detection** ⚠️ VERY IMPORTANT:
+1. **Oven Methods Take Priority** ⚠️ VERY IMPORTANT:
+   - If a recipe has BOTH stovetop searing AND oven cooking (Bake/Air Fry/Roast), ONLY suggest the oven method
+   - Brief stovetop searing/sautéing (<5 minutes) before oven cooking should be done MANUALLY, not as a ChefIQ action
+   - Only suggest Sear/Sauté if it's the PRIMARY cooking method (e.g., stir-fry, pan-seared fish, sautéed vegetables)
+   - Examples:
+     - ✅ Beef Wellington: "Sear beef 2 min per side, then bake at 400°F for 25 min" → ONLY suggest Bake (MiniOven)
+     - ✅ Roasted Chicken: "Sear chicken 3 min, then roast at 375°F" → ONLY suggest Roast (MiniOven)
+     - ✅ Stir-Fry: "Sauté vegetables for 10 minutes" → Suggest Sear/Sauté (iQ Cooker)
+     - ❌ DO NOT suggest both Sear/Sauté AND Bake for the same recipe
+   - When the main cooking happens in the oven, use MiniOven as the suggested appliance
+
+2. **Pressure Cooking Detection** ⚠️ VERY IMPORTANT:
    - ONLY suggest Pressure Cook method if the step EXPLICITLY mentions: "pressure cook", "pressure cooker", "instant pot", "high pressure", "low pressure", "seal and cook under pressure"
    - DO NOT use Pressure Cook for steps that only say "cook", "simmer", "boil", "stew", "braise" WITHOUT explicitly mentioning pressure
    - Examples of when NOT to use Pressure Cook:
@@ -198,7 +209,7 @@ CRITICAL RULES:
      - ✅ "Instant pot for 15 minutes" → Use Pressure Cook
    - Pressure cooking is 3-5x faster than regular cooking - do NOT suggest it unless explicitly mentioned
 
-2. **Pressure Cook Time Conversion** (RARE - only if necessary):
+3. **Pressure Cook Time Conversion** (RARE - only if necessary):
    - If converting a regular cooking recipe to pressure cooking (should be rare), reduce time by 70-80%:
      - 60 minutes regular → 12-18 minutes pressure
      - 30 minutes regular → 6-9 minutes pressure
@@ -206,25 +217,34 @@ CRITICAL RULES:
    - IMPORTANT: Prefer NOT suggesting pressure cooking at all if recipe doesn't mention it
    - Better to use Slow Cook or Sear/Sauté for non-pressure recipes
 
-3. **Pressure Release Steps**:
+4. **Pressure Release Steps**:
    - Steps mentioning "pressure release", "natural release", "quick release" are NOT separate cooking actions
    - The pressure release type should be part of the PREVIOUS pressure cook step's parameters
    - Release duration is NOT cook time
 
-4. **Timing Accuracy**:
+5. **Timing Accuracy**:
    - Extract the EXACT cooking time mentioned in the step (e.g., "3 minutes" = 3, "25 minutes" = 25)
    - Do NOT confuse release time with cook time (e.g., "natural release 10 minutes" does NOT mean cook for 10 minutes)
    - Watch for common OCR errors like "250" when it should be "25"
 
-5. **Pressure Release Detection**:
+6. **Pressure Release Detection**:
    - "natural release", "naturally release", "let pressure release naturally" = PressureRelease: 2 (Natural)
    - "quick release", "quickly release", "release pressure immediately" = PressureRelease: 0 (Quick)
    - "pulse release", "intermittent release" = PressureRelease: 1 (Pulse)
    - If natural release has a time, that's the release duration, not cook time
 
-6. **Step Assignment**: Assign each cooking action to the step index where the cooking actually begins (not the release step)
+7. **Step Assignment** ⚠️ CRITICAL - ZERO-INDEXED:
+   - The stepIndex in your response MUST be 0-indexed (starts at 0, not 1)
+   - Even though steps are labeled "Step 1", "Step 2", etc., use 0-based indexing in your JSON response
+   - Examples:
+     - "Step 1" → stepIndex: 0
+     - "Step 2" → stepIndex: 1
+     - "Step 8" → stepIndex: 7
+     - "Step 10" → stepIndex: 9
+   - Assign each cooking action to the step index where the cooking actually begins (not the release step)
+   - ALWAYS subtract 1 from the step number to get the stepIndex
 
-7. **Combining Consecutive Actions** ⚠️ IMPORTANT:
+8. **Combining Consecutive Actions** ⚠️ IMPORTANT:
    - If multiple CONSECUTIVE steps use the same cooking method (Slow Cook or Sear/Sauté), combine them into ONE action
    - Add up the total cooking time from all consecutive steps
    - Assign the combined action to the FIRST step where that cooking method begins
@@ -272,28 +292,34 @@ ChefIQ Appliance IDs and Method IDs:
   - Parameters: cooking_time, keep_warm, delay_time
 - Slow Cook: methodId = "3"
   - Parameters: cooking_time, temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm, delay_time
-- Dehydrate: methodId = "4"
-  - Parameters: cooking_time, delay_time
 - Sous Vide: methodId = "5"
   - Parameters: cooking_time, cooking_temp (in Fahrenheit), delay_time
 
-**iQ MiniOven** (category_id = "4a3cd4f1-839b-4f45-80ea-08f594ff74c3"):
+**iQ MiniOven** (category_id = "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE:
 - Bake: methodId = "METHOD_BAKE"
   - Parameters: cooking_time, target_cavity_temp (in Fahrenheit), fan_speed (0=Low, 1=Medium, 2=High)
-  - Optional: target_probe_temp, remove_probe_temp (for meat)
+  - WITH PROBE: target_probe_temp, remove_probe_temp (for meat), NO cooking_time parameter
 - Air Fry: methodId = "METHOD_AIR_FRY"
   - Parameters: cooking_time, target_cavity_temp, fan_speed (typically 2=High)
-  - Optional: target_probe_temp, remove_probe_temp
+  - WITH PROBE: target_probe_temp, remove_probe_temp, NO cooking_time parameter
 - Roast: methodId = "METHOD_ROAST"
   - Parameters: cooking_time, target_cavity_temp, fan_speed (typically 0=Low or 1=Medium)
-  - Optional: target_probe_temp, remove_probe_temp
+  - WITH PROBE: target_probe_temp, remove_probe_temp, NO cooking_time parameter
 - Broil: methodId = "METHOD_BROIL"
   - Parameters: cooking_time, temp_level (0=Low, 3=High)
 - Toast: methodId = "METHOD_TOAST"
   - Parameters: cooking_time, shade_level (0=Light, 1=Medium-Light, 2=Medium, 3=Medium-Dark, 4=Dark)
   - Optional: is_frozen (true/false), is_bagel (true/false)
 - Dehydrate: methodId = "METHOD_DEHYDRATE"
-  - Parameters: cooking_time, target_cavity_temp (typically 95-165°F), fan_speed (typically 0=Low)
+  - Parameters: cooking_time, target_cavity_temp
+
+**MEAT PROBE USAGE (MiniOven only):**
+- When cooking meat (beef, pork, chicken, lamb, etc.) in the MiniOven, you can use the meat probe
+- WITH PROBE: Use target_probe_temp and remove_probe_temp instead of cooking_time parameter
+- target_probe_temp: Final internal temperature when meat is done (e.g., 145°F for medium-rare beef)
+- remove_probe_temp: Temperature to remove from oven for resting (typically 5-10°F lower than target)
+- Example: Beef Wellington → target_probe_temp: 135°F, remove_probe_temp: 130°F (for medium-rare)
+- Only use probe for: Bake, Air Fry, Roast (NOT for Broil, Toast, Dehydrate)
 
 Parameter Guidelines:
 - **cooking_time**: Time in SECONDS (convert minutes to seconds: minutes * 60)
@@ -308,7 +334,7 @@ Examples:
 Example 1 (Pressure Cook with Natural Release):
 Step 1: "Lock lid and cook on high pressure for 3 minutes"
 Step 2: "Let pressure release naturally for 10 minutes"
-→ Create ONE action at stepIndex 0:
+→ Create ONE action at stepIndex 0 (for "Step 1"):
 {
   "stepIndex": 0,
   "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
@@ -322,11 +348,12 @@ Step 2: "Let pressure release naturally for 10 minutes"
     "delay_time": 0
   }
 }
+NOTE: stepIndex is 0 because it's "Step 1" (1-1=0)
 
 Example 2 (Bake):
 Step 1: "Preheat oven to 350°F"
 Step 2: "Bake for 25 minutes until golden brown"
-→ Create ONE action at stepIndex 1:
+→ Create ONE action at stepIndex 1 (for "Step 2"):
 {
   "stepIndex": 1,
   "applianceId": "4a3cd4f1-839b-4f45-80ea-08f594ff74c3",
@@ -338,11 +365,12 @@ Step 2: "Bake for 25 minutes until golden brown"
     "fan_speed": 0
   }
 }
+NOTE: stepIndex is 1 because it's "Step 2" (2-1=1)
 
 Example 3 (Roast Chicken with Probe):
 Step 1: "Season chicken and place in oven"
 Step 2: "Roast at 375°F until internal temperature reaches 165°F, about 45 minutes"
-→ Create ONE action at stepIndex 1:
+→ Create ONE action at stepIndex 1 (for "Step 2"):
 {
   "stepIndex": 1,
   "applianceId": "4a3cd4f1-839b-4f45-80ea-08f594ff74c3",
@@ -355,11 +383,12 @@ Step 2: "Roast at 375°F until internal temperature reaches 165°F, about 45 min
     "target_probe_temp": 165
   }
 }
+NOTE: stepIndex is 1 because it's "Step 2" (2-1=1)
 
 Example 4 (Regular Simmer - NOT Pressure Cook):
 Step 1: "Add broth and bring to a boil"
 Step 2: "Reduce heat and simmer for 30 minutes until vegetables are tender"
-→ Create ONE action at stepIndex 1:
+→ Create ONE action at stepIndex 1 (for "Step 2"):
 {
   "stepIndex": 1,
   "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
@@ -372,7 +401,7 @@ Step 2: "Reduce heat and simmer for 30 minutes until vegetables are tender"
     "delay_time": 0
   }
 }
-NOTE: "Simmer" does NOT mean pressure cooking. Use Slow Cook (Medium-Low) instead.
+NOTE: "Simmer" does NOT mean pressure cooking. Use Slow Cook (Medium-Low) instead. stepIndex is 1 because it's "Step 2" (2-1=1).
 
 Example 5 (When to Skip Cooking Action):
 Step 1: "Cook the pasta according to package directions"
@@ -385,7 +414,7 @@ Step 1: "Heat oil and sauté onions for 5 minutes until softened"
 Step 2: "Add garlic and cook for 2 minutes"
 Step 3: "Add tomatoes, reduce heat and simmer for 15 minutes"
 Step 4: "Season and serve"
-→ Create ONE Slow Cook action at stepIndex 0 (combines steps 1, 2, and 3):
+→ Create ONE Slow Cook action at stepIndex 0 (for "Step 1", combines Steps 1-3):
 {
   "stepIndex": 0,
   "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
@@ -398,16 +427,36 @@ Step 4: "Season and serve"
     "delay_time": 0
   }
 }
-NOTE: Combined 5 + 2 + 15 = 22 minutes (1320 seconds). Steps 1-3 are all continuous cooking on stovetop.
+NOTE: Combined 5 + 2 + 15 = 22 minutes (1320 seconds). Steps 1-3 are all continuous cooking. stepIndex is 0 because it starts at "Step 1" (1-1=0).
 
 Example 7 (DO NOT Combine - Non-Consecutive):
 Step 1: "Sauté onions for 5 minutes"
 Step 2: "While onions cook, dice the tomatoes"
 Step 3: "Add tomatoes and simmer for 10 minutes"
 → Create TWO separate actions:
-Action 1 at stepIndex 0: Sear/Sauté for 5 minutes
-Action 2 at stepIndex 2: Slow Cook for 10 minutes
-NOTE: Step 2 is prep work, not cooking, so actions should NOT be combined.
+Action 1 at stepIndex 0 (for "Step 1"): Sear/Sauté for 5 minutes
+Action 2 at stepIndex 2 (for "Step 3"): Slow Cook for 10 minutes
+NOTE: Step 2 is prep work, not cooking, so actions should NOT be combined. Remember: "Step 1" = stepIndex 0, "Step 3" = stepIndex 2.
+
+Example 8 (Beef Wellington - Oven Method Takes Priority):
+Step 1: "Heat oil in a large skillet over high heat"
+Step 2: "Sear beef for 2-3 minutes per side until browned"
+Step 3: "Let beef cool, then wrap in puff pastry with mushroom duxelles"
+Step 4: "Bake at 400°F for 25-30 minutes until pastry is golden and beef reaches 135°F for medium-rare"
+→ Create ONE action at stepIndex 3 (for "Step 4" - ONLY the Bake action):
+{
+  "stepIndex": 3,
+  "applianceId": "4a3cd4f1-839b-4f45-80ea-08f594ff74c3",
+  "methodId": "METHOD_BAKE",
+  "methodName": "Bake",
+  "parameters": {
+    "cooking_time": 1650,
+    "target_cavity_temp": 400,
+    "target_probe_temp": 135,
+    "fan_speed": 1
+  }
+}
+NOTE: ⚠️ DO NOT suggest Sear/Sauté for Step 2. The quick stovetop searing is done MANUALLY. Only the main oven cooking (Bake) is suggested as a ChefIQ action because the MiniOven is the PRIMARY appliance for this recipe. stepIndex is 3 because it's "Step 4" (4-1=3).
 
 IMPORTANT:
 - Return ONLY valid JSON
@@ -415,10 +464,295 @@ IMPORTANT:
 - If no ChefIQ-compatible cooking method is found, return empty suggestedActions array
 - Be precise with times - extract the exact number mentioned
 - Use the correct methodId format (numeric string for Cooker, enum string for Oven)
+- ⚠️ CRITICAL: stepIndex MUST be 0-indexed! "Step 1" = stepIndex 0, "Step 2" = stepIndex 1, "Step 8" = stepIndex 7, etc.
+- ⚠️ CRITICAL: If recipe has BOTH searing AND oven cooking (Bake/Roast/Air Fry), ONLY suggest the oven method - skip sear/sauté actions
 - ⚠️ CRITICAL: Only use Pressure Cook when EXPLICITLY mentioned - do NOT assume "cook" or "simmer" means pressure cooking
 - When in doubt between Pressure Cook and Slow Cook, choose Slow Cook for safety
 - ⚠️ COMBINE consecutive Slow Cook or Sear/Sauté actions into ONE action with total time (e.g., 5min + 2min + 10min = 17min total)
 - Only combine if steps are truly consecutive without prep steps in between
 
 Analyze the recipe above and return the cooking actions as JSON:`;
+}
+
+/**
+ * Creates a detailed prompt for generating recipes from fridge ingredients with preferences
+ */
+export function createRecipeFromIngredientsPrompt(
+  ingredients: string[],
+  dietary?: string,
+  cuisine?: string,
+  cookingTime?: string,
+  matchingStrictness?: 'exact' | 'substitutions' | 'creative'
+): string {
+  const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
+  const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
+  const timeFilter = cookingTime && cookingTime !== 'Any' ? cookingTime : null;
+
+  let strictnessInstruction = '';
+  switch (matchingStrictness) {
+    case 'exact':
+      strictnessInstruction = 'Use ONLY the ingredients provided. Do not add any other main ingredients.';
+      break;
+    case 'substitutions':
+      strictnessInstruction = 'You may suggest substitutions for missing ingredients, but try to use the provided ingredients as much as possible.';
+      break;
+    case 'creative':
+      strictnessInstruction = 'You can be creative and suggest additional ingredients that complement the provided ones.';
+      break;
+    default:
+      strictnessInstruction = 'You may suggest substitutions for missing ingredients, but try to use the provided ingredients as much as possible.';
+  }
+
+  return `You are a professional chef and recipe creator. Your task is to create a delicious recipe using the ingredients the user has available.
+
+**Available Ingredients**: ${ingredients.join(', ')}
+
+${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
+${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
+${timeFilter ? `**Cooking Time Preference**: ${timeFilter}` : ''}
+
+**Matching Mode**: ${strictnessInstruction}
+
+Please create a practical, delicious recipe that:
+1. Makes good use of the available ingredients
+2. ${dietaryFilter ? `Follows ${dietaryFilter} dietary restrictions` : 'Has no dietary restrictions'}
+3. ${cuisineFilter ? `Is inspired by ${cuisineFilter} cuisine` : 'Can be from any cuisine'}
+4. ${timeFilter ? `Takes approximately ${timeFilter} to prepare` : 'Can take any reasonable amount of time'}
+
+Return a JSON object with the following structure:
+
+{
+  "title": "Recipe title",
+  "description": "A brief, appetizing description of the dish (1-2 sentences)",
+  "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
+  "cookTime": 30,
+  "prepTime": 15,
+  "servings": 4,
+  "category": "category name (e.g., Main Course, Dessert, etc.)",
+  "tags": ["tag1", "tag2", "tag3"],
+  "missingIngredients": ["ingredient that user doesn't have but recipe needs"],
+  "substitutions": [
+    {"missing": "ingredient name", "substitutes": ["substitute 1", "substitute 2"]}
+  ],
+  "matchPercentage": 85
+}
+
+Guidelines:
+1. **Title**: Create a clear, appetizing title
+2. **Description**: Write 1-2 sentences describing the dish and why it's delicious
+3. **Ingredients**: List all ingredients with specific quantities and units. Mark which ones the user already has by using the available ingredients list
+4. **Steps**: Write clear, numbered steps in chronological order. Be specific about temperatures, times, and techniques
+5. **Times**: Provide realistic prep time and cook time in minutes${timeFilter ? ` that fit within ${timeFilter}` : ''}
+6. **Servings**: Specify number of servings (typically 2-4)
+7. **Category**: Choose the most appropriate category (e.g., Main Course, Dessert, Appetizer, etc.)
+8. **Tags**: Add 2-5 relevant tags (e.g., "Quick", "Healthy", "Vegetarian", "Spicy", cuisine style, etc.)
+9. **Missing Ingredients**: List any ingredients the recipe needs that the user doesn't have (only if matchingStrictness is not 'exact')
+10. **Substitutions**: Suggest substitutes for missing ingredients (only if matchingStrictness is not 'exact')
+11. **Match Percentage**: Estimate how well the recipe matches the user's available ingredients (0-100)
+
+Important:
+- ${strictnessInstruction}
+- ${dietaryFilter ? `Ensure the recipe is ${dietaryFilter}-friendly` : ''}
+- Make the recipe practical and achievable for home cooks
+- Be specific about cooking temperatures and times
+- Return ONLY valid JSON, no additional text
+- Make sure the JSON is properly formatted and can be parsed
+
+Return the recipe as JSON:`;
+}
+
+/**
+ * Creates a prompt for generating multiple recipe options from fridge ingredients
+ */
+export function createMultipleRecipesFromIngredientsPrompt(
+  ingredients: string[],
+  numberOfRecipes: number,
+  dietary?: string,
+  cuisine?: string,
+  cookingTime?: string,
+  matchingStrictness?: 'exact' | 'substitutions' | 'creative'
+): string {
+  const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
+  const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
+  const timeFilter = cookingTime && cookingTime !== 'Any' ? cookingTime : null;
+
+  let strictnessInstruction = '';
+  switch (matchingStrictness) {
+    case 'exact':
+      strictnessInstruction = 'Use ONLY the ingredients provided. Do not add any other main ingredients.';
+      break;
+    case 'substitutions':
+      strictnessInstruction = 'You may suggest substitutions for missing ingredients, but try to use the provided ingredients as much as possible.';
+      break;
+    case 'creative':
+      strictnessInstruction = 'You can be creative and suggest additional ingredients that complement the provided ones.';
+      break;
+    default:
+      strictnessInstruction = 'You may suggest substitutions for missing ingredients, but try to use the provided ingredients as much as possible.';
+  }
+
+  const categoryGuidance = ingredients.length >= 5
+    ? `Create ${numberOfRecipes} recipes in DIFFERENT categories (e.g., Main Course, Side Dish, Dessert, Appetizer, Soup, Salad) to showcase the versatility of these ingredients.`
+    : `Create ${numberOfRecipes} recipe variations that show different ways to use these ingredients.`;
+
+  return `You are a professional chef and recipe creator. Your task is to create ${numberOfRecipes} different delicious recipes using the ingredients the user has available.
+
+**Available Ingredients**: ${ingredients.join(', ')}
+
+${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
+${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
+${timeFilter ? `**Cooking Time Preference**: ${timeFilter}` : ''}
+
+**Matching Mode**: ${strictnessInstruction}
+
+**Important**: ${categoryGuidance} The user will choose ONE of these recipes to create and save to their collection.
+
+Please create ${numberOfRecipes} DIFFERENT practical, delicious recipes that:
+1. Make good use of the available ingredients
+2. ${dietaryFilter ? `Follow ${dietaryFilter} dietary restrictions` : 'Have no dietary restrictions'}
+3. ${cuisineFilter ? `Are inspired by ${cuisineFilter} cuisine` : 'Can be from any cuisine'}
+4. ${timeFilter ? `Take approximately ${timeFilter} to prepare` : 'Can take any reasonable amount of time'}
+5. Are VARIED - ${ingredients.length >= 5 ? 'different recipe CATEGORIES (Main, Side, Dessert, etc.), cooking methods, and flavors' : 'different cooking methods, flavors, and styles'}
+
+Return a JSON array of ${numberOfRecipes} recipe objects with the following structure:
+
+[
+  {
+    "title": "Recipe title",
+    "description": "A brief, appetizing description of the dish (1-2 sentences)",
+    "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity", ...],
+    "steps": [
+      {
+        "text": "Add ingredients to pressure cooker and cook on high pressure for 15 minutes with natural release",
+        "cookingAction": {
+          "id": "action-1",
+          "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+          "methodId": "0",
+          "methodName": "Pressure Cook",
+          "parameters": {
+            "cooking_time": 900,
+            "pres_level": 1,
+            "pres_release": 2,
+            "keep_warm": 0
+          }
+        }
+      },
+      {"text": "Remove from heat and serve hot"}
+    ],
+    "cookTime": 30,
+    "prepTime": 15,
+    "servings": 4,
+    "category": "category name (e.g., Main Course, Dessert, etc.)",
+    "tags": ["tag1", "tag2", "tag3"],
+    "chefiqAppliance": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+    "missingIngredients": ["ingredient that user doesn't have but recipe needs"],
+    "substitutions": [
+      {"missing": "ingredient name", "substitutes": ["substitute 1", "substitute 2"]}
+    ],
+    "matchPercentage": 85
+  },
+  {
+    "title": "Beef Wellington with Meat Probe",
+    "description": "Elegant beef tenderloin wrapped in puff pastry with mushroom duxelles",
+    "ingredients": ["2 lb beef tenderloin", "puff pastry", "8 oz mushrooms", "2 tbsp butter"],
+    "steps": [
+      {"text": "Sear beef in a hot skillet for 2-3 minutes per side until browned"},
+      {"text": "Let beef cool, then wrap in puff pastry with mushroom duxelles"},
+      {
+        "text": "Bake at 400°F until internal temperature reaches 135°F for medium-rare, remove at 130°F for resting",
+        "cookingAction": {
+          "id": "action-1",
+          "applianceId": "4a3cd4f1-839b-4f45-80ea-08f594ff74c3",
+          "methodId": "METHOD_BAKE",
+          "methodName": "Bake",
+          "parameters": {
+            "target_cavity_temp": 400,
+            "target_probe_temp": 135,
+            "remove_probe_temp": 130,
+            "fan_speed": 1
+          }
+        }
+      },
+      {"text": "Let rest 10 minutes before slicing"}
+    ],
+    "cookTime": 30,
+    "prepTime": 20,
+    "servings": 4,
+    "category": "Main Course",
+    "tags": ["beef", "elegant", "holiday"],
+    "chefiqAppliance": "4a3cd4f1-839b-4f45-80ea-08f594ff74c3",
+    "missingIngredients": [],
+    "substitutions": [],
+    "matchPercentage": 100
+  }
+]
+
+**ChefIQ Cooking Actions** (OPTIONAL - only include if the recipe uses compatible cooking methods):
+
+Available ChefIQ Appliances:
+1. **iQ Cooker** (applianceId: "c8ff3aef-3de6-4a74-bba6-03e943b2762c")
+   - Pressure Cook (methodId: "0"): cooking_time (seconds), pres_level (0=Low, 1=High), pres_release (0=Quick, 1=Pulse, 2=Natural), keep_warm (0=Off, 1=On)
+   - Sear/Sauté (methodId: "1"): cooking_time (seconds), temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm (0=Off, 1=On)
+   - Steam (methodId: "2"): cooking_time (seconds), keep_warm (0=Off, 1=On)
+   - Slow Cook (methodId: "3"): cooking_time (seconds), temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm (0=Off, 1=On)
+   - Sous Vide (methodId: "5"): cooking_time (seconds), cooking_temp (°F)
+
+2. **iQ MiniOven** (applianceId: "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE
+   - Bake (methodId: "METHOD_BAKE"):
+     * Normal: cooking_time (seconds), target_cavity_temp (°F), fan_speed (0=Low, 1=Medium, 2=High)
+     * With Probe: target_cavity_temp (°F), target_probe_temp (°F), remove_probe_temp (°F), fan_speed, NO cooking_time
+   - Air Fry (methodId: "METHOD_AIR_FRY"):
+     * Normal: cooking_time (seconds), target_cavity_temp (°F), fan_speed (typically 2=High)
+     * With Probe: target_cavity_temp (°F), target_probe_temp (°F), remove_probe_temp (°F), fan_speed, NO cooking_time
+   - Roast (methodId: "METHOD_ROAST"):
+     * Normal: cooking_time (seconds), target_cavity_temp (°F), fan_speed (typically 0=Low or 1=Medium)
+     * With Probe: target_cavity_temp (°F), target_probe_temp (°F), remove_probe_temp (°F), fan_speed, NO cooking_time
+   - Broil (methodId: "METHOD_BROIL"): cooking_time (seconds), temp_level (0=Low, 3=High)
+   - Toast (methodId: "METHOD_TOAST"): cooking_time (seconds), shade_level (0=Light, 1=Medium-Light, 2=Medium, 3=Medium-Dark, 4=Dark)
+   - Dehydrate (methodId: "METHOD_DEHYDRATE"): cooking_time (seconds), target_cavity_temp (°F)
+
+**MEAT PROBE (MiniOven only):**
+- Use probe for meat recipes (beef, pork, chicken, lamb, fish)
+- Replace cooking_time with target_probe_temp and remove_probe_temp
+- target_probe_temp: Final doneness temperature (e.g., 145°F for medium-rare beef, 165°F for chicken)
+- remove_probe_temp: Remove temperature for resting (typically 5-10°F lower)
+- Only for Bake, Air Fry, and Roast methods
+
+IMPORTANT:
+- ⚠️ If a recipe has BOTH stovetop searing AND oven cooking (Bake/Roast/Air Fry), ONLY add cookingAction to the oven step - skip searing steps
+- Brief stovetop searing before oven cooking should be a plain step WITHOUT cookingAction (user does it manually)
+- Sear/Sauté is ONLY for iQ Cooker, NOT for MiniOven
+- Each appliance has specific methods - do not mix them
+- cooking_time must be in SECONDS (convert minutes * 60)
+- Only add cookingAction to actual cooking steps (NOT prep, mixing, or serving)
+
+Guidelines:
+1. **Variety**: Make each recipe distinctly different${ingredients.length >= 5 ? ' - USE DIFFERENT CATEGORIES (e.g., one Main Course, one Side Dish, one Dessert, etc.)' : ' - vary the cooking method and flavor profile'}
+2. **Title**: Create clear, appetizing titles
+3. **Description**: Write 1-2 sentences describing each dish
+4. **Ingredients**: List all ingredients with specific quantities and units
+5. **Steps**: Write clear, numbered steps in chronological order as objects with "text" field. If a step uses a ChefIQ-compatible cooking method, include the optional "cookingAction" object
+6. **Times**: Provide realistic prep time and cook time in minutes${timeFilter ? ` that fit within ${timeFilter}` : ''}
+7. **Servings**: Specify number of servings (typically 2-4)
+8. **Category**: ${ingredients.length >= 5 ? 'IMPORTANT - Choose DIFFERENT categories for each recipe (Main Course, Side Dish, Dessert, Appetizer, Soup, Salad, etc.)' : 'Choose appropriate category (Main Course, Dessert, Appetizer, etc.)'}
+9. **Tags**: Add 2-5 relevant tags per recipe
+10. **ChefIQ Integration**: If the recipe uses pressure cooking, slow cooking, searing, steaming, baking, air frying, roasting, or broiling, include the appropriate cookingAction in the step and set chefiqAppliance to the appliance ID
+11. **Missing Ingredients**: List any ingredients the recipe needs that the user doesn't have
+12. **Substitutions**: Suggest substitutes for missing ingredients
+13. **Match Percentage**: Estimate how well the recipe matches the user's available ingredients (0-100)
+
+Important:
+- ${strictnessInstruction}
+- ${dietaryFilter ? `Ensure ALL recipes are ${dietaryFilter}-friendly` : ''}
+- Make the recipes practical and achievable for home cooks
+- ${ingredients.length >= 5 ? 'CRITICAL: Each recipe must be in a DIFFERENT category to showcase versatility' : 'Ensure variety - different recipes should use different techniques and have different flavors'}
+- The user will select ONE recipe to create, so make each option appealing and distinct
+- **ChefIQ Actions**: Include cooking actions when applicable to make recipes smart-appliance ready. Generate unique IDs for each action (e.g., "action-1", "action-2")
+- Only add cookingAction to steps that actually cook food (NOT for prep, mixing, or serving steps)
+- Use appropriate parameters for each cooking method (cooking_time in minutes, temperatures in °F)
+- Return ONLY valid JSON array, no additional text
+- Make sure the JSON is properly formatted and can be parsed
+
+Return the recipes as a JSON array:`;
 }
