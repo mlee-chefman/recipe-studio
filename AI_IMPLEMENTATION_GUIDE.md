@@ -131,12 +131,16 @@ const recipe = await scrapeRecipeFromURL(url);
 
 **Implementation:**
 ```typescript
-const recipes = await generateMultipleRecipesFromIngredients(
+const recipes = await generateMultipleRecipesFromIngredients({
   ingredients,
-  preferences,
-  timeFilter,
-  dietaryRestrictions
-);
+  numberOfRecipes: RECIPES_PER_GENERATION,
+  dietary: preferences.dietary,
+  cuisine: preferences.cuisine,
+  cookingTime: preferences.cookingTime,
+  category: preferences.category,
+  matchingStrictness: preferences.matchingStrictness,
+  excludeTitles: generatedRecipeTitles,
+});
 ```
 
 ---
@@ -286,10 +290,12 @@ const results = await searchIngredients(query);
 **2. Recipe Generation:**
 Uses Gemini to generate recipes:
 ```typescript
-const recipes = await generateMultipleRecipesFromIngredients(
+const recipes = await generateMultipleRecipesFromIngredients({
   ingredients,
-  preferences
-);
+  numberOfRecipes: RECIPES_PER_GENERATION,
+  ...preferences,
+  excludeTitles: generatedRecipeTitles,
+});
 ```
 
 **3. Ingredient Matching:**

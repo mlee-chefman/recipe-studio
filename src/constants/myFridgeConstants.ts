@@ -2,11 +2,15 @@ import {
   DietaryPreference,
   CuisinePreference,
   CookingTimePreference,
+  CategoryPreference,
   MatchingStrictness,
 } from '~/types/ingredient';
 
 // Maximum number of ingredients allowed
 export const MAX_INGREDIENTS = 12;
+
+// Number of recipes to generate at a time
+export const RECIPES_PER_GENERATION = 1;
 
 // Preference options
 export const DIETARY_OPTIONS: readonly DietaryPreference[] = [
@@ -58,6 +62,18 @@ export const COOKING_TIME_OPTIONS: readonly CookingTimePreference[] = [
   '15-30 minutes',
   '30-60 minutes',
   'Over 1 hour',
+] as const;
+
+export const CATEGORY_OPTIONS: readonly CategoryPreference[] = [
+  'Any',
+  'Main Dish',
+  'Appetizer',
+  'Side Dish',
+  'Dessert',
+  'Soup',
+  'Salad',
+  'Breakfast',
+  'Snack',
 ] as const;
 
 export const MATCHING_STRICTNESS_OPTIONS: readonly MatchingStrictness[] = [

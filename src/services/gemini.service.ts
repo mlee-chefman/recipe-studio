@@ -838,31 +838,59 @@ export async function analyzeCookingActionsWithGemini(
     // Prepare the prompt for Gemini
     const prompt = createCookingActionAnalysisPrompt(title, description, stepsText, cookTime);
 
-    // Call Gemini API
-    const response = await axios.post(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
+    // Call Gemini API with retry logic for 503 errors
+    let response;
+    let lastError;
+    const maxRetries = 2;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        response = await axios.post(
+          `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
           {
-            parts: [
+            contents: [
               {
-                text: prompt,
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
               },
             ],
+            generationConfig: {
+              temperature: 0.1, // Very low temperature for precise analysis
+              maxOutputTokens: 4096,
+            },
           },
-        ],
-        generationConfig: {
-          temperature: 0.1, // Very low temperature for precise analysis
-          maxOutputTokens: 4096,
-        },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 30000,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          }
+        );
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error;
+
+        // Only retry on 503 (Service Unavailable)
+        if (axios.isAxiosError(error) && error.response?.status === 503) {
+          if (attempt < maxRetries) {
+            const waitTime = 5000 * (attempt + 1); // 5s, 10s (shorter waits for cooking action analysis)
+            console.log(`Cooking action analysis 503 error, waiting ${waitTime/1000}s before retry ${attempt + 1}/${maxRetries}...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+        }
+
+        // For non-503 errors or if we've exhausted retries, throw immediately
+        throw error;
       }
-    );
+    }
+
+    if (!response) {
+      throw lastError;
+    }
 
     const data: GeminiResponse = response.data;
 
@@ -1263,23 +1291,37 @@ export async function generateRecipeFromIngredients(
 }
 
 /**
+ * Options for generating recipes from ingredients
+ */
+export interface GenerateRecipesFromIngredientsOptions {
+  ingredients: string[];
+  numberOfRecipes?: number;
+  dietary?: string;
+  cuisine?: string;
+  cookingTime?: string;
+  category?: string;
+  matchingStrictness?: 'exact' | 'substitutions' | 'creative';
+  excludeTitles?: string[];
+}
+
+/**
  * Generates multiple recipe options from available ingredients with preferences
- * @param ingredients - List of available ingredient names
- * @param numberOfRecipes - Number of recipe options to generate (default: 3)
- * @param dietary - Dietary restriction preference
- * @param cuisine - Cuisine preference
- * @param cookingTime - Cooking time preference
- * @param matchingStrictness - How strict to match ingredients
+ * @param options - Recipe generation options with named parameters
  * @returns Array of recipes with substitutions
  */
 export async function generateMultipleRecipesFromIngredients(
-  ingredients: string[],
-  numberOfRecipes: number = 3,
-  dietary?: string,
-  cuisine?: string,
-  cookingTime?: string,
-  matchingStrictness?: 'exact' | 'substitutions' | 'creative'
+  options: GenerateRecipesFromIngredientsOptions
 ): Promise<MultiRecipeResult> {
+  const {
+    ingredients,
+    numberOfRecipes = 1,
+    dietary,
+    cuisine,
+    cookingTime,
+    category,
+    matchingStrictness,
+    excludeTitles = [],
+  } = options;
   try {
     if (!GEMINI_API_KEY) {
       return {
@@ -1300,7 +1342,10 @@ export async function generateMultipleRecipesFromIngredients(
     }
 
     console.log(`Generating ${numberOfRecipes} recipes from ingredients:`, ingredients);
-    console.log('Preferences:', { dietary, cuisine, cookingTime, matchingStrictness });
+    console.log('Preferences:', { dietary, cuisine, cookingTime, category, matchingStrictness });
+    if (excludeTitles.length > 0) {
+      console.log('Excluding previously generated recipes:', excludeTitles);
+    }
 
     // Prepare the prompt for Gemini
     const prompt = createMultipleRecipesFromIngredientsPrompt(
@@ -1309,34 +1354,64 @@ export async function generateMultipleRecipesFromIngredients(
       dietary,
       cuisine,
       cookingTime,
-      matchingStrictness
+      category,
+      matchingStrictness,
+      excludeTitles
     );
 
-    // Call Gemini API
-    const response = await axios.post(
-      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
-      {
-        contents: [
+    // Call Gemini API with retry logic for 503 errors
+    let response;
+    let lastError;
+    const maxRetries = 2;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        response = await axios.post(
+          `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
           {
-            parts: [
+            contents: [
               {
-                text: prompt,
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
               },
             ],
+            generationConfig: {
+              temperature: 0.8, // Higher temperature for more variety
+              maxOutputTokens: 8192, // More tokens for multiple recipes
+            },
           },
-        ],
-        generationConfig: {
-          temperature: 0.8, // Higher temperature for more variety
-          maxOutputTokens: 8192, // More tokens for multiple recipes
-        },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 60000, // 60 second timeout for multiple recipes
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 60000, // 60 second timeout for multiple recipes
+          }
+        );
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error;
+
+        // Only retry on 503 (Service Unavailable)
+        if (axios.isAxiosError(error) && error.response?.status === 503) {
+          if (attempt < maxRetries) {
+            const waitTime = 10000 * (attempt + 1); // 10s, 20s
+            console.log(`Service unavailable (503), waiting ${waitTime/1000}s before retry ${attempt + 1}/${maxRetries}...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+        }
+
+        // For non-503 errors or if we've exhausted retries, throw immediately
+        throw error;
       }
-    );
+    }
+
+    if (!response) {
+      throw lastError;
+    }
 
     const data: GeminiResponse = response.data;
 
@@ -1388,21 +1463,106 @@ export async function generateMultipleRecipesFromIngredients(
         missingIngredients?: string[];
         substitutions?: Array<{ missing: string; substitutes: string[] }>;
         matchPercentage?: number;
-      }> = parsedArray.map((parsed) => ({
-        title: parsed.title || 'Generated Recipe',
-        description: parsed.description || '',
-        ingredients: parsed.ingredients || [],
-        steps: parsed.steps || [],
-        cookTime: parsed.cookTime || 30,
-        prepTime: parsed.prepTime || 15,
-        servings: parsed.servings || 4,
-        category: parsed.category || 'Main Course',
-        tags: parsed.tags || [],
-        chefiqAppliance: parsed.chefiqAppliance,
-        missingIngredients: parsed.missingIngredients || [],
-        substitutions: parsed.substitutions || [],
-        matchPercentage: parsed.matchPercentage || 100,
-      }));
+      }> = [];
+
+      // Process each recipe and analyze for ChefIQ cooking actions
+      for (let i = 0; i < parsedArray.length; i++) {
+        const parsed = parsedArray[i];
+
+        // Convert steps to Step objects (handle both string format and object format)
+        const steps: Step[] = (parsed.steps || [])
+          .filter((inst: any) => {
+            if (typeof inst === 'string') {
+              return inst && inst.trim();
+            } else if (inst && typeof inst === 'object' && inst.text) {
+              return inst.text.trim();
+            }
+            return false;
+          })
+          .map((inst: any) => {
+            if (typeof inst === 'string') {
+              return { text: inst };
+            } else {
+              return { text: inst.text, image: inst.image, cookingAction: inst.cookingAction };
+            }
+          });
+
+        // Build the recipe
+        const recipe: ScrapedRecipe & {
+          missingIngredients?: string[];
+          substitutions?: Array<{ missing: string; substitutes: string[] }>;
+          matchPercentage?: number;
+        } = {
+          title: parsed.title || 'Generated Recipe',
+          description: parsed.description || '',
+          ingredients: parsed.ingredients || [],
+          steps,
+          cookTime: parsed.cookTime || 30,
+          prepTime: parsed.prepTime || 15,
+          servings: parsed.servings || 4,
+          category: parsed.category || 'Main Course',
+          tags: parsed.tags || [],
+          missingIngredients: parsed.missingIngredients || [],
+          substitutions: parsed.substitutions || [],
+          matchPercentage: parsed.matchPercentage || 100,
+        };
+
+        // Analyze recipe for ChefIQ appliance suggestions using Gemini AI
+        try {
+          const chefiqAnalysis = await analyzeCookingActionsWithGemini(
+            recipe.title,
+            recipe.description,
+            recipe.steps,
+            recipe.cookTime
+          );
+
+          // If Gemini analysis succeeds, use it; otherwise fall back to regex-based analysis
+          if (chefiqAnalysis && chefiqAnalysis.suggestedActions && chefiqAnalysis.suggestedActions.length > 0) {
+            // Map cooking actions directly to their corresponding steps
+            const stepsWithActions = recipe.steps.map((step, index) => {
+              const actionForThisStep = chefiqAnalysis.suggestedActions.find(
+                (action: any) => action.stepIndex === index
+              );
+              return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+            });
+
+            recipe.steps = stepsWithActions;
+            recipe.chefiqSuggestions = chefiqAnalysis;
+            console.log(`Using Gemini AI cooking actions for ${recipe.title}`);
+          } else {
+            // Fallback to regex-based analysis
+            console.log(`Falling back to regex analysis for ${recipe.title}`);
+            const regexAnalysis = analyzeRecipeForChefIQ(
+              recipe.title,
+              recipe.description,
+              recipe.steps,
+              recipe.cookTime
+            );
+
+            if (regexAnalysis && regexAnalysis.suggestedActions.length > 0) {
+              const stepsWithActions = recipe.steps.map((step, index) => {
+                const actionForThisStep = regexAnalysis.suggestedActions.find(
+                  action => action.stepIndex === index
+                );
+                return actionForThisStep ? { ...step, cookingAction: actionForThisStep } : step;
+              });
+
+              recipe.steps = stepsWithActions;
+              recipe.chefiqSuggestions = regexAnalysis;
+            }
+          }
+
+          // Add delay between Gemini API calls to avoid rate limiting
+          if (i < parsedArray.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, GEMINI_DELAY_BETWEEN_CALLS_MS));
+          }
+        } catch (error) {
+          console.error('ChefIQ analysis failed for recipe:', recipe.title, error);
+          // Don't fail the whole recipe if analysis fails
+        }
+
+        recipes.push(recipe);
+      }
 
       console.log(`Successfully generated ${recipes.length} recipes`);
 
@@ -1438,6 +1598,14 @@ export async function generateMultipleRecipesFromIngredients(
           recipes: [],
           success: false,
           error: 'API key is invalid or expired. Please check your EXPO_PUBLIC_GEMINI_API_KEY.',
+          totalFound: 0,
+        };
+      }
+      if (status === 503) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'AI service is temporarily unavailable. Please try again in a few moments.',
           totalFound: 0,
         };
       }

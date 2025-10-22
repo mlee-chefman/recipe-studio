@@ -17,11 +17,12 @@ import { CookingAction, StepSection } from '~/types/chefiq';
 export interface UseRecipeFormProps {
   editingRecipe?: Recipe;
   onComplete?: () => void;
+  previewMode?: boolean; // If true, don't save to database, just return the recipe
 }
 
 export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   const navigation = useNavigation();
-  const { editingRecipe, onComplete = () => navigation?.goBack() } = props;
+  const { editingRecipe, onComplete = () => navigation?.goBack(), previewMode = false } = props;
   const { addRecipe, updateRecipe, deleteRecipe } = useRecipeStore();
   const { user } = useAuthStore();
 
@@ -163,11 +164,6 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   }, [editingRecipe]);
 
   const handleSave = async () => {
-    if (!user) {
-      Alert.alert('Error', 'You must be logged in to save a recipe.');
-      return;
-    }
-
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Recipe title is required');
       return;
@@ -182,6 +178,73 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
     const validSteps = formData.steps.filter(s => s.text.trim() !== '');
     if (validSteps.length === 0) {
       Alert.alert('Error', 'At least one step is required');
+      return;
+    }
+
+    // Build step sections array from valid steps
+    const stepSections = validSteps
+      .map(step => step.stepSection)
+      .filter((section): section is StepSection => section !== undefined);
+
+    // Preview mode: Return the recipe without saving to database
+    if (previewMode) {
+      console.log('Preview mode: building recipe to return');
+
+      const recipe: Recipe = {
+        id: editingRecipe?.id || 'temp-preview-recipe',
+        userId: user?.uid || '',
+        title: formData.title.trim(),
+        description: formData.notes.trim() || 'No description provided',
+        ingredients: validIngredients,
+        steps: validSteps,
+        cookTime: formData.cookTime,
+        servings: formData.servings,
+        difficulty: formData.difficulty,
+        category: formData.category.trim() || 'Uncategorized',
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
+        image: formData.imageUrl.trim() || undefined,
+        chefiqAppliance: formData.selectedAppliance || undefined,
+        stepSections: stepSections.length > 0 ? stepSections : undefined,
+        useProbe: formData.useProbe || undefined,
+        published: false,
+        status: 'Draft',
+      };
+
+      console.log('Preview mode: navigating back with edited recipe');
+
+      // Get the previous route (MyFridgeRecipeDetail) from navigation state
+      // @ts-ignore
+      const state = navigation.getState();
+      const previousRoute = state.routes[state.index - 1];
+
+      if (previousRoute && previousRoute.name === 'MyFridgeRecipeDetail') {
+        console.log('Found MyFridgeRecipeDetail route, setting params and going back');
+
+        // First, dispatch setParams action to update the previous route's params
+        // @ts-ignore
+        navigation.dispatch({
+          type: 'SET_PARAMS',
+          payload: {
+            params: {
+              editedRecipe: recipe,
+            },
+          },
+          source: previousRoute.key, // Target the previous route by its key
+        });
+
+        // Then go back to trigger the focus listener
+        navigation.goBack();
+      } else {
+        console.log('Previous route not found, using goBack');
+        navigation.goBack();
+      }
+
+      return;
+    }
+
+    // Normal mode: Save to database
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to save a recipe.');
       return;
     }
 

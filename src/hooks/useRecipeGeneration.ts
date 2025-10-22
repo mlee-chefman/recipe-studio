@@ -4,12 +4,15 @@ import { MatchedRecipe, getTopMatchedRecipes } from '~/utils/ingredientMatcher';
 import { generateMultipleRecipesFromIngredients } from '~/services/gemini.service';
 import { FridgeIngredient } from '~/types/ingredient';
 import { Recipe } from '~/types/recipe';
+import { RECIPES_PER_GENERATION } from '@constants/myFridgeConstants';
 
 interface RecipeGenerationOptions {
   dietary?: string;
   cuisine?: string;
   cookingTime?: string;
+  category?: string;
   matchingStrictness?: 'exact' | 'substitutions' | 'creative';
+  excludeTitles?: string[]; // Titles to exclude (avoid duplicates)
 }
 
 interface ExtendedScrapedRecipe extends ScrapedRecipe {
@@ -27,7 +30,7 @@ export const useRecipeGeneration = (
 ) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
-  const [aiGeneratedRecipes, setAiGeneratedRecipes] = useState<ExtendedScrapedRecipe[]>([]);
+  const [currentRecipe, setCurrentRecipe] = useState<ExtendedScrapedRecipe | null>(null);
   const [matchedExistingRecipes, setMatchedExistingRecipes] = useState<MatchedRecipe[]>([]);
   const [showResultsModal, setShowResultsModal] = useState(false);
 
@@ -43,22 +46,24 @@ export const useRecipeGeneration = (
       try {
         const ingredientNames = ingredients.map((ing) => ing.name);
 
-        // Generate AI recipes (3 options)
-        const aiResult = await generateMultipleRecipesFromIngredients(
-          ingredientNames,
-          3,
-          options.dietary,
-          options.cuisine,
-          options.cookingTime,
-          options.matchingStrictness
-        );
+        // Generate recipes using named parameters for better readability
+        const aiResult = await generateMultipleRecipesFromIngredients({
+          ingredients: ingredientNames,
+          numberOfRecipes: RECIPES_PER_GENERATION,
+          dietary: options.dietary,
+          cuisine: options.cuisine,
+          cookingTime: options.cookingTime,
+          category: options.category,
+          matchingStrictness: options.matchingStrictness,
+          excludeTitles: options.excludeTitles || [],
+        });
 
-        if (aiResult.success && aiResult.recipes) {
-          console.log(`Generated ${aiResult.recipes.length} AI recipes`);
-          setAiGeneratedRecipes(aiResult.recipes);
+        if (aiResult.success && aiResult.recipes && aiResult.recipes.length > 0) {
+          console.log(`Generated ${RECIPES_PER_GENERATION} AI recipe${RECIPES_PER_GENERATION > 1 ? 's' : ''}`);
+          setCurrentRecipe(aiResult.recipes[0]);
         } else {
-          setGenerationError(aiResult.error || 'Failed to generate recipes');
-          setAiGeneratedRecipes([]);
+          setGenerationError(aiResult.error || 'Failed to generate recipe');
+          setCurrentRecipe(null);
         }
 
         // Match existing recipes from user's collection
@@ -72,8 +77,8 @@ export const useRecipeGeneration = (
         console.log(`Found ${matchedRecipes.length} matching existing recipes`);
         setMatchedExistingRecipes(matchedRecipes);
 
-        // Show results modal
-        setShowResultsModal(true);
+        // Don't show results modal - display inline instead
+        // setShowResultsModal(true);
       } catch (error) {
         console.error('Error generating recipes:', error);
         setGenerationError('An unexpected error occurred');
@@ -84,13 +89,18 @@ export const useRecipeGeneration = (
     [allRecipes, userRecipes]
   );
 
+  const clearCurrentRecipe = useCallback(() => {
+    setCurrentRecipe(null);
+  }, []);
+
   return {
     isGenerating,
     generationError,
-    aiGeneratedRecipes,
+    currentRecipe,
     matchedExistingRecipes,
     showResultsModal,
     setShowResultsModal,
     generateRecipes,
+    clearCurrentRecipe,
   };
 };

@@ -21,6 +21,7 @@ import {
   DietaryPreference,
   CuisinePreference,
   CookingTimePreference,
+  CategoryPreference,
   MatchingStrictness,
   RecipeSource,
 } from '~/types/ingredient';
@@ -105,6 +106,8 @@ export interface FridgeState {
   ingredients: FridgeIngredient[];
   // User preferences for recipe generation
   preferences: FridgePreferences;
+  // Track generated recipe titles to avoid duplicates
+  generatedRecipeTitles: string[];
   // Loading and error states
   isLoading: boolean;
   error: string | null;
@@ -116,10 +119,14 @@ export interface FridgeState {
   setDietaryPreference: (dietary: DietaryPreference) => void;
   setCuisinePreference: (cuisine: CuisinePreference) => void;
   setCookingTimePreference: (time: CookingTimePreference) => void;
+  setCategoryPreference: (category: CategoryPreference) => void;
   setMatchingStrictness: (strictness: MatchingStrictness) => void;
   setRecipeSource: (source: RecipeSource) => void;
   // Reset all preferences to default
   resetPreferences: () => void;
+  // Actions for tracking generated recipes
+  addGeneratedRecipeTitle: (title: string) => void;
+  clearGeneratedRecipeTitles: () => void;
 }
 
 export const useStore = create<BearState>((set) => ({
@@ -593,9 +600,11 @@ export const useFridgeStore = create<FridgeState>()(
         dietary: 'None',
         cuisine: 'Any',
         cookingTime: 'Any',
+        category: 'Any',
         matchingStrictness: 'substitutions',
         recipeSource: 'ai',
       },
+      generatedRecipeTitles: [],
       isLoading: false,
       error: null,
 
@@ -615,7 +624,7 @@ export const useFridgeStore = create<FridgeState>()(
       },
 
       clearIngredients: () => {
-        set({ ingredients: [] });
+        set({ ingredients: [], generatedRecipeTitles: [] });
       },
 
       // Preference management actions
@@ -629,6 +638,10 @@ export const useFridgeStore = create<FridgeState>()(
 
       setCookingTimePreference: (time: CookingTimePreference) => {
         set({ preferences: { ...get().preferences, cookingTime: time } });
+      },
+
+      setCategoryPreference: (category: CategoryPreference) => {
+        set({ preferences: { ...get().preferences, category } });
       },
 
       setMatchingStrictness: (strictness: MatchingStrictness) => {
@@ -645,10 +658,21 @@ export const useFridgeStore = create<FridgeState>()(
             dietary: 'None',
             cuisine: 'Any',
             cookingTime: 'Any',
+            category: 'Any',
             matchingStrictness: 'substitutions',
             recipeSource: 'ai',
           },
         });
+      },
+
+      // Generated recipe tracking actions
+      addGeneratedRecipeTitle: (title: string) => {
+        const { generatedRecipeTitles } = get();
+        set({ generatedRecipeTitles: [...generatedRecipeTitles, title.toLowerCase()] });
+      },
+
+      clearGeneratedRecipeTitles: () => {
+        set({ generatedRecipeTitles: [] });
       },
     }),
     {
