@@ -35,26 +35,108 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<string>('');
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
 
   const { setUser, setUserProfile } = useAuthStore();
+
+  // Validation functions
+  const validateEmail = (email: string): string => {
+    if (!email) return 'Email is required';
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return 'Please enter a valid email address';
+    return '';
+  };
+
+  const validateName = (name: string): string => {
+    if (!name.trim()) return 'Name is required';
+    if (name.trim().length < 2) return 'Name must be at least 2 characters';
+    return '';
+  };
+
+  const validatePassword = (password: string): string => {
+    if (!password) return 'Password is required';
+    if (password.length < 6) return 'Password must be at least 6 characters';
+    return '';
+  };
+
+  const validateConfirmPassword = (confirmPass: string, pass: string): string => {
+    if (!confirmPass) return 'Please confirm your password';
+    if (confirmPass !== pass) return 'Passwords do not match';
+    return '';
+  };
 
   const handleAvatarSelect = async (avatarUrl: string) => {
     setSelectedAvatar(avatarUrl);
   };
 
+  // Field change handlers with validation
+  const handleNameChange = (value: string) => {
+    setName(value);
+    setErrors(prev => ({ ...prev, name: '' }));
+  };
+
+  const handleEmailChange = (value: string) => {
+    setEmail(value);
+    setErrors(prev => ({ ...prev, email: '' }));
+  };
+
+  const handlePasswordChange = (value: string) => {
+    setPassword(value);
+    setErrors(prev => ({ ...prev, password: '' }));
+    // Re-validate confirm password if it has a value
+    if (confirmPassword) {
+      const confirmError = validateConfirmPassword(confirmPassword, value);
+      setErrors(prev => ({ ...prev, confirmPassword: confirmError }));
+    }
+  };
+
+  const handleConfirmPasswordChange = (value: string) => {
+    setConfirmPassword(value);
+    setErrors(prev => ({ ...prev, confirmPassword: '' }));
+  };
+
+  // Blur handlers for validation
+  const handleNameBlur = () => {
+    const error = validateName(name);
+    setErrors(prev => ({ ...prev, name: error }));
+  };
+
+  const handleEmailBlur = () => {
+    const error = validateEmail(email);
+    setErrors(prev => ({ ...prev, email: error }));
+  };
+
+  const handlePasswordBlur = () => {
+    const error = validatePassword(password);
+    setErrors(prev => ({ ...prev, password: error }));
+  };
+
+  const handleConfirmPasswordBlur = () => {
+    const error = validateConfirmPassword(confirmPassword, password);
+    setErrors(prev => ({ ...prev, confirmPassword: error }));
+  };
+
   const handleSignUp = async () => {
-    if (!email || !password || !name) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
+    // Validate all fields
+    const nameError = validateName(name);
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+    const confirmPasswordError = validateConfirmPassword(confirmPassword, password);
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
+    setErrors({
+      name: nameError,
+      email: emailError,
+      password: passwordError,
+      confirmPassword: confirmPasswordError,
+    });
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters');
+    // If any errors, don't proceed
+    if (nameError || emailError || passwordError || confirmPasswordError) {
       return;
     }
 
@@ -99,8 +181,6 @@ export default function SignUpScreen() {
 
       // Mark that user has signed up before
       await setHasSignedUpBefore();
-
-      Alert.alert('Success', 'Account created successfully!');
     } catch (error: any) {
       console.error('Sign up error:', error);
       Alert.alert('Error', error.message || 'Failed to create account');
@@ -146,46 +226,54 @@ export default function SignUpScreen() {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Name</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.name && styles.inputError]}
               value={name}
-              onChangeText={setName}
+              onChangeText={handleNameChange}
+              onBlur={handleNameBlur}
               placeholder="Enter your full name"
               autoCapitalize="words"
             />
+            {errors.name ? <Text style={styles.errorText}>{errors.name}</Text> : null}
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.email && styles.inputError]}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={handleEmailChange}
+              onBlur={handleEmailBlur}
               placeholder="Enter your email"
               keyboardType="email-address"
               autoCapitalize="none"
             />
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.password && styles.inputError]}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={handlePasswordChange}
+              onBlur={handlePasswordBlur}
               placeholder="Enter your password"
               secureTextEntry
             />
+            {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
           </View>
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Confirm Password</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.confirmPassword && styles.inputError]}
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={handleConfirmPasswordChange}
+              onBlur={handleConfirmPasswordBlur}
               placeholder="Confirm your password"
               secureTextEntry
             />
+            {errors.confirmPassword ? <Text style={styles.errorText}>{errors.confirmPassword}</Text> : null}
           </View>
 
           <TouchableOpacity
@@ -234,17 +322,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: theme.spacing.xl,
+    paddingTop: theme.spacing['3xl'],
   },
   formContainer: {
     backgroundColor: theme.colors.surface.primary,
-    padding: theme.spacing['3xl'],
+    paddingHorizontal: theme.spacing['3xl'],
+    paddingBottom: theme.spacing['3xl'],
+    paddingTop: theme.spacing['4xl'],
     borderRadius: theme.borderRadius.xl,
     ...theme.shadows.md,
+    overflow: 'visible',
   },
   title: {
     ...theme.typography.styles.h1,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
+    includeFontPadding: false,
+    lineHeight: undefined,
   },
   subtitle: {
     fontSize: theme.typography.fontSize.base,
@@ -264,6 +358,16 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   input: {
     ...theme.components.input.default,
     padding: theme.spacing.lg,
+  },
+  inputError: {
+    borderColor: theme.colors.error.main,
+    borderWidth: 1,
+  },
+  errorText: {
+    color: theme.colors.error.main,
+    fontSize: theme.typography.fontSize.sm,
+    marginTop: theme.spacing.xs,
+    marginLeft: theme.spacing.xs,
   },
   button: {
     backgroundColor: theme.colors.primary[500],

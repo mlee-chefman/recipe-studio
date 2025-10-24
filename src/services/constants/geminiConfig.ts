@@ -1,7 +1,7 @@
 // Gemini API configuration for recipe parsing
 export const GEMINI_RECIPE_CONFIG = {
   // API endpoint
-  API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
+  API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
 
   // Text chunking settings
   TEXT_CHUNK_SIZE: 6000,

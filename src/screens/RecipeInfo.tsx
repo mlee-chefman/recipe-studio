@@ -1,21 +1,14 @@
 import React, { useLayoutEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
-import {
-  ServingsPickerModal,
-  CookTimePickerModal,
-  CategoryPickerModal,
-  TagsPickerModal,
-  DifficultyPickerModal,
-} from '@components/modals';
-import { RecipeInfoRow } from '@components/RecipeInfoRow';
 import { useRecipeInfoForm } from '@hooks/useRecipeInfoForm';
-import { formatCookTime } from '@utils/helpers/recipeHelpers';
+import { DropdownSelector } from '@components/DropdownSelector';
+import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
 
 type RecipeInfoRouteProp = RouteProp<{
   RecipeInfo: {
@@ -71,11 +64,7 @@ export default function RecipeInfoScreen() {
     tags: initialTags,
   });
 
-  const [showCookTimePicker, setShowCookTimePicker] = React.useState(false);
-  const [showServingsPicker, setShowServingsPicker] = React.useState(false);
-  const [showCategoryPicker, setShowCategoryPicker] = React.useState(false);
-  const [showDifficultyPicker, setShowDifficultyPicker] = React.useState(false);
-  const [showTagsPicker, setShowTagsPicker] = React.useState(false);
+  const [customTagInput, setCustomTagInput] = React.useState('');
 
   const handleSave = () => {
     onUpdate(formData);
@@ -115,29 +104,58 @@ export default function RecipeInfoScreen() {
     });
   }, [navigation, formData]);
 
-  // Render tags value for RecipeInfoRow
-  const renderTagsValue = () => {
-    if (formData.tags && formData.tags.length > 0) {
-      return (
-        <View className="flex-row items-center flex-wrap justify-end gap-1 flex-1" style={styles.tagsContainer}>
-          {formData.tags.slice(0, 2).map((tag, index) => (
-            <View
-              key={index}
-              className="px-2 py-1 rounded-full"
-              style={styles.tagBadge}
-            >
-              <Text style={styles.tagText}>
-                {tag}
-              </Text>
-            </View>
-          ))}
-          {formData.tags.length > 2 && (
-            <Text className="text-sm" style={{ color: theme.colors.text.secondary }}>+{formData.tags.length - 2}</Text>
-          )}
-        </View>
-      );
+  // Generate dropdown options
+  const categoryOptions = [
+    { label: 'Uncategorized', value: '' },
+    ...RECIPE_OPTIONS.CATEGORIES.map(cat => ({ label: cat, value: cat }))
+  ];
+
+  const difficultyOptions = [
+    { label: 'Easy', value: 'Easy' },
+    { label: 'Medium', value: 'Medium' },
+    { label: 'Hard', value: 'Hard' },
+  ];
+
+  const servingsOptions = Array.from({ length: RECIPE_OPTIONS.MAX_SERVINGS }, (_, i) => i + 1).map((num) => ({
+    label: `${num} serving${num > 1 ? 's' : ''}`,
+    value: num
+  }));
+
+  // Validation handlers
+  const handleHoursChange = (text: string) => {
+    const value = text.replace(/[^0-9]/g, ''); // Only allow numbers
+    const numValue = parseInt(value || '0');
+    if (numValue <= 99) {
+      setCookTimeHours(numValue);
     }
-    return <Text className="text-base" style={{ color: theme.colors.text.disabled }}>None</Text>;
+  };
+
+  const handleMinutesChange = (text: string) => {
+    const value = text.replace(/[^0-9]/g, ''); // Only allow numbers
+    const numValue = parseInt(value || '0');
+    if (numValue <= 59) {
+      setCookTimeMinutes(numValue);
+    }
+  };
+
+  const incrementServings = () => {
+    if (formData.servings < RECIPE_OPTIONS.MAX_SERVINGS) {
+      setServings(formData.servings + 1);
+    }
+  };
+
+  const decrementServings = () => {
+    if (formData.servings > 1) {
+      setServings(formData.servings - 1);
+    }
+  };
+
+  const handleAddCustomTag = () => {
+    const tag = customTagInput.trim();
+    if (tag && !formData.tags.includes(tag)) {
+      addCustomTag(tag);
+      setCustomTagInput('');
+    }
   };
 
   return (
@@ -147,87 +165,157 @@ export default function RecipeInfoScreen() {
       showsVerticalScrollIndicator={false}
     >
       {/* Cook Time */}
-      <RecipeInfoRow
-        label="Cook Time"
-        value={formatCookTime(formData.cookTimeHours, formData.cookTimeMinutes)}
-        onPress={() => setShowCookTimePicker(true)}
-        testID="cook-time-row"
-      />
+      <View style={styles.section}>
+        <View style={styles.cookTimeRow}>
+          <Text style={styles.cookTimeTitle}>Cook Time</Text>
+          <View style={styles.timeInputRow}>
+            <View style={styles.timeInputContainer}>
+              <Text style={styles.timeLabel}>Hours</Text>
+              <View style={styles.timeInputWrapper}>
+                <TextInput
+                  style={styles.timeInput}
+                  value={formData.cookTimeHours.toString()}
+                  onChangeText={handleHoursChange}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="--"
+                  placeholderTextColor={theme.colors.gray[400]}
+                />
+              </View>
+            </View>
+            <View style={styles.timeInputContainer}>
+              <Text style={styles.timeLabel}>Minutes</Text>
+              <View style={styles.timeInputWrapper}>
+                <TextInput
+                  style={styles.timeInput}
+                  value={formData.cookTimeMinutes.toString()}
+                  onChangeText={handleMinutesChange}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="--"
+                  placeholderTextColor={theme.colors.gray[400]}
+                />
+              </View>
+            </View>
+          </View>
+        </View>
+      </View>
 
       {/* Servings */}
-      <RecipeInfoRow
-        label="Servings"
-        value={String(formData.servings)}
-        onPress={() => setShowServingsPicker(true)}
-        testID="servings-row"
-      />
+      <View style={styles.section}>
+        <View style={styles.servingsRow}>
+          <Text style={styles.sectionTitle}>Servings</Text>
+          <View style={styles.servingsContainer}>
+            <TouchableOpacity
+              style={[styles.servingsButton, formData.servings <= 1 && styles.servingsButtonDisabled]}
+              onPress={decrementServings}
+              disabled={formData.servings <= 1}
+            >
+              <Feather name="minus" size={20} color={formData.servings <= 1 ? theme.colors.text.disabled : theme.colors.primary[500]} />
+            </TouchableOpacity>
+            <Text style={styles.servingsText}>{formData.servings}</Text>
+            <TouchableOpacity
+              style={[styles.servingsButton, formData.servings >= RECIPE_OPTIONS.MAX_SERVINGS && styles.servingsButtonDisabled]}
+              onPress={incrementServings}
+              disabled={formData.servings >= RECIPE_OPTIONS.MAX_SERVINGS}
+            >
+              <Feather name="plus" size={20} color={formData.servings >= RECIPE_OPTIONS.MAX_SERVINGS ? theme.colors.text.disabled : theme.colors.primary[500]} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
 
       {/* Category */}
-      <RecipeInfoRow
-        label="Category"
-        value={formData.category || 'Uncategorized'}
-        onPress={() => setShowCategoryPicker(true)}
-        testID="category-row"
-      />
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Category</Text>
+        <DropdownSelector
+          options={categoryOptions}
+          selectedValue={formData.category}
+          onSelect={(value) => setCategory(value as string)}
+          placeholder="Select a category"
+        />
+      </View>
 
       {/* Difficulty */}
-      <RecipeInfoRow
-        label="Difficulty"
-        value={formData.difficulty}
-        onPress={() => setShowDifficultyPicker(true)}
-        testID="difficulty-row"
-      />
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Difficulty</Text>
+        <DropdownSelector
+          options={difficultyOptions}
+          selectedValue={formData.difficulty}
+          onSelect={(value) => setDifficulty(value as 'Easy' | 'Medium' | 'Hard')}
+          placeholder="Select difficulty"
+        />
+      </View>
 
       {/* Tags */}
-      <RecipeInfoRow
-        label="Tags"
-        value={renderTagsValue()}
-        onPress={() => setShowTagsPicker(true)}
-        testID="tags-row"
-      />
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Tags</Text>
 
-      {/* Cook Time Picker Modal */}
-      <CookTimePickerModal
-        visible={showCookTimePicker}
-        hours={formData.cookTimeHours}
-        minutes={formData.cookTimeMinutes}
-        onHoursChange={setCookTimeHours}
-        onMinutesChange={setCookTimeMinutes}
-        onClose={() => setShowCookTimePicker(false)}
-      />
+        {/* Common Tags */}
+        <Text style={styles.subsectionTitle}>Common Tags</Text>
+        <View style={styles.tagsGrid}>
+          {RECIPE_OPTIONS.COMMON_TAGS.map((tag) => {
+            const isSelected = formData.tags.includes(tag);
+            return (
+              <TouchableOpacity
+                key={tag}
+                onPress={() => toggleTag(tag)}
+                style={[
+                  styles.tagButton,
+                  isSelected && styles.tagButtonSelected,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.tagButtonText,
+                    isSelected && styles.tagButtonTextSelected,
+                  ]}
+                >
+                  {tag}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-      {/* Servings Picker Modal */}
-      <ServingsPickerModal
-        visible={showServingsPicker}
-        selectedValue={formData.servings}
-        onValueChange={setServings}
-        onClose={() => setShowServingsPicker(false)}
-      />
+        {/* Custom Tag Input */}
+        <Text style={[styles.subsectionTitle, { marginTop: theme.spacing.lg }]}>Add Custom Tag</Text>
+        <View style={styles.customTagRow}>
+          <TextInput
+            style={styles.customTagInput}
+            placeholder="Type tag name and press enter"
+            placeholderTextColor={theme.colors.text.disabled}
+            value={customTagInput}
+            onChangeText={setCustomTagInput}
+            onSubmitEditing={handleAddCustomTag}
+            returnKeyType="done"
+          />
+          <TouchableOpacity
+            style={[styles.addTagButton, !customTagInput.trim() && styles.addTagButtonDisabled]}
+            onPress={handleAddCustomTag}
+            disabled={!customTagInput.trim()}
+          >
+            <Feather name="plus" size={20} color={customTagInput.trim() ? theme.colors.primary[500] : theme.colors.text.disabled} />
+          </TouchableOpacity>
+        </View>
 
-      {/* Category Picker Modal */}
-      <CategoryPickerModal
-        visible={showCategoryPicker}
-        selectedValue={formData.category}
-        onValueChange={setCategory}
-        onClose={() => setShowCategoryPicker(false)}
-      />
-
-      {/* Difficulty Picker Modal */}
-      <DifficultyPickerModal
-        visible={showDifficultyPicker}
-        selectedValue={formData.difficulty}
-        onValueChange={setDifficulty}
-        onClose={() => setShowDifficultyPicker(false)}
-      />
-
-      {/* Tags Picker Modal */}
-      <TagsPickerModal
-        visible={showTagsPicker}
-        selectedTags={formData.tags || []}
-        onToggleTag={toggleTag}
-        onAddCustomTag={addCustomTag}
-        onClose={() => setShowTagsPicker(false)}
-      />
+        {/* Selected Tags Display */}
+        {formData.tags && formData.tags.length > 0 && (
+          <View style={{ marginTop: theme.spacing.md }}>
+            <Text style={styles.subsectionTitle}>Selected Tags ({formData.tags.length})</Text>
+            <View style={styles.selectedTagsContainer}>
+              {formData.tags.map((tag, index) => (
+                <View key={index} style={styles.selectedTagBadge}>
+                  <Text style={styles.selectedTagText}>{tag}</Text>
+                  <TouchableOpacity onPress={() => toggleTag(tag)} style={styles.removeTagButton}>
+                    <Feather name="x" size={14} color={theme.colors.primary[700]} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </View>
     </KeyboardAwareScrollView>
   );
 }
@@ -240,6 +328,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   content: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.lg,
+    paddingBottom: 100, // Extra padding for scroll
   },
   headerButton: {
     paddingLeft: theme.spacing.lg,
@@ -255,14 +344,171 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: theme.typography.fontSize.base,
     fontWeight: theme.typography.fontWeight.semibold as any,
   },
-  tagsContainer: {
-    maxWidth: '70%',
+  section: {
+    marginBottom: theme.spacing.xl,
   },
-  tagBadge: {
+  sectionTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
+  },
+  cookTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  cookTimeTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+    marginBottom: 0,
+  },
+  timeInputRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+  },
+  timeInputContainer: {
+    alignItems: 'center',
+  },
+  timeLabel: {
+    fontSize: theme.typography.fontSize.xs,
+    fontWeight: theme.typography.fontWeight.medium as any,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.xs,
+    marginLeft: theme.spacing.sm,
+  },
+  timeInputWrapper: {
+    borderWidth: 2,
+    borderColor: theme.colors.primary[500],
+    backgroundColor: theme.colors.background.secondary,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    width: 60,
+  },
+  timeInput: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: theme.colors.text.primary,
+    textAlign: 'center',
+    padding: 0,
+    width: '100%',
+  },
+  servingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  servingsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: theme.spacing.md,
+  },
+  servingsButton: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.lg,
     backgroundColor: theme.colors.primary[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary[300],
   },
-  tagText: {
+  servingsButtonDisabled: {
+    backgroundColor: theme.colors.gray[100],
+    borderColor: theme.colors.gray[300],
+  },
+  servingsText: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.semibold as any,
+    color: theme.colors.text.primary,
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  subsectionTitle: {
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium as any,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.sm,
+  },
+  tagsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+    marginBottom: theme.spacing.sm,
+  },
+  tagButton: {
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.gray[100],
+    borderWidth: 1,
+    borderColor: theme.colors.gray[300],
+  },
+  tagButtonSelected: {
+    backgroundColor: theme.colors.primary[500],
+    borderColor: theme.colors.primary[500],
+  },
+  tagButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.primary,
+  },
+  tagButtonTextSelected: {
+    color: 'white',
+    fontWeight: theme.typography.fontWeight.semibold as any,
+  },
+  customTagRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.sm,
+    alignItems: 'center',
+  },
+  customTagInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: theme.colors.border.main,
+    borderRadius: theme.borderRadius.lg,
+    paddingVertical: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text.primary,
+    backgroundColor: theme.colors.surface.primary,
+  },
+  addTagButton: {
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.full,
+    backgroundColor: theme.colors.primary[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: theme.colors.primary[300],
+  },
+  addTagButtonDisabled: {
+    backgroundColor: theme.colors.gray[100],
+    borderColor: theme.colors.gray[300],
+  },
+  selectedTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  selectedTagBadge: {
+    backgroundColor: theme.colors.primary[100],
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectedTagText: {
     color: theme.colors.primary[700],
-    fontSize: 12,
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.medium as any,
+  },
+  removeTagButton: {
+    padding: 2,
   },
 });

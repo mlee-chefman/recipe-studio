@@ -34,6 +34,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   const [isStepsReorderMode, setIsStepsReorderMode] = useState(false);
   const [isDraggingCookingAction, setIsDraggingCookingAction] = useState(false);
   const [draggingCookingAction, setDraggingCookingAction] = useState<{ action: any; fromStepIndex: number } | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Helper functions for state updates
   const updateFormData = (updates: Partial<RecipeFormState>) => {
@@ -268,25 +269,20 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       status: published ? 'Published' as const : 'Draft' as const,
     };
 
+    // Show saving overlay
+    setIsSaving(true);
+
     try {
       if (editingRecipe) {
         await updateRecipe(editingRecipe.id, recipe, user.uid);
-        const publishStatus = formData.published ? 'published' : 'saved as draft';
-        Alert.alert('Success', `Recipe updated and ${publishStatus}!`, [
-          { text: 'OK', onPress: onComplete }
-        ]);
       } else {
         await addRecipe(recipe, user.uid);
-        const publishStatus = formData.published ? 'created and published' : 'created as draft';
-        Alert.alert('Success', `Recipe ${publishStatus}!`, [
-          {
-            text: 'OK',
-            onPress: onComplete
-          }
-        ]);
       }
+      setIsSaving(false);
+      onComplete?.();
     } catch (error) {
       console.error('Error saving recipe:', error);
+      setIsSaving(false);
       const action = editingRecipe ? 'updating' : 'creating';
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Alert.alert(
@@ -357,6 +353,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
     confirmCancel,
     handleDelete,
     isEditing: !!editingRecipe,
+    isSaving,
     reorderIngredients,
     reorderSteps,
     moveCookingAction,

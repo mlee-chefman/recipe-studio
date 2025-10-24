@@ -3,11 +3,13 @@ import { Alert } from 'react-native';
 import { generateRecipeFromDescription } from '@services/gemini.service';
 import { checkUsageLimit, recordGeneration, getRemainingGenerations } from '@utils/aiUsageTracker';
 import { ScrapedRecipe } from '@utils/recipeScraper';
+import { useAutoImageGeneration } from './useAutoImageGeneration';
 
 export interface AIGenerationResult {
   success: boolean;
   recipe?: ScrapedRecipe;
   error?: string;
+  imageUrl?: string; // Added to return generated image URL
 }
 
 export interface RemainingGenerations {
@@ -21,23 +23,45 @@ export interface UseAIRecipeGeneratorOptions {
   /**
    * Callback when a recipe is successfully generated
    */
-  onRecipeGenerated?: (recipe: ScrapedRecipe) => void;
+  onRecipeGenerated?: (recipe: ScrapedRecipe, imageUrl?: string) => void;
   /**
    * Whether to automatically load remaining generations on mount
    */
   autoLoadGenerations?: boolean;
+  /**
+   * User ID for auto-generating cover images
+   */
+  userId?: string;
+  /**
+   * Recipe ID (or temp ID) for auto-generating cover images
+   */
+  recipeId?: string;
+  /**
+   * Whether to auto-generate cover images (default: true)
+   */
+  autoGenerateImage?: boolean;
 }
 
 export function useAIRecipeGenerator(options: UseAIRecipeGeneratorOptions = {}) {
   const {
     onRecipeGenerated,
     autoLoadGenerations = true,
+    userId,
+    recipeId,
+    autoGenerateImage = true,
   } = options;
 
   // State
   const [aiDescription, setAiDescription] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [remainingGenerations, setRemainingGenerations] = useState<RemainingGenerations | null>(null);
+
+  // Auto image generation hook
+  const {
+    isGenerating: isGeneratingImage,
+    progress: imageProgress,
+    generateImageForRecipe,
+  } = useAutoImageGeneration();
 
   /**
    * Load remaining AI generations from usage tracker
@@ -86,18 +110,47 @@ export function useAIRecipeGenerator(options: UseAIRecipeGeneratorOptions = {}) 
       // Update remaining generations display
       await loadRemainingGenerations();
 
+      // Auto-generate cover image if enabled
+      let generatedImageUrl: string | undefined;
+      if (autoGenerateImage && userId && recipeId) {
+        console.log('Auto-generating cover image for AI-generated recipe...');
+
+        const imageResult = await generateImageForRecipe({
+          userId,
+          recipeId,
+          recipeData: {
+            title: generatedRecipe.title,
+            description: generatedRecipe.description,
+            ingredients: generatedRecipe.ingredients,
+            category: generatedRecipe.category,
+            tags: generatedRecipe.tags,
+          },
+          silent: true,
+        });
+
+        if (imageResult.success && imageResult.imageUrl) {
+          generatedImageUrl = imageResult.imageUrl;
+          console.log('Cover image auto-generated:', generatedImageUrl);
+        } else if (!imageResult.skipped) {
+          console.warn('Cover image generation failed:', imageResult.error);
+        }
+      }
+
       // Clear description after successful generation
       setAiDescription('');
 
       // Call the callback if provided
       if (onRecipeGenerated) {
-        onRecipeGenerated(generatedRecipe);
+        onRecipeGenerated(generatedRecipe, generatedImageUrl);
       }
 
-      Alert.alert('Success', 'Recipe generated! Review and edit as needed.');
+      const successMessage = generatedImageUrl
+        ? 'Recipe and cover photo generated! Review and edit as needed.'
+        : 'Recipe generated! Review and edit as needed.';
+      Alert.alert('Success', successMessage);
 
       setIsGenerating(false);
-      return { success: true, recipe: generatedRecipe };
+      return { success: true, recipe: generatedRecipe, imageUrl: generatedImageUrl };
     } catch (error) {
       console.error('Recipe generation error:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
@@ -124,8 +177,9 @@ export function useAIRecipeGenerator(options: UseAIRecipeGeneratorOptions = {}) 
   return {
     // State
     aiDescription,
-    isGenerating,
+    isGenerating: isGenerating || isGeneratingImage,
     remainingGenerations,
+    imageProgress, // Expose image generation progress
 
     // Setters
     setAiDescription,

@@ -21,7 +21,7 @@ export const PDF_EXTRACTION_CONFIG = {
 
 // API configuration
 export const GEMINI_API_CONFIG = {
-  API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent',
+  API_URL: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
 } as const;
 
 // Extraction prompts

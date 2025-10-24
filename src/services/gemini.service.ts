@@ -1,4 +1,5 @@
 import axios from 'axios';
+import * as FileSystem from 'expo-file-system';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { analyzeRecipeForChefIQ } from '@utils/recipeAnalyzer';
 import { Step } from '~/types/recipe';
@@ -12,7 +13,7 @@ import {
 } from './constants/recipePrompts';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
 // Rate limiting configuration
 // Free tier (15 RPM): Use 5000ms (5 seconds) to stay under limit
@@ -176,6 +177,211 @@ export async function generateRecipeFromDescription(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',
     };
+  }
+}
+
+/**
+ * Extracts recipe directly from an image using Gemini's multimodal vision capabilities
+ * This is more cost-effective and accurate than OCR + text parsing
+ * @param imageUri - Local file URI or remote URL of the recipe image
+ * @returns ParsedRecipeResult with structured recipe data
+ */
+export async function parseRecipeFromImage(
+  imageUri: string
+): Promise<ParsedRecipeResult> {
+  try {
+    if (!GEMINI_API_KEY) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
+      };
+    }
+
+    if (!imageUri || imageUri.trim().length === 0) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'No image provided.',
+      };
+    }
+
+    // Convert image to base64
+    const base64Image = await getBase64FromUri(imageUri);
+
+    if (!base64Image) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'Failed to read image file',
+      };
+    }
+
+    // Prepare the prompt for Gemini multimodal
+    const prompt = `You are a recipe extraction expert. Analyze this image and extract the recipe information.
+
+Extract and structure ALL recipe information you can see in the image into the following JSON format:
+
+{
+  "title": "Recipe name",
+  "description": "Brief description or notes",
+  "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity", ...],
+  "steps": ["step 1 instruction", "step 2 instruction", ...],
+  "prepTime": 15,
+  "cookTime": 30,
+  "servings": 4,
+  "category": "Main Course/Appetizer/Dessert/etc",
+  "tags": ["tag1", "tag2", ...]
+}
+
+IMPORTANT:
+- Extract ALL ingredients with their exact quantities and units
+- Extract ALL cooking steps in order
+- If times or servings aren't visible, estimate reasonable defaults
+- If you can't read something clearly, do your best to interpret it
+- Return ONLY valid JSON, no additional text or markdown
+`;
+
+    // Call Gemini API with image
+    const response = await axios.post(
+      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+              {
+                inline_data: {
+                  mime_type: 'image/jpeg',
+                  data: base64Image,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2, // Low temperature for accurate extraction
+          maxOutputTokens: 2048,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      }
+    );
+
+    const data: GeminiResponse = response.data;
+
+    // Check for API errors
+    if (data.error) {
+      return {
+        recipe: null,
+        success: false,
+        error: `Gemini API error: ${data.error.message}`,
+      };
+    }
+
+    // Extract the generated text
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!generatedText) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'No response from Gemini API',
+      };
+    }
+
+    // Parse the JSON response from Gemini
+    const recipe = await parseGeminiResponse(generatedText, imageUri);
+
+    if (!recipe) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'Failed to parse recipe from Gemini response',
+      };
+    }
+
+    return {
+      recipe,
+      success: true,
+    };
+  } catch (error) {
+    console.error('Gemini multimodal vision error:', error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const message = error.response?.data?.error?.message || error.message;
+
+      if (status === 429) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'API rate limit exceeded. Please try again in a moment.',
+        };
+      }
+
+      if (status === 403) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'API key is invalid or restricted. Please check your Gemini API key configuration.',
+        };
+      }
+
+      return {
+        recipe: null,
+        success: false,
+        error: `API error: ${message}`,
+      };
+    }
+
+    return {
+      recipe: null,
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
+}
+
+/**
+ * Converts an image URI to base64 string
+ * @param uri - Local file URI or remote URL
+ * @returns Base64 encoded image string (without data:image prefix)
+ */
+async function getBase64FromUri(uri: string): Promise<string | null> {
+  try {
+    // If it's a remote URL, fetch and convert
+    if (uri.startsWith('http://') || uri.startsWith('https://')) {
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          // Remove the data:image/xxx;base64, prefix
+          const base64Data = base64.split(',')[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // For local files, use FileSystem
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    return base64;
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    return null;
   }
 }
 

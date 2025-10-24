@@ -5,6 +5,8 @@ import { generateMultipleRecipesFromIngredients } from '~/services/gemini.servic
 import { FridgeIngredient } from '~/types/ingredient';
 import { Recipe } from '~/types/recipe';
 import { RECIPES_PER_GENERATION } from '@constants/myFridgeConstants';
+import { useAutoImageGeneration } from './useAutoImageGeneration';
+import * as Crypto from 'expo-crypto';
 
 interface RecipeGenerationOptions {
   dietary?: string;
@@ -26,13 +28,21 @@ interface ExtendedScrapedRecipe extends ScrapedRecipe {
  */
 export const useRecipeGeneration = (
   allRecipes: Recipe[],
-  userRecipes: Recipe[]
+  userRecipes: Recipe[],
+  userId?: string
 ) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [currentRecipe, setCurrentRecipe] = useState<ExtendedScrapedRecipe | null>(null);
   const [matchedExistingRecipes, setMatchedExistingRecipes] = useState<MatchedRecipe[]>([]);
   const [showResultsModal, setShowResultsModal] = useState(false);
+
+  // Auto image generation hook
+  const {
+    isGenerating: isGeneratingImage,
+    progress: imageProgress,
+    generateImageForRecipe,
+  } = useAutoImageGeneration();
 
   const generateRecipes = useCallback(
     async (ingredients: FridgeIngredient[], options: RecipeGenerationOptions) => {
@@ -60,7 +70,37 @@ export const useRecipeGeneration = (
 
         if (aiResult.success && aiResult.recipes && aiResult.recipes.length > 0) {
           console.log(`Generated ${RECIPES_PER_GENERATION} AI recipe${RECIPES_PER_GENERATION > 1 ? 's' : ''}`);
-          setCurrentRecipe(aiResult.recipes[0]);
+
+          const firstRecipe = aiResult.recipes[0];
+
+          // Auto-generate cover image for the first recipe
+          if (userId) {
+            console.log('Auto-generating cover image for My Fridge recipe...');
+            const tempRecipeId = Crypto.randomUUID();
+
+            const imageResult = await generateImageForRecipe({
+              userId,
+              recipeId: tempRecipeId,
+              recipeData: {
+                title: firstRecipe.title,
+                description: firstRecipe.description,
+                ingredients: firstRecipe.ingredients,
+                category: firstRecipe.category,
+                tags: firstRecipe.tags,
+              },
+              silent: true,
+            });
+
+            if (imageResult.success && imageResult.imageUrl) {
+              // Add the generated image URL to the recipe
+              firstRecipe.image = imageResult.imageUrl;
+              console.log('Cover image auto-generated for My Fridge recipe:', imageResult.imageUrl);
+            } else if (!imageResult.skipped) {
+              console.warn('Cover image generation failed:', imageResult.error);
+            }
+          }
+
+          setCurrentRecipe(firstRecipe);
         } else {
           setGenerationError(aiResult.error || 'Failed to generate recipe');
           setCurrentRecipe(null);
@@ -86,7 +126,7 @@ export const useRecipeGeneration = (
         setIsGenerating(false);
       }
     },
-    [allRecipes, userRecipes]
+    [allRecipes, userRecipes, userId, generateImageForRecipe]
   );
 
   const clearCurrentRecipe = useCallback(() => {
@@ -94,7 +134,7 @@ export const useRecipeGeneration = (
   }, []);
 
   return {
-    isGenerating,
+    isGenerating: isGenerating || isGeneratingImage,
     generationError,
     currentRecipe,
     matchedExistingRecipes,
@@ -102,5 +142,6 @@ export const useRecipeGeneration = (
     setShowResultsModal,
     generateRecipes,
     clearCurrentRecipe,
+    imageProgress, // Expose image generation progress
   };
 };

@@ -5,10 +5,11 @@ This document provides cost estimates for the AI recipe generation feature using
 
 ## API Pricing (as of 2025)
 
-### Google Gemini 2.0 Flash Experimental
-- **Input tokens**: $0.10 per 1M tokens (~750K words)
-- **Output tokens**: $0.30 per 1M tokens (~750K words)
+### Google Gemini 2.5 Flash-Lite
+- **Input tokens**: $0.075 per 1M tokens (~750K words)
+- **Output tokens**: $0.030 per 1M tokens (~750K words)
 - **Free tier**: 2M input tokens + 0.5M output tokens per day (as of Jan 2025)
+- **Note**: 2.5 Flash-Lite is ~90% cheaper for output tokens compared to 2.0 Flash
 
 ### Typical Recipe Generation Request
 
@@ -23,10 +24,11 @@ This document provides cost estimates for the AI recipe generation feature using
 
 ### Cost Per Recipe Generation
 ```
-Input cost:  350 tokens × $0.10 / 1M = $0.000035
-Output cost: 600 tokens × $0.30 / 1M = $0.000180
+Input cost:  350 tokens × $0.075 / 1M = $0.000026
+Output cost: 600 tokens × $0.030 / 1M = $0.000018
 ───────────────────────────────────────────────
-Total cost per recipe: ~$0.000215 (0.02 cents)
+Total cost per recipe: ~$0.000044 (0.004 cents)
+~80% cost reduction vs. Gemini 2.0 Flash
 ```
 
 ## Scaling Cost Projections
@@ -35,16 +37,16 @@ Total cost per recipe: ~$0.000215 (0.02 cents)
 
 | Users | Generations/User/Month | Total Generations | Monthly Cost | Notes |
 |-------|------------------------|-------------------|--------------|-------|
-| 100 | 5 | 500 | $0.11 | Early stage |
-| 1,000 | 5 | 5,000 | $1.08 | Small scale |
-| 10,000 | 5 | 50,000 | $10.75 | Medium scale |
-| 100,000 | 5 | 500,000 | $107.50 | Large scale |
-| 1,000,000 | 3 | 3,000,000 | $645.00 | Enterprise scale |
+| 100 | 5 | 500 | $0.02 | Early stage |
+| 1,000 | 5 | 5,000 | $0.22 | Small scale |
+| 10,000 | 5 | 50,000 | $2.20 | Medium scale |
+| 100,000 | 5 | 500,000 | $22.00 | Large scale |
+| 1,000,000 | 3 | 3,000,000 | $132.00 | Enterprise scale |
 
 ### Key Insights
-1. **Very affordable at small-medium scale** - Under $11/month for 10K users
+1. **Extremely affordable at all scales** - Under $2.20/month for 10K users (80% cheaper than 2.0 Flash)
 2. **Scales linearly** - No volume discounts currently, but cost is predictable
-3. **Free tier covers ~9,300 recipe generations per day** for development/testing
+3. **Free tier covers ~45,000+ recipe generations per day** for development/testing
 
 ## Cost Optimization Strategies
 
@@ -72,8 +74,8 @@ const USAGE_LIMITS = {
 
 #### Implementation Cost Impact
 With 10,000 users:
-- **Without limits**: 5 gens/user/month = $10.75/month
-- **With limits (3/day)**: Average 2-3 gens/user/month = $4.30-$6.45/month
+- **Without limits**: 5 gens/user/month = $2.20/month
+- **With limits (3/day)**: Average 2-3 gens/user/month = $0.88-$1.32/month
 - **Savings**: ~40-60% cost reduction
 
 ### 2. Caching Strategy
@@ -198,35 +200,35 @@ const COST_ALERTS = {
 ### Premium Features
 - **Free Tier**: 3 generations/day, 20/month
 - **Premium Tier** ($2.99/month): 10 generations/day, 100/month
-- **Cost per premium user**: ~$0.65/month (78% profit margin)
+- **Cost per premium user**: ~$0.13/month (95% profit margin with 2.5 Flash-Lite)
 
 ### ROI Analysis
 If 5% of users convert to premium:
 - 10,000 total users
 - 500 premium users × $2.99 = $1,495/month revenue
-- Total cost (premium users): ~$32/month
-- **Net profit**: ~$1,463/month
+- Total cost (premium users): ~$6.50/month
+- **Net profit**: ~$1,488/month (99.5% profit margin)
 
 ## Recommendations
 
 ### Phase 1: Launch (Free, Limited)
 - **Limits**: 3 generations/day, 20/month per user
 - **Caching**: Enabled for common queries
-- **Cost**: $5-20/month for first 1,000-5,000 users
+- **Cost**: $0.50-$4/month for first 1,000-5,000 users (80% cheaper with 2.5 Flash-Lite)
 - **Goal**: Validate feature usage and demand
 
 ### Phase 2: Scale (Freemium)
 - **Free Tier**: 3/day, 20/month
 - **Premium Tier**: $2.99/month for 10/day, 100/month
 - **Advanced caching**: Recipe templates for common categories
-- **Cost**: $50-100/month for 10K-50K users
+- **Cost**: $10-20/month for 10K-50K users (80% reduction)
 - **Revenue**: $1,000-5,000/month from premium
 
 ### Phase 3: Optimize (Enterprise)
 - **Prompt optimization**: -20% token usage
 - **Smart caching**: -40% API calls
 - **Bulk API pricing**: Negotiate with Google for volume discounts
-- **Cost**: $300-500/month for 100K-500K users
+- **Cost**: $60-100/month for 100K-500K users (80% reduction)
 - **Revenue**: $15,000-50,000/month
 
 ## Alternative Models
@@ -251,11 +253,11 @@ If 5% of users convert to premium:
 ## Conclusion
 
 ### Key Takeaways
-1. ✅ **Very affordable** - Even at scale, costs are manageable
+1. ✅ **Extremely affordable** - 80% cheaper than 2.0 Flash, costs nearly negligible
 2. ✅ **Simple rate limits** (3/day) reduce costs by 40-60%
 3. ✅ **Caching** provides significant savings for common recipes
-4. ✅ **Monetization potential** - 78% profit margin on premium tier
-5. ✅ **Free tier sustainable** - Can support thousands of users
+4. ✅ **Monetization potential** - 95%+ profit margin on premium tier
+5. ✅ **Free tier sustainable** - Can easily support tens of thousands of users
 
 ### Implementation Priority
 1. **High Priority**: Usage limits (3/day, 20/month)
@@ -265,8 +267,8 @@ If 5% of users convert to premium:
 5. **Low Priority**: Premium tier (validate demand first)
 
 ### Estimated Launch Cost
-- **100-1,000 users**: $1-5/month
-- **1,000-10,000 users**: $5-50/month
+- **100-1,000 users**: $0.10-$1/month
+- **1,000-10,000 users**: $1-$10/month
 - **Risk**: Minimal - Can always add tighter limits if needed
 
 This feature is **highly cost-effective** and should be implemented with basic usage limits to prevent abuse while providing excellent value to users.

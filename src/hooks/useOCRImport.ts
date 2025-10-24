@@ -1,18 +1,20 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
-import { recognizeText } from '@services/googleVision.service';
-import { parseRecipeWithGemini } from '@services/gemini.service';
+import { parseRecipeFromImage } from '@services/gemini.service';
+import { useAICoverGeneration } from './useAICoverGeneration';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { parseRecipeFromText } from '@utils/helpers/recipeParser';
 
+export interface UseOCRImportOptions {
+  generateAICover?: boolean; // Whether to generate AI cover image instead of using scanned photo
+}
+
 export interface UseOCRImportResult {
   imageUri: string | null;
-  extractedText: string;
   parsedRecipe: ScrapedRecipe | null;
   isProcessing: boolean;
   processingStep: string;
-  processImage: (uri: string) => Promise<void>;
-  setExtractedText: (text: string) => void;
+  processImage: (uri: string, options?: UseOCRImportOptions) => Promise<ScrapedRecipe | null>;
   reset: () => void;
 }
 
@@ -22,70 +24,75 @@ export interface UseOCRImportResult {
  */
 export function useOCRImport(): UseOCRImportResult {
   const [imageUri, setImageUri] = useState<string | null>(null);
-  const [extractedText, setExtractedText] = useState<string>('');
   const [parsedRecipe, setParsedRecipe] = useState<ScrapedRecipe | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
 
+  const { generateAndUploadCover } = useAICoverGeneration();
+
   /**
-   * Process an image: extract text with OCR and parse recipe with AI
+   * Process an image: extract recipe directly with Gemini multimodal vision
+   * Optionally generates AI cover image instead of using scanned photo
+   * Falls back to local parser if Gemini fails
+   * Returns the parsed recipe for auto-navigation
    */
-  const processImage = async (uri: string) => {
+  const processImage = async (uri: string, options: UseOCRImportOptions = {}): Promise<ScrapedRecipe | null> => {
+    const { generateAICover = false } = options;
+
     setIsProcessing(true);
-    setProcessingStep('Extracting text from image...');
+    setProcessingStep('Analyzing recipe image with AI...');
 
     try {
-      // Step 1: Extract text with OCR
-      const ocrResult = await recognizeText(uri);
-
-      if (!ocrResult.success) {
-        Alert.alert(
-          'Text Recognition Failed',
-          ocrResult.error || 'Could not extract text from the image. Please try again.'
-        );
-        setImageUri(null);
-        return;
-      }
-
-      const text = ocrResult.text;
-
-      if (!text || text.trim().length === 0) {
-        Alert.alert(
-          'No Text Found',
-          'Could not detect any text in the image. Please try with a clearer image.'
-        );
-        setImageUri(null);
-        return;
-      }
-
-      setExtractedText(text);
       setImageUri(uri);
 
-      // Step 2: Parse recipe with Gemini AI
-      setProcessingStep('Organizing recipe with AI...');
-      const parseResult = await parseRecipeWithGemini(text, uri);
+      // Step 1: Try Gemini multimodal vision (direct image → recipe)
+      const parseResult = await parseRecipeFromImage(uri);
 
-      if (!parseResult.success) {
-        // If Gemini parsing fails, use fallback parser
-        console.warn('Gemini parsing failed:', parseResult.error);
-        console.log('Using fallback parser instead...');
+      if (parseResult.success && parseResult.recipe) {
+        const recipe = parseResult.recipe;
 
-        // Show alert only once to inform user
-        Alert.alert(
-          'AI Parsing Unavailable',
-          'Could not parse recipe with AI. Using basic parsing instead. You can edit the recipe after importing if needed.',
-          [{ text: 'OK' }]
-        );
+        // Step 2: Optionally generate AI cover image
+        if (generateAICover) {
+          setProcessingStep('Generating professional cover photo...');
 
-        // Use fallback parser
-        const fallbackRecipe = parseRecipeFromText(text, uri);
-        setParsedRecipe(fallbackRecipe);
-        return;
+          const downloadURL = await generateAndUploadCover({
+            title: recipe.title,
+            description: recipe.description,
+            ingredients: recipe.ingredients,
+            category: recipe.category,
+            tags: recipe.tags,
+          });
+
+          if (downloadURL) {
+            recipe.image = downloadURL;
+            console.log('AI cover image set successfully');
+          } else {
+            console.log('AI cover generation skipped (quota exceeded or failed), continuing without image');
+            // Continue without AI cover - quota may be exceeded
+          }
+        }
+
+        setParsedRecipe(recipe);
+        return recipe; // Return recipe for auto-navigation
       }
 
-      if (parseResult.recipe) {
-        setParsedRecipe(parseResult.recipe);
-      }
+      // Step 3: Gemini failed - use fallback local parser
+      console.warn('Gemini multimodal vision failed:', parseResult.error);
+      console.log('Using fallback local parser instead...');
+
+      setProcessingStep('Using offline recipe parser...');
+
+      // Show alert to inform user
+      Alert.alert(
+        'AI Processing Unavailable',
+        'Could not analyze recipe with AI. Using basic offline parser instead. You can edit the recipe after importing if needed.',
+        [{ text: 'OK' }]
+      );
+
+      // Use fallback regex-based parser
+      const fallbackRecipe = parseRecipeFromText('', uri); // Empty text since we don't have OCR
+      setParsedRecipe(fallbackRecipe);
+      return fallbackRecipe; // Return recipe for auto-navigation
 
     } catch (error) {
       console.error('Processing Error:', error);
@@ -94,6 +101,7 @@ export function useOCRImport(): UseOCRImportResult {
         'Could not process the image. Please try again with a different image.'
       );
       setImageUri(null);
+      return null;
     } finally {
       setIsProcessing(false);
       setProcessingStep('');
@@ -105,7 +113,6 @@ export function useOCRImport(): UseOCRImportResult {
    */
   const reset = () => {
     setImageUri(null);
-    setExtractedText('');
     setParsedRecipe(null);
     setIsProcessing(false);
     setProcessingStep('');
@@ -113,12 +120,10 @@ export function useOCRImport(): UseOCRImportResult {
 
   return {
     imageUri,
-    extractedText,
     parsedRecipe,
     isProcessing,
     processingStep,
     processImage,
-    setExtractedText,
     reset,
   };
 }

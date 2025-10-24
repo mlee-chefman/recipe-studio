@@ -22,7 +22,9 @@ import { formatCookTime } from '@utils/helpers/recipeHelpers';
 import StepImage from '@components/StepImage';
 import {
   ConfirmationModal,
+  SavingModal,
 } from '~/components/modals';
+import RecipeCoverImage from '@components/RecipeCoverImage';
 
 type RootStackParamList = {
   RecipeEdit: { recipe: Recipe; previewMode?: boolean };
@@ -61,7 +63,8 @@ export default function RecipeEditScreen() {
     draggingCookingAction,
     handleCookingActionDragStart,
     handleCookingActionDragEnd,
-    removeCookingAction
+    removeCookingAction,
+    isSaving
   } = useRecipeForm({
     editingRecipe: recipe,
     previewMode: previewMode || false,
@@ -79,24 +82,33 @@ export default function RecipeEditScreen() {
         fontWeight: theme.typography.fontWeight.semibold,
         fontSize: theme.typography.fontSize.lg,
       },
+      headerTitleAlign: 'center',
       headerLeft: () => (
         <TouchableOpacity
           onPress={handleCancel}
           style={styles.headerButton}
+          disabled={isSaving}
         >
-          <Text style={styles.cancelText}>Cancel</Text>
+          <Ionicons
+            name="arrow-back"
+            size={24}
+            color={isSaving ? theme.colors.text.disabled : theme.colors.text.primary}
+          />
         </TouchableOpacity>
       ),
       headerRight: () => (
         <TouchableOpacity
           onPress={handleSave}
           style={styles.headerButton}
+          disabled={isSaving}
         >
-          <Text style={styles.saveText}>{previewMode ? 'Apply' : 'Save'}</Text>
+          <Text style={[styles.saveText, isSaving && styles.disabledText]}>
+            {previewMode ? 'Apply' : 'Save'}
+          </Text>
         </TouchableOpacity>
       ),
     });
-  }, [navigation, handleSave, handleCancel, previewMode]);
+  }, [navigation, handleSave, handleCancel, previewMode, isSaving, theme]);
 
   // Image picker hook
   const { showImageOptions } = useImagePicker({
@@ -193,18 +205,20 @@ export default function RecipeEditScreen() {
   };
 
   return (
-    <KeyboardAwareScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-      bottomOffset={40}
-    >
+    <View style={styles.rootContainer} pointerEvents={isSaving ? 'none' : 'auto'}>
+      <KeyboardAwareScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        bottomOffset={40}
+      >
         {/* Title */}
         <View className="mb-4">
           <TextInput
             className="text-xl font-medium border-b pb-2"
             placeholder="Title"
             value={formData.title}
+            placeholderTextColor={theme.colors.text.secondary}
             onChangeText={(value) => updateFormData({ title: value })}
             style={styles.titleInput}
           />
@@ -214,46 +228,12 @@ export default function RecipeEditScreen() {
         <View className="mb-4 border-b pb-3" style={{ borderColor: theme.colors.border.main }}>
           <View className="flex-row items-center justify-between">
             <Text className="text-lg" style={{ color: theme.colors.text.primary }}>Image</Text>
-            {formData.imageUrl ? (
-              <TouchableOpacity
-                onPress={() => {
-                  Alert.alert(
-                    'Image Options',
-                    'Choose an action',
-                    [
-                      { text: 'Replace', onPress: showImageOptions },
-                      {
-                        text: 'Remove',
-                        onPress: () => updateFormData({ imageUrl: '' }),
-                        style: 'destructive'
-                      },
-                      { text: 'Cancel', style: 'cancel' }
-                    ]
-                  );
-                }}
-                className="relative"
-              >
-                <Image
-                  source={{ uri: formData.imageUrl }}
-                  style={styles.recipeImage}
-                  contentFit="cover"
-                />
-                <View
-                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full items-center justify-center"
-                  style={styles.editImageBadge}
-                >
-                  <Ionicons name="pencil" size={14} color="white" />
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={showImageOptions}
-                className="w-12 h-12 border-2 rounded-lg items-center justify-center"
-                style={styles.addImageButton}
-              >
-                <Text className="text-xl" style={styles.cameraEmoji}>📷</Text>
-              </TouchableOpacity>
-            )}
+            <RecipeCoverImage
+              imageUri={formData.imageUrl}
+              onImageChange={(uri) => updateFormData({ imageUrl: uri || '' })}
+              editable={true}
+              size="small"
+            />
           </View>
         </View>
 
@@ -363,6 +343,7 @@ export default function RecipeEditScreen() {
                     className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
                     style={{ borderColor: theme.colors.border.main }}
                     placeholder={`Ingredient ${index + 1}`}
+                    placeholderTextColor={theme.colors.text.secondary}
                     value={ingredient}
                     onChangeText={(value) => updateIngredient(index, value)}
                     onSubmitEditing={() => handleIngredientSubmit(index)}
@@ -421,6 +402,7 @@ export default function RecipeEditScreen() {
                       className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
                       style={{ borderColor: theme.colors.border.main }}
                       placeholder={`Step ${index + 1}`}
+                      placeholderTextColor={theme.colors.text.secondary}
                       value={step.text}
                       onChangeText={(value) => updateStep(index, value)}
                       onAddNewStep={() => {
@@ -507,6 +489,7 @@ export default function RecipeEditScreen() {
               key="add-new-instruction"
               className="flex-1 border border-dashed rounded-lg px-3 py-2 text-base mr-2"
               placeholder="+ Add new instruction step"
+              placeholderTextColor={theme.colors.text.secondary}
               value={newInstructionText}
               onChangeText={setNewInstructionText}
               onAddNewStep={() => {
@@ -534,6 +517,7 @@ export default function RecipeEditScreen() {
             className="border rounded-lg p-3 text-base min-h-[80px]"
             style={{ borderColor: theme.colors.border.main }}
             placeholder="Add your recipe notes"
+            placeholderTextColor={theme.colors.text.secondary}
             value={formData.notes}
             onChangeText={(value) => updateFormData({ notes: value })}
             multiline
@@ -579,11 +563,18 @@ export default function RecipeEditScreen() {
         onConfirm={confirmCancel}
         onCancel={() => updateModalStates({ showCancelConfirmation: false })}
       />
-    </KeyboardAwareScrollView>
+      </KeyboardAwareScrollView>
+
+      {/* Saving Modal */}
+      <SavingModal visible={isSaving} message="Updating recipe..." />
+    </View>
   );
 }
 
 const createStyles = (theme: Theme) => StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: theme.colors.background.primary,
@@ -604,6 +595,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.primary[500],
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.semibold,
+  },
+  disabledText: {
+    color: theme.colors.text.disabled,
   },
   titleInput: {
     fontSize: 20,
