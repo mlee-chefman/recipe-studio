@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView } from 'react-native';
 import { useAppTheme } from '~/theme';
-import { CHEFIQ_APPLIANCES } from '~/types/chefiq';
 
 interface FilterModalProps {
   visible: boolean;
@@ -9,7 +8,7 @@ interface FilterModalProps {
   categories: string[];
   difficulties: string[];
   allTags: string[];
-  appliances: Array<{ id: string; name: string }>;
+  appliances: { id: string; name: string }[];
   selectedCategory: string;
   selectedDifficulty: string;
   selectedTags: string[];

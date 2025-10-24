@@ -76,12 +76,12 @@ export const DetailedRecipeCard = ({
           <Text className="mb-2 text-lg font-bold" style={{ color: appTheme.colors.text.primary }}>
             {recipe.title}
           </Text>
-          <Text className="mb-2 line-clamp-2" style={{ color: appTheme.colors.text.secondary }}>
+          <Text className="mb-2" style={{ color: appTheme.colors.text.secondary }} numberOfLines={2}>
             {recipe.description}
           </Text>
 
-          {/* Author */}
-          {recipe.authorName && (
+          {/* Author - only show on published recipes (not My Recipes) */}
+          {!showStatus && recipe.authorName && (
             <View className="mb-3 flex-row items-center">
               {recipe.authorProfilePicture && (
                 <Image

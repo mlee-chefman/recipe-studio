@@ -15,7 +15,7 @@ import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import { useFridgeStore, useRecipeStore, useAuthStore } from '@store/store';
 import { RecipeResultsModal } from '@components/modals/RecipeResultsModal';
-import { PreferenceSelectorModal } from '@components/PreferenceSelectorModal';
+import { PreferenceSelectorModal } from '@components/modals';
 import {
   MAX_INGREDIENTS,
   DIETARY_OPTIONS,
@@ -76,6 +76,7 @@ export default function MyFridgeScreen() {
     setShowAddIngredient,
     handleSearch,
     handleSelectIngredient: onSelectIngredient,
+    handleAddCustomIngredient,
     closeSearch,
   } = useIngredientSearch(addIngredient);
 
@@ -137,6 +138,7 @@ export default function MyFridgeScreen() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Preferences Section */}
         <View style={styles.preferencesContainer}>
@@ -302,17 +304,19 @@ export default function MyFridgeScreen() {
                 <TextInput
                   value={searchQuery}
                   onChangeText={handleSearch}
+                  onSubmitEditing={handleAddCustomIngredient}
                   placeholder="Type ingredient name (e.g., chicken, tomato)..."
                   placeholderTextColor={theme.colors.text.secondary}
                   style={styles.searchInput}
                   autoFocus
+                  returnKeyType="done"
                 />
                 {isSearching && <ActivityIndicator size="small" color={theme.colors.primary.main} />}
               </View>
 
               {/* Search Results */}
               {showSearchResults && searchResults.length > 0 && (
-                <ScrollView style={styles.searchResults} nestedScrollEnabled>
+                <ScrollView style={styles.searchResults} nestedScrollEnabled keyboardShouldPersistTaps="handled">
                   {searchResults.map((item) => (
                     <TouchableOpacity
                       key={item.id}

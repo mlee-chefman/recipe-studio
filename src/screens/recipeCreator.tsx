@@ -10,7 +10,7 @@ import { ScrapedRecipe } from '@utils/recipeScraper';
 import { CookingAction, getApplianceById } from '~/types/chefiq';
 import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '@components/ApplianceDropdown';
-import { TemperatureInfoModal } from '@components/TemperatureInfoModal';
+import { TemperatureInfoModal } from '@components/modals';
 import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
@@ -29,6 +29,7 @@ import {
   ConfirmationModal,
   AIAssistantModal,
   SavingModal,
+  CoverImageRequiredModal,
 } from '@components/modals';
 import RecipeCoverImage from '@components/RecipeCoverImage';
 import { haptics } from '@utils/haptics';
@@ -51,6 +52,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const [showTempInfo, setShowTempInfo] = useState(false);
   const [tempInfoStepIndex, setTempInfoStepIndex] = useState<number | null>(null);
   const [tempRecipeId] = useState(() => uuidv4()); // Generate temp ID for new recipes
+  const [showCoverImageRequiredModal, setShowCoverImageRequiredModal] = useState(false);
   const fabScale = useRef(new Animated.Value(1)).current;
   const styles = useStyles((theme) => createStyles(theme, fabScale));
   const { user } = useAuthStore();
@@ -80,7 +82,8 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     resetForm,
     isSaving
   } = useRecipeForm({
-    onComplete: onComplete || (() => navigation.goBack())
+    onComplete: onComplete || (() => navigation.goBack()),
+    onCoverImageRequired: () => setShowCoverImageRequiredModal(true)
   });
 
   // AI Recipe Generator hook
@@ -234,6 +237,18 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const { showImageOptions } = useImagePicker({
     onImageSelected: (uri) => updateFormData({ imageUrl: uri }),
   });
+
+  // Handle uploading image from modal (triggered when saving published recipe without image)
+  const handleUploadFromModal = () => {
+    setShowCoverImageRequiredModal(false);
+    showImageOptions();
+  };
+
+  // Handle AI generation from modal (triggered when saving published recipe without image)
+  const handleGenerateAIFromModal = async () => {
+    setShowCoverImageRequiredModal(false);
+    await handleGenerateAICover();
+  };
 
   // AI Cover Generation hook
   const { isGenerating: isGeneratingCover, generateAndUploadCover } = useAICoverGeneration();
@@ -904,6 +919,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
 
     {/* Saving Modal */}
     <SavingModal visible={isSaving} message="Creating recipe..." />
+
+    {/* Cover Image Required Modal */}
+    <CoverImageRequiredModal
+      visible={showCoverImageRequiredModal}
+      onUpload={handleUploadFromModal}
+      onGenerateAI={handleGenerateAIFromModal}
+      onCancel={() => setShowCoverImageRequiredModal(false)}
+    />
   </View>
   );
 }

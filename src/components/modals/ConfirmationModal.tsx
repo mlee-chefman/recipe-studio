@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
-import BaseModal from '../BaseModal';
+import BaseModal from './BaseModal';
 
 interface ConfirmationModalProps {
   visible: boolean;

@@ -134,6 +134,48 @@ export default function BaseModal({
     }
   };
 
+  // Android: Use simpler Modal implementation without custom backdrop
+  if (Platform.OS === 'android') {
+    const getAndroidBackdropStyle = () => {
+      switch (variant) {
+        case 'centered':
+          return [styles.androidBackdrop, styles.backdropCentered];
+        case 'full-screen':
+          return [styles.androidBackdrop, styles.backdropFullScreen];
+        default:
+          return styles.androidBackdrop;
+      }
+    };
+
+    return (
+      <Modal
+        visible={visible}
+        animationType={variant === 'bottom-sheet' && Platform.OS !== 'android' ? 'slide' : 'fade'}
+        transparent={true}
+        onRequestClose={onClose}
+      >
+        <View style={[getAndroidBackdropStyle(), { backgroundColor: `rgba(0, 0, 0, ${backdropOpacity})` }]} pointerEvents="box-none">
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={handleBackdropPress}
+          />
+          <View style={[getContentContainerStyle(), contentStyle]} pointerEvents="box-none">
+            {showDragIndicator && variant === 'bottom-sheet' && (
+              <View style={styles.dragIndicatorContainer}>
+                <View style={styles.dragIndicator} />
+              </View>
+            )}
+            <View pointerEvents="auto">
+              {children}
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // iOS: Use custom animations and backdrop
   return (
     <Modal
       visible={visible}
@@ -177,6 +219,10 @@ export default function BaseModal({
 }
 
 const createStyles = (theme: Theme) => StyleSheet.create({
+  androidBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
   backdropBottomSheet: {
     flex: 1,
     justifyContent: 'flex-end',
@@ -195,9 +241,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 40,
-    maxHeight: '85%',
-    overflow: 'hidden',
+    paddingBottom: Platform.OS === 'android' ? 60 : 40,
+    maxHeight: Platform.OS === 'android' ? '90%' : '85%',
+    overflow: Platform.OS === 'android' ? 'visible' : 'hidden',
   },
   centeredContainer: {
     backgroundColor: theme.colors.background.primary,

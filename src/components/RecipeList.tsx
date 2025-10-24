@@ -3,11 +3,14 @@ import { View, Text, TextInput, TouchableOpacity, FlatList, Modal, StyleSheet, R
 import { useNavigation } from '@react-navigation/native';
 import { useRecipeStore, useAuthStore } from '@store/store';
 import { Recipe } from '~/types/recipe';
-import { FilterModal } from './FilterModal';
-import { SortModal } from './SortModal';
+import { FilterModal } from './modals/FilterModal';
+import { SortModal } from './modals/SortModal';
 import { CompactRecipeCard } from './CompactRecipeCard';
 import { GridRecipeCard } from './GridRecipeCard';
 import { DetailedRecipeCard } from './DetailedRecipeCard';
+import { PublishedRecipeCard } from './PublishedRecipeCard';
+import { PublishedRecipeCardCompact } from './PublishedRecipeCardCompact';
+import { PublishedRecipeCardMini } from './PublishedRecipeCardMini';
 import { RecipeCardSkeleton } from './RecipeCardSkeleton';
 import { ActiveFiltersDisplay } from './ActiveFiltersDisplay';
 import { SelectionBottomBar } from './SelectionBottomBar';
@@ -141,6 +144,42 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   const renderRecipeCard = (item: Recipe) => {
     const selected = isSelected(item.id);
 
+    // Use PublishedRecipeCard for home tab for a more visually appealing design
+    if (isHomeTab) {
+      if (viewMode === 'grid') {
+        // Grid view: 2 columns with compact cards
+        return (
+          <PublishedRecipeCardCompact
+            recipe={item}
+            onPress={() => handleRecipePress(item)}
+            isSelectionMode={selectionMode}
+            isSelected={selected}
+          />
+        );
+      } else if (viewMode === 'compact') {
+        // Compact view: Single column with mini cards for more density
+        return (
+          <PublishedRecipeCardMini
+            recipe={item}
+            onPress={() => handleRecipePress(item)}
+            isSelectionMode={selectionMode}
+            isSelected={selected}
+          />
+        );
+      } else {
+        // Detailed view: Single column with full cards
+        return (
+          <PublishedRecipeCard
+            recipe={item}
+            onPress={() => handleRecipePress(item)}
+            isSelectionMode={selectionMode}
+            isSelected={selected}
+          />
+        );
+      }
+    }
+
+    // Use standard view modes for My Recipes tab
     if (viewMode === 'grid') {
       return (
         <View style={{ flex: 1, margin: 4 }}>
@@ -177,6 +216,15 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
   };
 
   const renderSkeletonCard = () => {
+    if (isHomeTab) {
+      if (viewMode === 'grid') {
+        return <RecipeCardSkeleton viewMode="published-compact" />;
+      } else if (viewMode === 'compact') {
+        return <RecipeCardSkeleton viewMode="published-mini" />;
+      } else {
+        return <RecipeCardSkeleton viewMode="published" />;
+      }
+    }
     if (viewMode === 'grid') {
       return (
         <View style={{ flex: 1, margin: 4 }}>
@@ -258,7 +306,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
       <View className="flex-1 w-full">
         {isLoading ? (
           <FlatList
-            key={`${viewMode}-skeleton`}
+            key={`${isHomeTab ? 'home' : 'myrecipes'}-${viewMode}-skeleton`}
             data={[1, 2, 3, 4, 5, 6]}
             keyExtractor={(item) => `skeleton-${item}`}
             numColumns={viewMode === 'grid' ? 2 : 1}
@@ -266,7 +314,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingBottom: 20,
-              paddingHorizontal: viewMode === 'grid' ? 12 : 16,
+              paddingHorizontal: viewMode === 'grid' ? (isHomeTab ? 6 : 12) : 16,
               minHeight: '100%',
             }}
             columnWrapperStyle={viewMode === 'grid' ? { justifyContent: 'space-between' } : undefined}
@@ -281,7 +329,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
           />
         ) : (
           <FlatList
-            key={`${viewMode}-list`}
+            key={`${isHomeTab ? 'home' : 'myrecipes'}-${viewMode}-list`}
             data={filteredRecipes}
             keyExtractor={(item) => item.id}
             numColumns={viewMode === 'grid' ? 2 : 1}
@@ -289,7 +337,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{
               paddingBottom: selectionMode ? 100 : 20,
-              paddingHorizontal: viewMode === 'grid' ? 12 : 16,
+              paddingHorizontal: viewMode === 'grid' ? (isHomeTab ? 6 : 12) : 16,
               flexGrow: 1,
             }}
             columnWrapperStyle={viewMode === 'grid' ? { justifyContent: 'space-between' } : undefined}

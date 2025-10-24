@@ -3,7 +3,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
-import BaseModal from '../BaseModal';
+import BaseModal from './BaseModal';
 
 interface TagsPickerModalProps {
   visible: boolean;

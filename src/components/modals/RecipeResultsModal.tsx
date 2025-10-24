@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
-import BaseModal from '../BaseModal';
+import BaseModal from './BaseModal';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
 import { Ionicons } from '@expo/vector-icons';

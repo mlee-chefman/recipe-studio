@@ -8,7 +8,7 @@ import Home from '@screens/home';
 import MyFridge from '@screens/MyFridge';
 import MyRecipes from '@screens/MyRecipes';
 import Settings from '@screens/settings';
-import CreateRecipeOptionsModal from '@components/CreateRecipeOptionsModal';
+import { CreateRecipeOptionsModal } from '@components/modals';
 import { useRecipeStore } from '@store/store';
 import { useAppTheme, theme } from '@theme/index';
 
@@ -69,27 +69,27 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
   const handleWebImport = () => {
     setShowCreateModal(false);
-    navigation.navigate('RecipeWebImport');
+    setTimeout(() => navigation.navigate('RecipeWebImport'), 100);
   };
 
   const handleOCRImport = () => {
     setShowCreateModal(false);
-    navigation.navigate('RecipeOCRImport');
+    setTimeout(() => navigation.navigate('RecipeOCRImport'), 100);
   };
 
   const handleTextImport = () => {
     setShowCreateModal(false);
-    navigation.navigate('RecipeTextImport');
+    setTimeout(() => navigation.navigate('RecipeTextImport'), 100);
   };
 
   const handlePDFImport = () => {
     setShowCreateModal(false);
-    navigation.navigate('RecipePDFImport');
+    setTimeout(() => navigation.navigate('RecipePDFImport'), 100);
   };
 
   const handleStartFromScratch = () => {
     setShowCreateModal(false);
-    navigation.navigate('RecipeCreator');
+    setTimeout(() => navigation.navigate('RecipeCreator'), 100);
   };
 
   return (

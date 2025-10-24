@@ -6,7 +6,7 @@ import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
 import { useImagePicker } from '@hooks/useImagePicker';
-import ImagePreviewModal from './ImagePreviewModal';
+import ImagePreviewModal from './modals/ImagePreviewModal';
 
 interface StepImageProps {
   imageUri?: string;
