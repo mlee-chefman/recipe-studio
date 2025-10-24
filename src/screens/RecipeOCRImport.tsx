@@ -18,6 +18,7 @@ import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
 import { useOCRImport } from '@hooks/useOCRImport';
 import { useImagePicker } from '@hooks/useImagePicker';
+import { haptics } from '@utils/haptics';
 
 export default function RecipeOCRImportScreen() {
   const styles = useStyles(createStyles);
@@ -39,6 +40,7 @@ export default function RecipeOCRImportScreen() {
 
     // Auto-navigate to RecipeCreator if recipe was successfully parsed
     if (recipe) {
+      haptics.success();
       navigation.goBack(); // Remove RecipeOCRImport from stack
       setTimeout(() => {
         (navigation as any).navigate('RecipeCreator', {
@@ -93,6 +95,7 @@ export default function RecipeOCRImportScreen() {
         if (result.assets[0].mimeType?.startsWith('image/')) {
           await handleImageSelected(uri);
         } else if (result.assets[0].mimeType === 'application/pdf') {
+          haptics.warning();
           Alert.alert(
             'PDF Not Supported Yet',
             'PDF text extraction is coming soon. Please use an image file instead.'
@@ -101,6 +104,7 @@ export default function RecipeOCRImportScreen() {
       }
     } catch (error) {
       console.error('Document picker error:', error);
+      haptics.error();
       Alert.alert('Error', 'Could not open the file. Please try again.');
     }
   };

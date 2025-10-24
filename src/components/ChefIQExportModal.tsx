@@ -12,6 +12,7 @@ import {
 import { Feather } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useAppTheme } from '@theme/index';
+import { haptics } from '@utils/haptics';
 
 interface ChefIQExportModalProps {
   visible: boolean;
@@ -32,9 +33,11 @@ export const ChefIQExportModal: React.FC<ChefIQExportModalProps> = ({
   const handleCopyToClipboard = async () => {
     try {
       await Clipboard.setStringAsync(exportJSON);
+      haptics.success();
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
+      haptics.error();
       Alert.alert('Copy Failed', 'Failed to copy to clipboard');
     }
   };

@@ -13,6 +13,7 @@ import {
   hasFormChanges
 } from '@constants/recipeDefaults';
 import { CookingAction, StepSection } from '~/types/chefiq';
+import { haptics } from '@utils/haptics';
 
 export interface UseRecipeFormProps {
   editingRecipe?: Recipe;
@@ -275,14 +276,21 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
     try {
       if (editingRecipe) {
         await updateRecipe(editingRecipe.id, recipe, user.uid);
+        setIsSaving(false);
+        haptics.success();
+        onComplete?.();
       } else {
         await addRecipe(recipe, user.uid);
+        setIsSaving(false);
+        haptics.success();
+        // Navigate to My Recipes tab to show the newly created draft recipe
+        // @ts-ignore - navigation types
+        navigation.navigate('TabNavigator', { screen: 'MyRecipes' });
       }
-      setIsSaving(false);
-      onComplete?.();
     } catch (error) {
       console.error('Error saving recipe:', error);
       setIsSaving(false);
+      haptics.error();
       const action = editingRecipe ? 'updating' : 'creating';
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       Alert.alert(
@@ -331,6 +339,7 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
+            haptics.heavy();
             deleteRecipe(editingRecipe.id, user.uid);
             navigation?.dispatch(StackActions.popToTop());
           }

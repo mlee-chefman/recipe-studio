@@ -9,6 +9,7 @@ import type { Theme } from '@theme/index';
 import { useRecipeInfoForm } from '@hooks/useRecipeInfoForm';
 import { DropdownSelector } from '@components/DropdownSelector';
 import { RECIPE_OPTIONS } from '@constants/recipeDefaults';
+import { haptics } from '@utils/haptics';
 
 type RecipeInfoRouteProp = RouteProp<{
   RecipeInfo: {
@@ -67,6 +68,7 @@ export default function RecipeInfoScreen() {
   const [customTagInput, setCustomTagInput] = React.useState('');
 
   const handleSave = () => {
+    haptics.success();
     onUpdate(formData);
     navigation.goBack();
   };

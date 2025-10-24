@@ -18,6 +18,7 @@ import { getCredentials, saveCredentials } from '../services/keychainService';
 import { setHasSignedUpBefore } from '../services/authStorageService';
 import { useAppTheme } from '../theme';
 import { useStyles } from '@hooks/useStyles';
+import { haptics } from '@utils/haptics';
 import type { Theme } from '../theme';
 
 export default function SignInScreen() {
@@ -48,6 +49,7 @@ export default function SignInScreen() {
 
   const handleSignIn = async () => {
     if (!email || !password) {
+      haptics.warning();
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -75,6 +77,8 @@ export default function SignInScreen() {
       // Mark that user has signed up before
       await setHasSignedUpBefore();
 
+      haptics.success();
+
     } catch (error: any) {
       console.error('Sign in error:', error);
       let errorMessage = 'Failed to sign in';
@@ -88,7 +92,8 @@ export default function SignInScreen() {
       } else if (error.code === 'auth/too-many-requests') {
         errorMessage = 'Too many failed attempts. Please try again later';
       }
-      
+
+      haptics.error();
       Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);

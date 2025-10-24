@@ -5,6 +5,7 @@ import { useRecipeStore, useAuthStore } from '@store/store';
 import { Recipe } from '~/types/recipe';
 import { getApplianceById, formatCookingAction } from '~/types/chefiq';
 import { theme, useAppTheme } from '@theme/index';
+import { haptics } from '@utils/haptics';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
@@ -38,6 +39,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
+            haptics.heavy();
             deleteRecipe(recipe.id, user.uid);
             onClose();
           }

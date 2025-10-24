@@ -25,6 +25,7 @@ import {
   SavingModal,
 } from '~/components/modals';
 import RecipeCoverImage from '@components/RecipeCoverImage';
+import { haptics } from '@utils/haptics';
 
 type RootStackParamList = {
   RecipeEdit: { recipe: Recipe; previewMode?: boolean };
@@ -132,13 +133,16 @@ export default function RecipeEditScreen() {
   const addIngredient = () => {
     const result = recipeHelpers.addIngredient(formData.ingredients);
     if (result.success) {
+      haptics.light();
       updateFormData({ ingredients: result.value });
     } else {
+      haptics.warning();
       Alert.alert('Validation Error', result.error);
     }
   };
 
   const removeIngredient = (index: number) => {
+    haptics.light();
     const newIngredients = recipeHelpers.removeIngredient(formData.ingredients, index);
     updateFormData({ ingredients: newIngredients });
   };
@@ -146,15 +150,18 @@ export default function RecipeEditScreen() {
   const addStep = () => {
     const result = recipeHelpers.addStep(formData.steps);
     if (result.success) {
+      haptics.light();
       updateFormData({
         steps: result.value
       });
     } else {
+      haptics.warning();
       Alert.alert('Validation Error', result.error);
     }
   };
 
   const removeStep = (index: number) => {
+    haptics.light();
     const newSteps = recipeHelpers.removeStep(formData.steps, index);
     updateFormData({
       steps: newSteps
@@ -274,7 +281,10 @@ export default function RecipeEditScreen() {
             </View>
             <Switch
               value={formData.published}
-              onValueChange={(value) => updateFormData({ published: value })}
+              onValueChange={(value) => {
+                haptics.light();
+                updateFormData({ published: value });
+              }}
               trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
               thumbColor={theme.colors.background.primary}
             />
@@ -302,7 +312,10 @@ export default function RecipeEditScreen() {
               </View>
               <Switch
                 value={formData.useProbe}
-                onValueChange={(value) => updateFormData({ useProbe: value })}
+                onValueChange={(value) => {
+                  haptics.light();
+                  updateFormData({ useProbe: value });
+                }}
                 trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
                 thumbColor={theme.colors.background.primary}
               />

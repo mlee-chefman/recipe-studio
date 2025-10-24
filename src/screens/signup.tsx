@@ -23,6 +23,7 @@ import { setHasSignedUpBefore } from '../services/authStorageService';
 import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
+import { haptics } from '@utils/haptics';
 
 export default function SignUpScreen() {
   const styles = useStyles(createStyles);
@@ -181,8 +182,11 @@ export default function SignUpScreen() {
 
       // Mark that user has signed up before
       await setHasSignedUpBefore();
+
+      haptics.success();
     } catch (error: any) {
       console.error('Sign up error:', error);
+      haptics.error();
       Alert.alert('Error', error.message || 'Failed to create account');
     } finally {
       setLoading(false);
