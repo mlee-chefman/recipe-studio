@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
-import BaseModal from '../BaseModal';
+import BaseModal from './BaseModal';
 
 interface RemainingGenerations {
   daily: number;

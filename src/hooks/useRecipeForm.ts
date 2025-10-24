@@ -19,11 +19,12 @@ export interface UseRecipeFormProps {
   editingRecipe?: Recipe;
   onComplete?: () => void;
   previewMode?: boolean; // If true, don't save to database, just return the recipe
+  onCoverImageRequired?: () => void; // Callback when cover image is required for publishing
 }
 
 export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   const navigation = useNavigation();
-  const { editingRecipe, onComplete = () => navigation?.goBack(), previewMode = false } = props;
+  const { editingRecipe, onComplete = () => navigation?.goBack(), previewMode = false, onCoverImageRequired } = props;
   const { addRecipe, updateRecipe, deleteRecipe } = useRecipeStore();
   const { user } = useAuthStore();
 
@@ -166,21 +167,39 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
   }, [editingRecipe]);
 
   const handleSave = async () => {
+    const published = formData.published || false;
+
+    // Basic validation - title is always required
     if (!formData.title.trim()) {
       Alert.alert('Error', 'Recipe title is required');
       return;
     }
 
     const validIngredients = formData.ingredients.filter(i => i.trim() !== '');
-    if (validIngredients.length === 0) {
-      Alert.alert('Error', 'At least one ingredient is required');
-      return;
-    }
-
     const validSteps = formData.steps.filter(s => s.text.trim() !== '');
-    if (validSteps.length === 0) {
-      Alert.alert('Error', 'At least one step is required');
-      return;
+
+    // Only validate ingredients and steps for published recipes
+    if (published) {
+      if (validIngredients.length === 0) {
+        Alert.alert('Error', 'At least one ingredient is required for published recipes');
+        return;
+      }
+
+      if (validSteps.length === 0) {
+        Alert.alert('Error', 'At least one step is required for published recipes');
+        return;
+      }
+
+      // Cover image validation for published recipes
+      if (!formData.imageUrl || formData.imageUrl.trim() === '') {
+        // Trigger the callback to show the cover image modal
+        if (onCoverImageRequired) {
+          onCoverImageRequired();
+        } else {
+          Alert.alert('Cover Image Required', 'Published recipes need a cover image. Please add one before publishing.');
+        }
+        return;
+      }
     }
 
     // Build step sections array from valid steps
@@ -250,13 +269,16 @@ export const useRecipeForm = (props: UseRecipeFormProps = {}) => {
       return;
     }
 
-    const published = formData.published || false;
+    // For drafts, allow empty ingredients/steps by ensuring at least one empty entry
+    const ingredientsToSave = validIngredients.length > 0 ? validIngredients : [''];
+    const stepsToSave = validSteps.length > 0 ? validSteps : [{ text: '' }];
+
     const recipe = {
       userId: user.uid,
       title: formData.title.trim(),
       description: formData.notes.trim() || 'No description provided',
-      ingredients: validIngredients,
-      steps: validSteps,
+      ingredients: ingredientsToSave,
+      steps: stepsToSave,
       cookTime: formData.cookTime,
       servings: formData.servings,
       difficulty: formData.difficulty,

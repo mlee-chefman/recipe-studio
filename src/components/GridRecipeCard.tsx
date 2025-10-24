@@ -65,8 +65,8 @@ export const GridRecipeCard = ({
             {recipe.title}
           </Text>
 
-          {/* Author */}
-          {recipe.authorName && (
+          {/* Author - only show on published recipes (not My Recipes) */}
+          {!showStatus && recipe.authorName && (
             <View className="flex-row items-center mb-1">
               {recipe.authorProfilePicture && (
                 <Image

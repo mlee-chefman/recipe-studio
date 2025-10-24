@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, Switch, StyleSheet } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -16,6 +16,7 @@ import type { Theme } from '@theme/index';
 import { SimpleDraggableList } from '@components/DraggableList';
 import { DraggableCookingAction } from '@components/DraggableCookingAction';
 import { useImagePicker } from '@hooks/useImagePicker';
+import { useAICoverGeneration } from '@hooks/useAICoverGeneration';
 import { useCookingActions } from '@hooks/useCookingActions';
 import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
 import { formatCookTime } from '@utils/helpers/recipeHelpers';
@@ -23,6 +24,7 @@ import StepImage from '@components/StepImage';
 import {
   ConfirmationModal,
   SavingModal,
+  CoverImageRequiredModal,
 } from '~/components/modals';
 import RecipeCoverImage from '@components/RecipeCoverImage';
 import { haptics } from '@utils/haptics';
@@ -40,6 +42,7 @@ export default function RecipeEditScreen() {
   const route = useRoute<RecipeEditRouteProp>();
   const { recipe, previewMode } = route.params;
   const [newInstructionText, setNewInstructionText] = React.useState('');
+  const [showCoverImageRequiredModal, setShowCoverImageRequiredModal] = useState(false);
 
   const {
     formData,
@@ -69,6 +72,7 @@ export default function RecipeEditScreen() {
   } = useRecipeForm({
     editingRecipe: recipe,
     previewMode: previewMode || false,
+    onCoverImageRequired: () => setShowCoverImageRequiredModal(true)
   });
 
   // Configure navigation header
@@ -115,6 +119,47 @@ export default function RecipeEditScreen() {
   const { showImageOptions } = useImagePicker({
     onImageSelected: (uri) => updateFormData({ imageUrl: uri }),
   });
+
+  // AI Cover Generation hook
+  const { isGenerating: isGeneratingCover, generateAndUploadCover } = useAICoverGeneration();
+
+  const handleGenerateAICover = async () => {
+    if (!formData.title || formData.title.trim() === '') {
+      Alert.alert('Missing Title', 'Please add a recipe title before generating an AI cover image.');
+      return;
+    }
+
+    const downloadURL = await generateAndUploadCover({
+      title: formData.title,
+      description: formData.notes,
+      ingredients: formData.ingredients.filter(i => i.trim() !== ''),
+      category: formData.category,
+      tags: formData.tags || [],
+    });
+
+    if (downloadURL) {
+      updateFormData({ imageUrl: downloadURL });
+      Alert.alert('Success', 'AI cover image generated successfully!');
+    } else {
+      console.log('AI cover generation skipped (quota exceeded or failed)');
+      Alert.alert(
+        'Image Generation Unavailable',
+        'AI cover generation is currently unavailable. You can upload a photo manually instead.'
+      );
+    }
+  };
+
+  // Handle uploading image from modal (triggered when saving published recipe without image)
+  const handleUploadFromModal = () => {
+    setShowCoverImageRequiredModal(false);
+    showImageOptions();
+  };
+
+  // Handle AI generation from modal (triggered when saving published recipe without image)
+  const handleGenerateAIFromModal = async () => {
+    setShowCoverImageRequiredModal(false);
+    await handleGenerateAICover();
+  };
 
   // Cooking actions hook
   const {
@@ -240,6 +285,8 @@ export default function RecipeEditScreen() {
               onImageChange={(uri) => updateFormData({ imageUrl: uri || '' })}
               editable={true}
               size="small"
+              onGenerateAI={handleGenerateAICover}
+              isGeneratingAI={isGeneratingCover}
             />
           </View>
         </View>
@@ -580,6 +627,14 @@ export default function RecipeEditScreen() {
 
       {/* Saving Modal */}
       <SavingModal visible={isSaving} message="Updating recipe..." />
+
+      {/* Cover Image Required Modal */}
+      <CoverImageRequiredModal
+        visible={showCoverImageRequiredModal}
+        onUpload={handleUploadFromModal}
+        onGenerateAI={handleGenerateAIFromModal}
+        onCancel={() => setShowCoverImageRequiredModal(false)}
+      />
     </View>
   );
 }

@@ -1,6 +1,7 @@
 import { useLayoutEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, StatusBar } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useRecipeStore, useAuthStore } from '@store/store';
@@ -8,7 +9,7 @@ import { Recipe } from '~/types/recipe';
 import { getApplianceById } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { generateExportJSON } from '@utils/chefiqExport';
-import { ChefIQExportModal } from '@components/ChefIQExportModal';
+import { ChefIQExportModal } from '@components/modals';
 import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
@@ -20,6 +21,8 @@ type RootStackParamList = {
 };
 
 type RecipeDetailRouteProp = RouteProp<RootStackParamList, 'RecipeDetail'>;
+
+const HEADER_HEIGHT = 180;
 
 export default function RecipeDetailScreen() {
   const theme = useAppTheme();
@@ -33,6 +36,9 @@ export default function RecipeDetailScreen() {
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportJSON, setExportJSON] = useState('');
+
+  // Description expand/collapse state
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   // Get the latest recipe data from store instead of route params
   // Check both allRecipes and userRecipes arrays
@@ -62,18 +68,16 @@ export default function RecipeDetailScreen() {
     }
   };
 
-  // Configure navigation header
+  // Configure navigation header - transparent
   useLayoutEffect(() => {
     navigation.setOptions({
-      title: recipe.title,
+      title: '',
       headerStyle: {
-        backgroundColor: theme.colors.background.primary,
+        backgroundColor: 'transparent',
       },
-      headerTintColor: theme.colors.text.primary,
-      headerTitleStyle: {
-        fontWeight: theme.typography.fontWeight.semibold,
-        fontSize: theme.typography.fontSize.lg,
-      },
+      headerTransparent: true,
+      headerTintColor: '#FFFFFF',
+      headerShadowVisible: false,
       headerRight: () => isOwner ? (
         <TouchableOpacity
           onPress={handleEdit}
@@ -81,8 +85,8 @@ export default function RecipeDetailScreen() {
         >
           <Feather
             name="edit-3"
-            size={20}
-            color={theme.colors.primary[500]}
+            size={22}
+            color="#FFFFFF"
           />
         </TouchableOpacity>
       ) : null,
@@ -91,64 +95,129 @@ export default function RecipeDetailScreen() {
 
   return (
     <View style={styles.container}>
-      <ScrollView className="flex-1">
-        {/* Recipe Image */}
-        {recipe.image && (
-          <Image
-            source={{ uri: recipe.image }}
-            style={styles.recipeImage}
-            contentFit="cover"
-          />
-        )}
-
-        <View className="p-4">
-          {/* Description */}
-          <View className="mb-4">
-            <Text className="text-base leading-6" style={{ color: theme.colors.text.secondary }}>{recipe.description}</Text>
-          </View>
-
-          {/* Author */}
-          {recipe.authorName && (
-            <View className="mb-6 flex-row items-center">
-              {recipe.authorProfilePicture && (
-                <Image
-                  source={{ uri: recipe.authorProfilePicture }}
-                  style={styles.authorProfilePicture}
-                  contentFit="cover"
-                />
-              )}
-              <View>
-                <Text className="text-xs" style={{ color: theme.colors.text.tertiary }}>Created by</Text>
-                <Text className="text-sm font-medium" style={{ color: theme.colors.text.secondary }}>{recipe.authorName}</Text>
-              </View>
+      <StatusBar barStyle="light-content" />
+      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+        {/* Hero Image Section with Overlay Card */}
+        <View style={styles.heroSection}>
+          {recipe.image ? (
+            <Image
+              source={{ uri: recipe.image }}
+              style={styles.heroImage}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={[styles.heroImage, styles.heroPlaceholder, { backgroundColor: theme.colors.gray[200] }]}>
+              <Text style={{ fontSize: 80, color: theme.colors.gray[400] }}>🍽️</Text>
             </View>
           )}
 
-          {/* Recipe Info */}
-          <View className="flex-row justify-between mb-6 p-4 rounded-lg" style={{ backgroundColor: theme.colors.background.secondary }}>
-            <View className="items-center">
-              <Text className="text-sm mb-1" style={{ color: theme.colors.text.tertiary }}>Cook Time</Text>
-              <Text className="text-lg font-semibold" style={{ color: theme.colors.text.primary }}>⏱️ {recipe.cookTime} min</Text>
-            </View>
-            <View className="items-center">
-              <Text className="text-sm mb-1" style={{ color: theme.colors.text.tertiary }}>Servings</Text>
-              <Text className="text-lg font-semibold" style={{ color: theme.colors.text.primary }}>👥 {recipe.servings}</Text>
-            </View>
-            <View className="items-center">
-              <Text className="text-sm mb-1" style={{ color: theme.colors.text.tertiary }}>Difficulty</Text>
-              <View className="px-3 py-1 rounded-full" style={{
-                backgroundColor: recipe.difficulty === 'Easy' ? theme.colors.success.light :
-                  recipe.difficulty === 'Medium' ? theme.colors.warning.light : theme.colors.error.light
-              }}>
-                <Text className="text-sm font-medium" style={{
-                  color: recipe.difficulty === 'Easy' ? theme.colors.success.dark :
-                    recipe.difficulty === 'Medium' ? theme.colors.warning.dark : theme.colors.error.dark
-                }}>
-                  {recipe.difficulty}
-                </Text>
+          {/* Gradient Overlay */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.3)', 'rgba(0,0,0,0.6)']}
+            style={styles.heroGradient}
+          />
+
+          {/* Info Card Overlay */}
+          <View style={styles.infoCardContainer}>
+            <View style={[styles.infoCard, { backgroundColor: theme.colors.surface.primary }]}>
+              {/* Title and Description */}
+              <Text style={[styles.recipeTitle, { color: theme.colors.text.primary }]}>{recipe.title}</Text>
+              {recipe.description && (
+                <View>
+                  <Text
+                    style={[styles.recipeDescription, { color: theme.colors.text.secondary }]}
+                    numberOfLines={descriptionExpanded ? undefined : 2}
+                  >
+                    {recipe.description}
+                  </Text>
+                  {recipe.description.length > 100 && (
+                    <TouchableOpacity
+                      onPress={() => setDescriptionExpanded(!descriptionExpanded)}
+                      style={styles.seeMoreButton}
+                    >
+                      <Text style={[styles.seeMoreText, { color: theme.colors.primary[500] }]}>
+                        {descriptionExpanded ? 'Show less' : 'See more'}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {/* Stats Row */}
+              <View style={styles.statsRow}>
+                {/* Cook Time */}
+                <View style={styles.statItem}>
+                  <View style={styles.statIconContainer}>
+                    <Text style={styles.statIcon}>⏱️</Text>
+                  </View>
+                  <View>
+                    <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{recipe.cookTime}m</Text>
+                    <Text style={[styles.statLabel, { color: theme.colors.text.tertiary }]}>Cook Time</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.statDivider, { backgroundColor: theme.colors.border.main }]} />
+
+                {/* Servings */}
+                <View style={styles.statItem}>
+                  <View style={styles.statIconContainer}>
+                    <Text style={styles.statIcon}>👥</Text>
+                  </View>
+                  <View>
+                    <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{recipe.servings}</Text>
+                    <Text style={[styles.statLabel, { color: theme.colors.text.tertiary }]}>Servings</Text>
+                  </View>
+                </View>
+
+                {recipe.difficulty && (
+                  <>
+                    <View style={[styles.statDivider, { backgroundColor: theme.colors.border.main }]} />
+                    {/* Difficulty */}
+                    <View style={styles.statItem}>
+                      <View style={[styles.difficultyBadge, {
+                        backgroundColor: recipe.difficulty === 'Easy' ? theme.colors.success.light :
+                          recipe.difficulty === 'Medium' ? theme.colors.warning.light : theme.colors.error.light
+                      }]}>
+                        <Text style={[styles.difficultyText, {
+                          color: recipe.difficulty === 'Easy' ? theme.colors.success.dark :
+                            recipe.difficulty === 'Medium' ? theme.colors.warning.dark : theme.colors.error.dark
+                        }]}>
+                          {recipe.difficulty}
+                        </Text>
+                      </View>
+                    </View>
+                  </>
+                )}
               </View>
+
+              {/* Author Info */}
+              {recipe.authorName && (
+                <View style={styles.authorSection}>
+                  {recipe.authorProfilePicture ? (
+                    <Image
+                      source={{ uri: recipe.authorProfilePicture }}
+                      style={styles.authorAvatar}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View style={[styles.authorAvatar, { backgroundColor: theme.colors.primary[100] }]}>
+                      <Text style={{ fontSize: 12, fontWeight: '600', color: theme.colors.primary[500] }}>
+                        {recipe.authorName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                  <View>
+                    <Text style={[styles.authorLabel, { color: theme.colors.text.tertiary }]}>Created by</Text>
+                    <Text style={[styles.authorName, { color: theme.colors.text.primary }]}>{recipe.authorName}</Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
+        </View>
+
+        {/* Content Section */}
+        <View className="p-4" style={{ paddingTop: HEADER_HEIGHT }}>
 
           {/* Category */}
           <View className="mb-6">
@@ -300,16 +369,121 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   headerButton: {
     paddingHorizontal: theme.spacing.md,
     paddingVertical: theme.spacing.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderRadius: 20,
   },
-  recipeImage: {
+  heroSection: {
+    position: 'relative',
     width: '100%',
-    height: 250,
+    height: 500,
   },
-  authorProfilePicture: {
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '40%',
+  },
+  infoCardContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -HEADER_HEIGHT,
+    paddingHorizontal: 16,
+  },
+  infoCard: {
+    borderRadius: 20,
+    padding: 16,
+    ...theme.shadows.xl,
+  },
+  recipeTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+  recipeDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  seeMoreButton: {
+    alignSelf: 'flex-start',
+    paddingVertical: 2,
+    marginBottom: 8,
+  },
+  seeMoreText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  statIconContainer: {
+    marginRight: 6,
+  },
+  statIcon: {
+    fontSize: 20,
+  },
+  statValue: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  statLabel: {
+    fontSize: 10,
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+    marginHorizontal: 6,
+  },
+  difficultyBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  difficultyText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  authorSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  authorAvatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    marginRight: 8,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  authorLabel: {
+    fontSize: 10,
+  },
+  authorName: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   categoryBadge: {
     backgroundColor: theme.colors.primary[100],

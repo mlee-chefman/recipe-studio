@@ -1,5 +1,4 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
@@ -154,7 +153,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   optionsContainer: {
     padding: theme.spacing.lg,
-    paddingBottom: theme.spacing.xl,
+    paddingBottom: Platform.OS === 'android' ? 40 : theme.spacing.xl,
     gap: theme.spacing.md,
   },
   optionButton: {

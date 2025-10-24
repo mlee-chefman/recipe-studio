@@ -1,8 +1,10 @@
 import * as React from 'react';
 import { View, Text, TouchableOpacity, Modal, ScrollView, StyleSheet } from 'react-native';
-import { useAppTheme } from '~/theme';
+import { Theme, useAppTheme } from '~/theme';
 import { SortOption } from '@store/store';
 import { Ionicons } from '@expo/vector-icons';
+import BaseModal from './BaseModal';
+import { useStyles } from '~/hooks/useStyles';
 
 interface SortModalProps {
   visible: boolean;
@@ -22,54 +24,21 @@ const SORT_OPTIONS: { value: SortOption; label: string; description: string; ico
 
 export const SortModal = ({ visible, onClose, selectedSort, onSortChange }: SortModalProps) => {
   const appTheme = useAppTheme();
-
+  const styles = useStyles(createStyles);
   const handleSortSelect = (option: SortOption) => {
     onSortChange(option);
     onClose();
   };
 
   return (
-    <Modal
+    <BaseModal
       visible={visible}
-      animationType="fade"
-      transparent
-      onRequestClose={onClose}
+      onClose={onClose}
+      variant="bottom-sheet"
+      showDragIndicator={true}
     >
-      <TouchableOpacity
-        activeOpacity={1}
-        onPress={onClose}
-        style={styles.modalOverlay}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
-          className="rounded-t-3xl"
-          style={[
-            styles.modalContent,
-            { backgroundColor: appTheme.colors.background.primary }
-          ]}
-        >
-          {/* Header */}
-          <View className="px-6 py-4 border-b" style={{ borderBottomColor: appTheme.colors.border.light }}>
-            <View className="flex-row justify-between items-center">
-              <Text className="text-xl font-bold" style={{ color: appTheme.colors.text.primary }}>
-                Sort By
-              </Text>
-              <TouchableOpacity
-                onPress={onClose}
-                className="w-8 h-8 items-center justify-center"
-              >
-                <Ionicons name="close" size={24} color={appTheme.colors.text.secondary} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
+      <View style={styles.modalContent}>
           {/* Sort Options */}
-          <ScrollView
-            className="px-6 py-4"
-            showsVerticalScrollIndicator={false}
-            style={{ maxHeight: 500 }}
-          >
             {SORT_OPTIONS.map((option) => (
               <TouchableOpacity
                 key={option.value}
@@ -126,22 +95,20 @@ export const SortModal = ({ visible, onClose, selectedSort, onSortChange }: Sort
                 )}
               </TouchableOpacity>
             ))}
-          </ScrollView>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Modal>
+        </View>
+    </BaseModal>
   );
 };
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.background.tertiary,
     justifyContent: 'flex-end',
   },
   modalContent: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '80%',
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    padding: theme.spacing.xl,
   },
 });

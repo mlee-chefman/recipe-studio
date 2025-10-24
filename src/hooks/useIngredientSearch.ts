@@ -57,6 +57,28 @@ export const useIngredientSearch = (onSelectIngredient: (ingredient: FridgeIngre
     [onSelectIngredient]
   );
 
+  const handleAddCustomIngredient = useCallback(() => {
+    const trimmedQuery = searchQuery.trim();
+
+    // Only add if there's actual text
+    if (trimmedQuery.length === 0) {
+      return;
+    }
+
+    const customIngredient: FridgeIngredient = {
+      id: `custom-${Date.now()}`,
+      name: trimmedQuery,
+      image: undefined, // No image for custom ingredients
+      addedAt: new Date(),
+    };
+
+    onSelectIngredient(customIngredient);
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchResults(false);
+    setShowAddIngredient(false);
+  }, [searchQuery, onSelectIngredient]);
+
   const closeSearch = useCallback(() => {
     setShowAddIngredient(false);
     setSearchQuery('');
@@ -73,6 +95,7 @@ export const useIngredientSearch = (onSelectIngredient: (ingredient: FridgeIngre
     setShowAddIngredient,
     handleSearch,
     handleSelectIngredient,
+    handleAddCustomIngredient,
     closeSearch,
   };
 };

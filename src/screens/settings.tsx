@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { signOutUser } from '../modules/user/userAuth';
 import { useAuthStore, useThemeStore } from '../store/store';
 import { updateUserProfile } from '../modules/user/userService';
-import { AvatarPickerModal } from '../components/AvatarPickerModal';
+import { AvatarPickerModal } from '@components/modals';
 import { themeMetadata } from '@theme/variants';
 import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';

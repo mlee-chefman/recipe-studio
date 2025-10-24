@@ -69,8 +69,8 @@ export const CompactRecipeCard = ({
               {recipe.description}
             </Text>
 
-            {/* Author */}
-            {recipe.authorName && (
+            {/* Author - only show on published recipes (not My Recipes) */}
+            {!showStatus && recipe.authorName && (
               <View className="flex-row items-center mb-2">
                 {recipe.authorProfilePicture && (
                   <Image

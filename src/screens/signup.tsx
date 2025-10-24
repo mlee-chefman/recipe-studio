@@ -16,7 +16,7 @@ import { useNavigation } from '@react-navigation/native';
 import { signUp , convertToAuthUser } from '../modules/user/userAuth';
 import { createUserProfile, updateUserProfile } from '../modules/user/userService';
 import { useAuthStore } from '../store/store';
-import { AvatarPickerModal } from '../components/AvatarPickerModal';
+import { AvatarPickerModal } from '@components/modals';
 import { generateAvatarUrl } from '../utils/avatarGenerator';
 import { saveCredentials } from '../services/keychainService';
 import { setHasSignedUpBefore } from '../services/authStorageService';
