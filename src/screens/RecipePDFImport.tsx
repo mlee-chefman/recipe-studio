@@ -19,6 +19,7 @@ import { extractTextFromPDF } from '@utils/pdfExtractor';
 import { useRecipeStore, useAuthStore } from '@store/store';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
 import { IMPORT_MESSAGES, IMPORT_ERRORS, IMPORT_SUCCESS, IMPORT_ALERTS, IMPORT_BUTTONS } from '@constants/importMessages';
+import { haptics } from '@utils/haptics';
 
 export default function RecipePDFImportScreen() {
   const styles = useStyles(createStyles);
@@ -71,12 +72,14 @@ export default function RecipePDFImportScreen() {
       }
     } catch (error) {
       console.error('Document picker error:', error);
+      haptics.error();
       Alert.alert(IMPORT_ALERTS.ERROR, 'Could not open file picker. Please try again.');
     }
   };
 
   const handleImport = async () => {
     if (!selectedFile) {
+      haptics.warning();
       Alert.alert(IMPORT_ALERTS.NO_FILE, IMPORT_ERRORS.NO_FILE);
       return;
     }
@@ -100,6 +103,7 @@ export default function RecipePDFImportScreen() {
       );
 
       if (!textResult.success || !textResult.text) {
+        haptics.error();
         Alert.alert(
           IMPORT_ALERTS.EXTRACTION_FAILED,
           textResult.error || IMPORT_ERRORS.TEXT_EXTRACTION_FAILED
@@ -125,6 +129,7 @@ export default function RecipePDFImportScreen() {
       });
 
       if (!parseResult.success || parseResult.recipes.length === 0) {
+        haptics.error();
         Alert.alert(
           IMPORT_ALERTS.NO_RECIPES,
           parseResult.error || IMPORT_ERRORS.NO_RECIPES_FOUND
@@ -145,6 +150,7 @@ export default function RecipePDFImportScreen() {
         const recipe = convertScrapedToRecipe(parseResult.recipes[0]);
         await addRecipe(recipe, user.uid);
 
+        haptics.success();
         Alert.alert(
           IMPORT_ALERTS.SUCCESS,
           IMPORT_SUCCESS.SINGLE_RECIPE,
@@ -170,6 +176,7 @@ export default function RecipePDFImportScreen() {
       }
     } catch (error) {
       console.error('PDF import error:', error);
+      haptics.error();
       Alert.alert(IMPORT_ALERTS.ERROR, IMPORT_ERRORS.UNEXPECTED_ERROR);
       setIsProcessing(false);
     }

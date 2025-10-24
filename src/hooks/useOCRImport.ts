@@ -4,6 +4,7 @@ import { parseRecipeFromImage } from '@services/gemini.service';
 import { useAICoverGeneration } from './useAICoverGeneration';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { parseRecipeFromText } from '@utils/helpers/recipeParser';
+import { haptics } from '@utils/haptics';
 
 export interface UseOCRImportOptions {
   generateAICover?: boolean; // Whether to generate AI cover image instead of using scanned photo
@@ -83,6 +84,7 @@ export function useOCRImport(): UseOCRImportResult {
       setProcessingStep('Using offline recipe parser...');
 
       // Show alert to inform user
+      haptics.warning();
       Alert.alert(
         'AI Processing Unavailable',
         'Could not analyze recipe with AI. Using basic offline parser instead. You can edit the recipe after importing if needed.',
@@ -96,6 +98,7 @@ export function useOCRImport(): UseOCRImportResult {
 
     } catch (error) {
       console.error('Processing Error:', error);
+      haptics.error();
       Alert.alert(
         'Processing Failed',
         'Could not process the image. Please try again with a different image.'

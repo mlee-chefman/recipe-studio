@@ -14,6 +14,7 @@ import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
 import type { Theme } from '@theme/index';
 import { useTextImport } from '@hooks/useTextImport';
+import { haptics } from '@utils/haptics';
 
 export default function RecipeTextImportScreen() {
   const styles = useStyles(createStyles);
@@ -56,6 +57,7 @@ export default function RecipeTextImportScreen() {
 
     // Auto-navigate to RecipeCreator if recipe was successfully parsed
     if (recipe) {
+      haptics.success();
       navigation.goBack(); // Remove RecipeTextImport from stack
       setTimeout(() => {
         (navigation as any).navigate('RecipeCreator', {

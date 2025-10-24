@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useRecipeStore, useAuthStore } from '@store/store';
 import { Recipe } from '~/types/recipe';
 import { FilterModal } from './FilterModal';
+import { SortModal } from './SortModal';
 import { CompactRecipeCard } from './CompactRecipeCard';
 import { GridRecipeCard } from './GridRecipeCard';
 import { DetailedRecipeCard } from './DetailedRecipeCard';
@@ -52,6 +53,8 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
     setSelectedAppliance,
     filterRecipes,
     viewMode,
+    sortOption,
+    setSortOption,
     selectionMode,
   } = useRecipeListData(tabType);
 
@@ -72,6 +75,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
 
   // Modal state
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -190,7 +194,7 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
     <View className="flex-1 w-full" style={styles.container}>
       {/* Fixed Header */}
       <View className="px-4 pb-2 w-full" style={styles.header}>
-        {/* Search Input and Filter Button */}
+        {/* Search Input, Sort, and Filter Buttons */}
         <View className="flex-row mb-3 gap-2">
           <TextInput
             className="flex-1 rounded-lg px-4 py-3 text-base"
@@ -206,8 +210,17 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
             onChangeText={setSearchQuery}
           />
           <TouchableOpacity
+            onPress={() => setSortModalVisible(true)}
+            className="rounded-lg px-3 py-3 items-center justify-center"
+            style={{ backgroundColor: appTheme.colors.secondary[500] }}
+          >
+            <View className="flex-row items-center">
+              <Text className="text-white font-medium text-sm">Sort</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity
             onPress={() => setFilterModalVisible(true)}
-            className="rounded-lg px-4 py-3 items-center justify-center min-w-[80px]"
+            className="rounded-lg px-3 py-3 items-center justify-center"
             style={{ backgroundColor: appTheme.colors.primary[500] }}
           >
             <View className="flex-row items-center">
@@ -309,6 +322,14 @@ export const RecipeList = ({ tabType }: RecipeListProps) => {
           onDelete={deleteSelected}
         />
       )}
+
+      {/* Sort Modal */}
+      <SortModal
+        visible={sortModalVisible}
+        onClose={() => setSortModalVisible(false)}
+        selectedSort={sortOption}
+        onSortChange={setSortOption}
+      />
 
       {/* Filter Modal */}
       <FilterModal

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Alert } from 'react-native';
 import { useRecipeStore } from '@store/store';
 import { Recipe } from '~/types/recipe';
+import { haptics } from '@utils/haptics';
 
 interface UseRecipeSelectionOptions {
   selectionMode: boolean;
@@ -44,6 +45,7 @@ export const useRecipeSelection = ({
   }, [selectionMode, filteredRecipes.length, setSelectionMode]);
 
   const toggleRecipeSelection = (recipeId: string) => {
+    haptics.selection();
     const newSelected = new Set(selectedRecipeIds);
     if (newSelected.has(recipeId)) {
       newSelected.delete(recipeId);
@@ -75,6 +77,7 @@ export const useRecipeSelection = ({
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
+            haptics.heavy();
             deleteRecipes(Array.from(selectedRecipeIds), userId);
             setSelectedRecipeIds(new Set());
           }

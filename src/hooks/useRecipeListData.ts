@@ -1,4 +1,4 @@
-import { useRecipeStore } from '@store/store';
+import { useRecipeStore, SortOption } from '@store/store';
 import { Recipe } from '~/types/recipe';
 
 type TabType = 'home' | 'myRecipes';
@@ -29,6 +29,10 @@ interface RecipeListData {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
 
+  // Sort option
+  sortOption: SortOption;
+  setSortOption: (option: SortOption) => void;
+
   // Selection mode (only for myRecipes)
   selectionMode: boolean;
 }
@@ -50,6 +54,7 @@ export const useRecipeListData = (tabType: TabType): RecipeListData => {
   const selectedTags = isHomeTab ? recipeStore.allRecipesSelectedTags : recipeStore.userRecipesSelectedTags;
   const selectedAppliance = isHomeTab ? recipeStore.allRecipesSelectedAppliance : recipeStore.userRecipesSelectedAppliance;
   const viewMode = isHomeTab ? recipeStore.allRecipesViewMode : recipeStore.userRecipesViewMode;
+  const sortOption = isHomeTab ? recipeStore.allRecipesSortOption : recipeStore.userRecipesSortOption;
 
   // Select the appropriate actions based on tab type
   const setSearchQuery = isHomeTab ? recipeStore.setAllRecipesSearchQuery : recipeStore.setUserRecipesSearchQuery;
@@ -58,6 +63,7 @@ export const useRecipeListData = (tabType: TabType): RecipeListData => {
   const setSelectedTags = isHomeTab ? recipeStore.setAllRecipesSelectedTags : recipeStore.setUserRecipesSelectedTags;
   const setSelectedAppliance = isHomeTab ? recipeStore.setAllRecipesSelectedAppliance : recipeStore.setUserRecipesSelectedAppliance;
   const setViewMode = isHomeTab ? recipeStore.setAllRecipesViewMode : recipeStore.setUserRecipesViewMode;
+  const setSortOption = isHomeTab ? recipeStore.setAllRecipesSortOption : recipeStore.setUserRecipesSortOption;
   const filterRecipes = isHomeTab ? recipeStore.filterAllRecipes : recipeStore.filterUserRecipes;
 
   // Selection mode is only available for myRecipes tab
@@ -80,6 +86,8 @@ export const useRecipeListData = (tabType: TabType): RecipeListData => {
     filterRecipes,
     viewMode,
     setViewMode,
+    sortOption,
+    setSortOption,
     selectionMode,
   };
 };

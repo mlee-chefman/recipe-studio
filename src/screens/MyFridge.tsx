@@ -32,6 +32,7 @@ import {
 import { useIngredientSearch } from '@hooks/useIngredientSearch';
 import { useRecipeGeneration } from '@hooks/useRecipeGeneration';
 import { createStyles } from './MyFridge.styles';
+import { haptics } from '@utils/haptics';
 
 export default function MyFridgeScreen() {
   const theme = useAppTheme();
@@ -244,7 +245,10 @@ export default function MyFridgeScreen() {
             {ingredients.map((ingredient) => (
               <TouchableOpacity
                 key={ingredient.id}
-                onPress={() => removeIngredient(ingredient.id)}
+                onPress={() => {
+                  haptics.light();
+                  removeIngredient(ingredient.id);
+                }}
                 style={styles.ingredientBox}
               >
                 {/* Remove button */}

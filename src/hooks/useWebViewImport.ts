@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { scrapeRecipe } from '@utils/recipeScraper';
 import { isExcludedUrl } from '@utils/helpers/urlHelpers';
+import { haptics } from '@utils/haptics';
 
 interface RecipeDetails {
   title: string | null;
@@ -64,8 +65,10 @@ export function useWebViewImport({ onImportSuccess }: UseWebViewImportParams) {
 
     try {
       const scrapedRecipe = await scrapeRecipe(currentUrl);
+      haptics.success();
       onImportSuccess(scrapedRecipe);
     } catch (error) {
+      haptics.error();
       Alert.alert(
         'Import Failed',
         'Could not import recipe from this page. Please try a different recipe or enter it manually.',

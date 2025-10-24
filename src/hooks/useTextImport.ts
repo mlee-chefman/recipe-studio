@@ -4,6 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import { parseMultipleRecipes } from '@services/gemini.service';
 import { useAICoverGeneration } from './useAICoverGeneration';
 import { ScrapedRecipe } from '@utils/recipeScraper';
+import { haptics } from '@utils/haptics';
 
 export interface UseTextImportOptions {
   generateAICover?: boolean; // Whether to generate AI cover image
@@ -37,12 +38,15 @@ export function useTextImport(): UseTextImportResult {
     try {
       const text = await Clipboard.getStringAsync();
       if (text && text.trim()) {
+        haptics.light();
         setImportText(text);
       } else {
+        haptics.warning();
         Alert.alert('No Text', 'Clipboard is empty or contains no text.');
       }
     } catch (error) {
       console.error('Clipboard error:', error);
+      haptics.error();
       Alert.alert('Error', 'Could not read from clipboard.');
     }
   };
@@ -56,6 +60,7 @@ export function useTextImport(): UseTextImportResult {
     const { generateAICover = false } = options;
 
     if (!importText.trim()) {
+      haptics.warning();
       Alert.alert('No Text', 'Please paste or enter recipe text first.');
       return null;
     }
@@ -68,6 +73,7 @@ export function useTextImport(): UseTextImportResult {
       const result = await parseMultipleRecipes(importText);
 
       if (!result.success || result.recipes.length === 0) {
+        haptics.error();
         Alert.alert(
           'Import Failed',
           result.error || 'Could not find a recipe in the text. Please make sure the text contains recipe information.'
@@ -106,6 +112,7 @@ export function useTextImport(): UseTextImportResult {
       return recipe;
     } catch (error) {
       console.error('Text import error:', error);
+      haptics.error();
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
       setIsProcessing(false);
       setProcessingStep('');

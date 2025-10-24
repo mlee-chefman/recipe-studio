@@ -31,6 +31,7 @@ import {
   SavingModal,
 } from '@components/modals';
 import RecipeCoverImage from '@components/RecipeCoverImage';
+import { haptics } from '@utils/haptics';
 
 // UUID generator using expo-crypto
 const uuidv4 = () => Crypto.randomUUID();
@@ -282,13 +283,16 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const addIngredient = () => {
     const result = recipeHelpers.addIngredient(formData.ingredients);
     if (result.success) {
+      haptics.light();
       updateFormData({ ingredients: result.value });
     } else {
+      haptics.warning();
       Alert.alert('Validation Error', result.error);
     }
   };
 
   const removeIngredient = (index: number) => {
+    haptics.light();
     const newIngredients = recipeHelpers.removeIngredient(formData.ingredients, index);
     updateFormData({ ingredients: newIngredients });
   };
@@ -296,13 +300,16 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const addStep = () => {
     const result = recipeHelpers.addStep(formData.steps);
     if (result.success) {
+      haptics.light();
       updateFormData({ steps: result.value });
     } else {
+      haptics.warning();
       Alert.alert('Validation Error', result.error);
     }
   };
 
   const removeStep = (index: number) => {
+    haptics.light();
     const newInstructions = recipeHelpers.removeStep(formData.steps, index);
     updateFormData({ steps: newInstructions });
   };
@@ -534,7 +541,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             </View>
             <Switch
               value={formData.published}
-              onValueChange={(value) => updateFormData({ published: value })}
+              onValueChange={(value) => {
+                haptics.light();
+                updateFormData({ published: value });
+              }}
               trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
               thumbColor={theme.colors.background.primary}
             />
@@ -562,7 +572,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
               </View>
               <Switch
                 value={formData.useProbe}
-                onValueChange={(value) => updateFormData({ useProbe: value })}
+                onValueChange={(value) => {
+                  haptics.light();
+                  updateFormData({ useProbe: value });
+                }}
                 trackColor={{ false: theme.colors.gray[300], true: theme.colors.primary[500] }}
                 thumbColor={theme.colors.background.primary}
               />

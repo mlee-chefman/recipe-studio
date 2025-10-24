@@ -19,6 +19,7 @@ import { useRecipeStore, useAuthStore } from '@store/store';
 import { getApplianceById } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import StepImage from '@components/StepImage';
+import { haptics } from '@utils/haptics';
 
 interface RouteParams {
   recipe: ScrapedRecipe & {
@@ -128,11 +129,13 @@ export default function MyFridgeRecipeDetailScreen() {
   // Handle saving recipe to collection
   const handleSaveRecipe = async () => {
     if (!user?.uid) {
+      haptics.error();
       alert('Please sign in to save recipes');
       return;
     }
 
     if (!recipe) {
+      haptics.error();
       alert('No recipe to save');
       return;
     }
@@ -163,6 +166,8 @@ export default function MyFridgeRecipeDetailScreen() {
       // addRecipe handles createdAt, updatedAt, and userId automatically
       await addRecipe(convertedRecipe, user.uid);
 
+      haptics.success();
+
       // Reset navigation stack to prevent going back and creating duplicates
       // Navigate to MyRecipes tab to show the saved recipe
       // @ts-ignore
@@ -180,6 +185,7 @@ export default function MyFridgeRecipeDetailScreen() {
       });
     } catch (error) {
       console.error('Error saving recipe:', error);
+      haptics.error();
       alert('Failed to save recipe. Please try again.');
     } finally {
       setIsSaving(false);

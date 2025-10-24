@@ -15,6 +15,7 @@ import type { Theme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { useRecipeStore, useAuthStore } from '@store/store';
 import { convertScrapedToRecipe } from '@utils/helpers/recipeConversion';
+import { haptics } from '@utils/haptics';
 
 type RecipeSelectionRouteProp = RouteProp<{
   RecipeSelection: {
@@ -60,6 +61,7 @@ export default function RecipeSelectionScreen() {
   }, [navigation]);
 
   const toggleRecipe = (index: number) => {
+    haptics.selection();
     const newSelected = new Set(selectedRecipes);
     if (newSelected.has(index)) {
       newSelected.delete(index);
@@ -80,11 +82,13 @@ export default function RecipeSelectionScreen() {
 
   const handleImport = async () => {
     if (selectedRecipes.size === 0) {
+      haptics.warning();
       Alert.alert('No Selection', 'Please select at least one recipe to import.');
       return;
     }
 
     if (!user?.uid) {
+      haptics.error();
       Alert.alert('Error', 'User not authenticated. Please sign in and try again.');
       return;
     }
@@ -105,6 +109,7 @@ export default function RecipeSelectionScreen() {
 
       // Show success message
       const count = recipesToImport.length;
+      haptics.success();
       Alert.alert(
         'Success!',
         `${count} recipe${count > 1 ? 's' : ''} imported successfully. You can find ${count > 1 ? 'them' : 'it'} in your recipe collection.`,
@@ -120,6 +125,7 @@ export default function RecipeSelectionScreen() {
       );
     } catch (error) {
       console.error('Import error:', error);
+      haptics.error();
       Alert.alert('Error', 'Failed to import recipes. Please try again.');
     } finally {
       setIsImporting(false);
