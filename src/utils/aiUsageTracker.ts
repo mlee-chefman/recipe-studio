@@ -3,14 +3,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Usage limits configuration
 export const USAGE_LIMITS = {
   FREE_TIER: {
-    generationsPerDay: 3,
-    generationsPerMonth: 20,
+    recipeGenerationsPerDay: 10,
+    recipeGenerationsPerMonth: 40,
+    imageGenerationsPerDay: 20,
+    imageGenerationsPerMonth: 60,
   },
 };
 
 interface UsageStats {
-  dailyGenerations: number;
-  monthlyGenerations: number;
+  dailyRecipeGenerations: number;
+  monthlyRecipeGenerations: number;
+  dailyImageGenerations: number;
+  monthlyImageGenerations: number;
   lastGenerationDate: string; // ISO date string
   lastResetDate: string; // ISO date string for monthly reset
 }
@@ -32,8 +36,10 @@ async function getUsageStats(): Promise<UsageStats> {
 
   // Default stats for new users
   return {
-    dailyGenerations: 0,
-    monthlyGenerations: 0,
+    dailyRecipeGenerations: 0,
+    monthlyRecipeGenerations: 0,
+    dailyImageGenerations: 0,
+    monthlyImageGenerations: 0,
     lastGenerationDate: new Date().toISOString(),
     lastResetDate: new Date().toISOString(),
   };
@@ -92,34 +98,90 @@ export async function checkUsageLimit(): Promise<{
 
   // Reset daily counter if it's a new day
   if (isNewDay(stats.lastGenerationDate)) {
-    stats.dailyGenerations = 0;
+    stats.dailyRecipeGenerations = 0;
+    stats.dailyImageGenerations = 0;
     stats.lastGenerationDate = now.toISOString();
   }
 
   // Reset monthly counter if it's a new month
   if (isNewMonth(stats.lastResetDate)) {
-    stats.monthlyGenerations = 0;
+    stats.monthlyRecipeGenerations = 0;
+    stats.monthlyImageGenerations = 0;
     stats.lastResetDate = now.toISOString();
   }
 
-  const remainingDaily = limits.generationsPerDay - stats.dailyGenerations;
-  const remainingMonthly = limits.generationsPerMonth - stats.monthlyGenerations;
+  const remainingDaily = limits.recipeGenerationsPerDay - stats.dailyRecipeGenerations;
+  const remainingMonthly = limits.recipeGenerationsPerMonth - stats.monthlyRecipeGenerations;
 
   // Check daily limit
-  if (stats.dailyGenerations >= limits.generationsPerDay) {
+  if (stats.dailyRecipeGenerations >= limits.recipeGenerationsPerDay) {
     return {
       allowed: false,
       remaining: { daily: 0, monthly: remainingMonthly },
-      message: `You've reached your daily limit of ${limits.generationsPerDay} AI recipe generations. Try again tomorrow!`,
+      message: `You've reached your daily limit of ${limits.recipeGenerationsPerDay} AI recipe generations. Try again tomorrow!`,
     };
   }
 
   // Check monthly limit
-  if (stats.monthlyGenerations >= limits.generationsPerMonth) {
+  if (stats.monthlyRecipeGenerations >= limits.recipeGenerationsPerMonth) {
     return {
       allowed: false,
       remaining: { daily: remainingDaily, monthly: 0 },
-      message: `You've reached your monthly limit of ${limits.generationsPerMonth} AI recipe generations. Limit resets next month.`,
+      message: `You've reached your monthly limit of ${limits.recipeGenerationsPerMonth} AI recipe generations. Limit resets next month.`,
+    };
+  }
+
+  return {
+    allowed: true,
+    remaining: { daily: remainingDaily, monthly: remainingMonthly },
+  };
+}
+
+/**
+ * Check if user can generate an image (within limits)
+ * Returns { allowed: boolean, remaining: { daily, monthly }, message?: string }
+ */
+export async function checkImageUsageLimit(): Promise<{
+  allowed: boolean;
+  remaining: { daily: number; monthly: number };
+  message?: string;
+}> {
+  const stats = await getUsageStats();
+  const limits = USAGE_LIMITS.FREE_TIER;
+  const now = new Date();
+
+  // Reset daily counter if it's a new day
+  if (isNewDay(stats.lastGenerationDate)) {
+    stats.dailyRecipeGenerations = 0;
+    stats.dailyImageGenerations = 0;
+    stats.lastGenerationDate = now.toISOString();
+  }
+
+  // Reset monthly counter if it's a new month
+  if (isNewMonth(stats.lastResetDate)) {
+    stats.monthlyRecipeGenerations = 0;
+    stats.monthlyImageGenerations = 0;
+    stats.lastResetDate = now.toISOString();
+  }
+
+  const remainingDaily = limits.imageGenerationsPerDay - stats.dailyImageGenerations;
+  const remainingMonthly = limits.imageGenerationsPerMonth - stats.monthlyImageGenerations;
+
+  // Check daily limit
+  if (stats.dailyImageGenerations >= limits.imageGenerationsPerDay) {
+    return {
+      allowed: false,
+      remaining: { daily: 0, monthly: remainingMonthly },
+      message: `You've reached your daily limit of ${limits.imageGenerationsPerDay} AI image generations. Try again tomorrow!`,
+    };
+  }
+
+  // Check monthly limit
+  if (stats.monthlyImageGenerations >= limits.imageGenerationsPerMonth) {
+    return {
+      allowed: false,
+      remaining: { daily: remainingDaily, monthly: 0 },
+      message: `You've reached your monthly limit of ${limits.imageGenerationsPerMonth} AI image generations. Limit resets next month.`,
     };
   }
 
@@ -139,23 +201,52 @@ export async function recordGeneration(): Promise<void> {
 
   // Reset counters if needed (safety check)
   if (isNewDay(stats.lastGenerationDate)) {
-    stats.dailyGenerations = 0;
+    stats.dailyRecipeGenerations = 0;
+    stats.dailyImageGenerations = 0;
   }
   if (isNewMonth(stats.lastResetDate)) {
-    stats.monthlyGenerations = 0;
+    stats.monthlyRecipeGenerations = 0;
+    stats.monthlyImageGenerations = 0;
     stats.lastResetDate = now.toISOString();
   }
 
   // Increment counters
-  stats.dailyGenerations += 1;
-  stats.monthlyGenerations += 1;
+  stats.dailyRecipeGenerations += 1;
+  stats.monthlyRecipeGenerations += 1;
   stats.lastGenerationDate = now.toISOString();
 
   await saveUsageStats(stats);
 }
 
 /**
- * Get remaining generations for display in UI
+ * Record a successful image generation
+ * Call this after successful API response
+ */
+export async function recordImageGeneration(): Promise<void> {
+  const stats = await getUsageStats();
+  const now = new Date();
+
+  // Reset counters if needed (safety check)
+  if (isNewDay(stats.lastGenerationDate)) {
+    stats.dailyRecipeGenerations = 0;
+    stats.dailyImageGenerations = 0;
+  }
+  if (isNewMonth(stats.lastResetDate)) {
+    stats.monthlyRecipeGenerations = 0;
+    stats.monthlyImageGenerations = 0;
+    stats.lastResetDate = now.toISOString();
+  }
+
+  // Increment counters
+  stats.dailyImageGenerations += 1;
+  stats.monthlyImageGenerations += 1;
+  stats.lastGenerationDate = now.toISOString();
+
+  await saveUsageStats(stats);
+}
+
+/**
+ * Get remaining recipe generations for display in UI
  */
 export async function getRemainingGenerations(): Promise<{
   daily: number;
@@ -168,17 +259,49 @@ export async function getRemainingGenerations(): Promise<{
 
   // Reset counters if needed
   if (isNewDay(stats.lastGenerationDate)) {
-    stats.dailyGenerations = 0;
+    stats.dailyRecipeGenerations = 0;
+    stats.dailyImageGenerations = 0;
   }
   if (isNewMonth(stats.lastResetDate)) {
-    stats.monthlyGenerations = 0;
+    stats.monthlyRecipeGenerations = 0;
+    stats.monthlyImageGenerations = 0;
   }
 
   return {
-    daily: Math.max(0, limits.generationsPerDay - stats.dailyGenerations),
-    monthly: Math.max(0, limits.generationsPerMonth - stats.monthlyGenerations),
-    dailyLimit: limits.generationsPerDay,
-    monthlyLimit: limits.generationsPerMonth,
+    daily: Math.max(0, limits.recipeGenerationsPerDay - stats.dailyRecipeGenerations),
+    monthly: Math.max(0, limits.recipeGenerationsPerMonth - stats.monthlyRecipeGenerations),
+    dailyLimit: limits.recipeGenerationsPerDay,
+    monthlyLimit: limits.recipeGenerationsPerMonth,
+  };
+}
+
+/**
+ * Get remaining image generations for display in UI
+ */
+export async function getRemainingImageGenerations(): Promise<{
+  daily: number;
+  monthly: number;
+  dailyLimit: number;
+  monthlyLimit: number;
+}> {
+  const stats = await getUsageStats();
+  const limits = USAGE_LIMITS.FREE_TIER;
+
+  // Reset counters if needed
+  if (isNewDay(stats.lastGenerationDate)) {
+    stats.dailyRecipeGenerations = 0;
+    stats.dailyImageGenerations = 0;
+  }
+  if (isNewMonth(stats.lastResetDate)) {
+    stats.monthlyRecipeGenerations = 0;
+    stats.monthlyImageGenerations = 0;
+  }
+
+  return {
+    daily: Math.max(0, limits.imageGenerationsPerDay - stats.dailyImageGenerations),
+    monthly: Math.max(0, limits.imageGenerationsPerMonth - stats.monthlyImageGenerations),
+    dailyLimit: limits.imageGenerationsPerDay,
+    monthlyLimit: limits.imageGenerationsPerMonth,
   };
 }
 
@@ -187,8 +310,10 @@ export async function getRemainingGenerations(): Promise<{
  */
 export async function resetUsageStats(): Promise<void> {
   const stats: UsageStats = {
-    dailyGenerations: 0,
-    monthlyGenerations: 0,
+    dailyRecipeGenerations: 0,
+    monthlyRecipeGenerations: 0,
+    dailyImageGenerations: 0,
+    monthlyImageGenerations: 0,
     lastGenerationDate: new Date().toISOString(),
     lastResetDate: new Date().toISOString(),
   };

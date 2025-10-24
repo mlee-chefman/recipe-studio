@@ -39,6 +39,7 @@ export function AIAssistantModal({
       variant="bottom-sheet"
       showDragIndicator={true}
       maxHeight="70%"
+      avoidKeyboard={true}
     >
       <View style={styles.container}>
         {/* Header */}

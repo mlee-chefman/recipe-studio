@@ -87,7 +87,7 @@ export default function MyFridgeScreen() {
     setShowResultsModal,
     generateRecipes,
     clearCurrentRecipe,
-  } = useRecipeGeneration(allRecipes, userRecipes);
+  } = useRecipeGeneration(allRecipes, userRecipes, user?.uid);
 
   // Handlers
   const handleGenerateRecipe = async () => {

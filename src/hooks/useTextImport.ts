@@ -2,14 +2,20 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { parseMultipleRecipes } from '@services/gemini.service';
+import { useAICoverGeneration } from './useAICoverGeneration';
 import { ScrapedRecipe } from '@utils/recipeScraper';
+
+export interface UseTextImportOptions {
+  generateAICover?: boolean; // Whether to generate AI cover image
+}
 
 export interface UseTextImportResult {
   importText: string;
   setImportText: (text: string) => void;
   isProcessing: boolean;
+  processingStep: string;
   pasteFromClipboard: () => Promise<void>;
-  parseAndImport: () => Promise<{ success: boolean; recipes?: ScrapedRecipe[]; error?: string }>;
+  parseAndImport: (options?: UseTextImportOptions) => Promise<ScrapedRecipe | null>;
   reset: () => void;
 }
 
@@ -20,6 +26,9 @@ export interface UseTextImportResult {
 export function useTextImport(): UseTextImportResult {
   const [importText, setImportText] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingStep, setProcessingStep] = useState<string>('');
+
+  const { generateAndUploadCover } = useAICoverGeneration();
 
   /**
    * Paste text from clipboard
@@ -39,35 +48,68 @@ export function useTextImport(): UseTextImportResult {
   };
 
   /**
-   * Parse the import text and extract recipes
+   * Parse the import text and extract recipe
+   * Optionally generates AI cover image
+   * Returns single recipe for auto-navigation to RecipeCreator
    */
-  const parseAndImport = async () => {
+  const parseAndImport = async (options: UseTextImportOptions = {}): Promise<ScrapedRecipe | null> => {
+    const { generateAICover = false } = options;
+
     if (!importText.trim()) {
       Alert.alert('No Text', 'Please paste or enter recipe text first.');
-      return { success: false, error: 'No text provided' };
+      return null;
     }
 
     setIsProcessing(true);
+    setProcessingStep('Analyzing recipe text with AI...');
 
     try {
+      // Parse text - only expect single recipe
       const result = await parseMultipleRecipes(importText);
 
       if (!result.success || result.recipes.length === 0) {
         Alert.alert(
           'Import Failed',
-          result.error || 'Could not find any recipes in the text. Please make sure the text contains recipe information.'
+          result.error || 'Could not find a recipe in the text. Please make sure the text contains recipe information.'
         );
         setIsProcessing(false);
-        return { success: false, error: result.error };
+        setProcessingStep('');
+        return null;
+      }
+
+      // Use first recipe (simplified for single recipe import)
+      const recipe = result.recipes[0];
+
+      // Generate AI cover if requested
+      if (generateAICover) {
+        setProcessingStep('Generating professional cover photo...');
+
+        const downloadURL = await generateAndUploadCover({
+          title: recipe.title,
+          description: recipe.description,
+          ingredients: recipe.ingredients,
+          category: recipe.category,
+          tags: recipe.tags,
+        });
+
+        if (downloadURL) {
+          recipe.image = downloadURL;
+          console.log('AI cover image set successfully');
+        } else {
+          console.log('AI cover generation skipped (quota exceeded or failed), continuing without image');
+          // Continue without AI cover - quota may be exceeded
+        }
       }
 
       setIsProcessing(false);
-      return { success: true, recipes: result.recipes };
+      setProcessingStep('');
+      return recipe;
     } catch (error) {
       console.error('Text import error:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
       setIsProcessing(false);
-      return { success: false, error: 'Unexpected error occurred' };
+      setProcessingStep('');
+      return null;
     }
   };
 
@@ -77,12 +119,14 @@ export function useTextImport(): UseTextImportResult {
   const reset = () => {
     setImportText('');
     setIsProcessing(false);
+    setProcessingStep('');
   };
 
   return {
     importText,
     setImportText,
     isProcessing,
+    processingStep,
     pasteFromClipboard,
     parseAndImport,
     reset,

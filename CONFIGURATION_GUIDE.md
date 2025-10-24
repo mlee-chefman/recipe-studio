@@ -94,22 +94,23 @@ Example: 5 chunks × 4s = 20s of waiting + ~10s processing = 30s total
 - **Latency:** Higher value = slightly longer processing per chunk
 - **Quality:** Higher value = can extract more text per chunk
 
-**Pricing (Gemini 2.0 Flash):**
+**Pricing (Gemini 2.5 Flash-Lite):**
 - **Input tokens:** $0.075 per 1M tokens (PDF data)
-- **Output tokens:** $0.30 per 1M tokens (extracted text) ⚠️
+- **Output tokens:** $0.030 per 1M tokens (extracted text) ⚠️
+- **Note:** 90% cheaper output tokens compared to 2.0 Flash
 
 **Recommendations:**
 - **Keep at 8192** - This is the sweet spot for cost vs. quality
 - **DO NOT increase** - Would extract same amount of text but cost 4x more if set to 32K
 
-**Cost Example:**
+**Cost Example (Gemini 2.5 Flash-Lite):**
 ```
 8192 tokens per chunk × 5 chunks = 40,960 output tokens
-= $0.012 per PDF (free tier: included in 50 requests/day)
+= $0.0012 per PDF (free tier: included in 50 requests/day)
 
 If set to 32768:
 32768 tokens × 5 chunks = 163,840 output tokens
-= $0.049 per PDF (4x more expensive)
+= $0.0049 per PDF (4x more expensive)
 ```
 
 ---
@@ -224,10 +225,10 @@ For 52,000 character text:
 - **DO NOT reduce** - May truncate recipe lists
 - **Large recipes:** Keep as is
 
-**Cost Impact:**
+**Cost Impact (Gemini 2.5 Flash-Lite):**
 ```
 Typical chunk with 4 recipes = ~8,000 output tokens
-11 chunks × 8,000 = 88,000 tokens = $0.026 per cookbook
+11 chunks × 8,000 = 88,000 tokens = $0.0026 per cookbook
 ```
 
 ---
@@ -256,7 +257,7 @@ Typical chunk with 4 recipes = ~8,000 output tokens
 
 ## API Usage & Cost Impact
 
-### Free Tier Limits (Gemini 2.0 Flash)
+### Free Tier Limits (Gemini 2.5 Flash-Lite)
 
 - **Requests:** 50 per day (resets at midnight PST)
 - **Rate:** 15 requests per minute
@@ -289,35 +290,35 @@ Total: ~53s
 **Total Usage per Cookbook:**
 - **API Calls:** 16 requests (32% of daily free quota)
 - **Time:** ~83 seconds (~1.5 minutes)
-- **Cost (if paid):** ~$0.04 per cookbook
+- **Cost (if paid):** ~$0.004 per cookbook (90% cheaper than 2.0 Flash)
 
 **Daily Capacity (Free Tier):**
 - **Max cookbooks per day:** 3 cookbooks (50 requests ÷ 16 = 3.1)
 
 ---
 
-### Paid Tier Costs (Gemini 2.0 Flash)
+### Paid Tier Costs (Gemini 2.5 Flash-Lite)
 
 **Pricing:**
 - Input: $0.075 per 1M tokens
-- Output: $0.30 per 1M tokens
+- Output: $0.030 per 1M tokens (90% cheaper than 2.0 Flash)
 
 **Per Cookbook Cost:**
 ```
 PDF Extraction:
 - Input: 5 chunks × ~10,000 tokens = 50,000 tokens = $0.00375
-- Output: 5 chunks × 8,192 tokens = 40,960 tokens = $0.01229
-Subtotal: $0.016
+- Output: 5 chunks × 8,192 tokens = 40,960 tokens = $0.00123
+Subtotal: $0.005
 
 Recipe Parsing:
 - Input: 11 chunks × ~5,000 tokens = 55,000 tokens = $0.00413
-- Output: 11 chunks × 8,000 tokens = 88,000 tokens = $0.0264
-Subtotal: $0.030
+- Output: 11 chunks × 8,000 tokens = 88,000 tokens = $0.00264
+Subtotal: $0.0068
 
-TOTAL PER COOKBOOK: ~$0.046 (less than 5 cents)
+TOTAL PER COOKBOOK: ~$0.0118 (about 1 cent) - 75% cheaper than 2.0 Flash
 ```
 
-**Cost for 100 Cookbooks:** ~$4.60
+**Cost for 100 Cookbooks:** ~$1.18 (vs $4.60 with 2.0 Flash)
 
 ---
 

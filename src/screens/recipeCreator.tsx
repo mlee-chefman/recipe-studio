@@ -15,18 +15,22 @@ import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
 import { useRecipeForm } from '@hooks/useRecipeForm';
+import { useAuthStore } from '@store/store';
 import { SimpleDraggableList } from '@components/DraggableList';
 import { DraggableCookingAction } from '@components/DraggableCookingAction';
 import { useImagePicker } from '@hooks/useImagePicker';
 import { useAIRecipeGenerator } from '@hooks/useAIRecipeGenerator';
 import { useCookingActions } from '@hooks/useCookingActions';
+import { useAICoverGeneration } from '@hooks/useAICoverGeneration';
 import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
 import { formatCookTime } from '@utils/helpers/recipeHelpers';
 import StepImage from '@components/StepImage';
 import {
   ConfirmationModal,
   AIAssistantModal,
+  SavingModal,
 } from '@components/modals';
+import RecipeCoverImage from '@components/RecipeCoverImage';
 
 // UUID generator using expo-crypto
 const uuidv4 = () => Crypto.randomUUID();
@@ -45,8 +49,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const [showAIHelperModal, setShowAIHelperModal] = useState(false);
   const [showTempInfo, setShowTempInfo] = useState(false);
   const [tempInfoStepIndex, setTempInfoStepIndex] = useState<number | null>(null);
+  const [tempRecipeId] = useState(() => uuidv4()); // Generate temp ID for new recipes
   const fabScale = useRef(new Animated.Value(1)).current;
   const styles = useStyles((theme) => createStyles(theme, fabScale));
+  const { user } = useAuthStore();
   const {
     formData,
     modalStates,
@@ -70,7 +76,8 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     handleCookingActionDragStart,
     handleCookingActionDragEnd,
     removeCookingAction,
-    resetForm
+    resetForm,
+    isSaving
   } = useRecipeForm({
     onComplete: onComplete || (() => navigation.goBack())
   });
@@ -85,7 +92,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     loadRemainingGenerations,
   } = useAIRecipeGenerator({
     autoLoadGenerations: true,
-    onRecipeGenerated: (generatedRecipe) => {
+    userId: user?.uid,
+    recipeId: tempRecipeId,
+    autoGenerateImage: true,
+    onRecipeGenerated: (generatedRecipe, imageUrl) => {
       // Estimate difficulty based on cook time and number of steps
       const totalTime = generatedRecipe.cookTime;
       const numSteps = generatedRecipe.steps.length;
@@ -96,7 +106,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         difficulty = 'Hard';
       }
 
-      // Populate form fields with generated data
+      // Populate form fields with generated data (including auto-generated image)
       setCookTimeFromMinutes(generatedRecipe.cookTime);
       updateFormData({
         title: generatedRecipe.title,
@@ -105,6 +115,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         steps: generatedRecipe.steps.length > 0 ? generatedRecipe.steps : [{ text: '' }],
         servings: generatedRecipe.servings,
         category: generatedRecipe.category || '',
+        imageUrl: imageUrl || '', // Set auto-generated image
         difficulty
       });
 
@@ -222,6 +233,37 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const { showImageOptions } = useImagePicker({
     onImageSelected: (uri) => updateFormData({ imageUrl: uri }),
   });
+
+  // AI Cover Generation hook
+  const { isGenerating: isGeneratingCover, generateAndUploadCover } = useAICoverGeneration();
+
+  const handleGenerateAICover = async () => {
+    if (!formData.title || formData.title.trim() === '') {
+      Alert.alert('Missing Title', 'Please add a recipe title before generating an AI cover image.');
+      return;
+    }
+
+    const downloadURL = await generateAndUploadCover({
+      title: formData.title,
+      description: formData.notes,
+      ingredients: formData.ingredients.filter(i => i.trim() !== ''),
+      category: formData.category,
+      tags: formData.tags || [],
+    });
+
+    if (downloadURL) {
+      updateFormData({ imageUrl: downloadURL });
+      Alert.alert('Success', 'AI cover image generated successfully!');
+    } else {
+      // Silently skip if quota exceeded - user can try uploading manually
+      console.log('AI cover generation skipped (quota exceeded or failed)');
+      // Optionally show a gentle message
+      Alert.alert(
+        'Image Generation Unavailable',
+        'AI cover generation is currently unavailable. You can upload a photo manually instead.'
+      );
+    }
+  };
 
   // Cooking actions hook
   const {
@@ -421,7 +463,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   };
 
   return (
-    <View style={styles.rootContainer}>
+    <View style={styles.rootContainer} pointerEvents={isSaving ? 'none' : 'auto'}>
       <KeyboardAwareScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
@@ -434,6 +476,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             className="text-xl font-medium border-b pb-2"
             placeholder="Title"
             value={formData.title}
+            placeholderTextColor={theme.colors.text.secondary}
             onChangeText={(value) => updateFormData({ title: value })}
             style={styles.titleInput}
           />
@@ -443,46 +486,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         <View className="mb-4 border-b pb-3" style={{ borderColor: theme.colors.border.main }}>
           <View className="flex-row items-center justify-between">
             <Text className="text-lg" style={{ color: theme.colors.text.primary }}>Image</Text>
-            {formData.imageUrl ? (
-              <TouchableOpacity
-                onPress={() => {
-                  Alert.alert(
-                    'Image Options',
-                    'Choose an action',
-                    [
-                      { text: 'Replace', onPress: showImageOptions },
-                      {
-                        text: 'Remove',
-                        onPress: () => updateFormData({ imageUrl: '' }),
-                        style: 'destructive'
-                      },
-                      { text: 'Cancel', style: 'cancel' }
-                    ]
-                  );
-                }}
-                className="relative"
-              >
-                <Image
-                  source={{ uri: formData.imageUrl }}
-                  style={styles.recipeImage}
-                  contentFit="cover"
-                />
-                <View
-                  className="absolute bottom-0 right-0 w-6 h-6 rounded-full items-center justify-center"
-                  style={styles.editImageBadge}
-                >
-                  <Ionicons name="pencil" size={14} color="white" />
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                onPress={showImageOptions}
-                className="w-12 h-12 border-2 rounded-lg items-center justify-center"
-                style={styles.addImageButton}
-              >
-                <Text className="text-xl" style={styles.cameraEmoji}>📷</Text>
-              </TouchableOpacity>
-            )}
+            <RecipeCoverImage
+              imageUri={formData.imageUrl}
+              onImageChange={(uri) => updateFormData({ imageUrl: uri || '' })}
+              editable={true}
+              size="small"
+              onGenerateAI={handleGenerateAICover}
+              isGeneratingAI={isGeneratingCover}
+            />
           </View>
         </View>
 
@@ -592,6 +603,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                     className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
                     style={{ borderColor: theme.colors.border.main }}
                     placeholder={`Ingredient ${index + 1}`}
+                    placeholderTextColor={theme.colors.text.secondary}
                     value={ingredient}
                     onChangeText={(value) => updateIngredient(index, value)}
                     onSubmitEditing={() => handleIngredientSubmit(index)}
@@ -651,6 +663,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
                         className="flex-1 border rounded-lg px-3 py-2 text-base mr-2"
                     style={{ borderColor: theme.colors.border.main }}
                         placeholder={`Step ${index + 1}`}
+                        placeholderTextColor={theme.colors.text.secondary}
                         value={step.text}
                         onChangeText={(value) => updateStep(index, value)}
                         onAddNewStep={() => {
@@ -742,6 +755,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
               key="add-new-instruction"
               className="flex-1 border border-dashed rounded-lg px-3 py-2 text-base mr-2"
               placeholder="+ Add new instruction step"
+              placeholderTextColor={theme.colors.text.secondary}
               value={newInstructionText}
               onChangeText={setNewInstructionText}
               onAddNewStep={() => {
@@ -769,6 +783,7 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
             className="border rounded-lg p-3 text-base min-h-[80px]"
             style={{ borderColor: theme.colors.border.main }}
             placeholder="Add your recipe notes"
+            placeholderTextColor={theme.colors.text.secondary}
             value={formData.notes}
             onChangeText={(value) => updateFormData({ notes: value })}
             multiline
@@ -873,6 +888,9 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       isGenerating={isGenerating}
       remainingGenerations={remainingGenerations}
     />
+
+    {/* Saving Modal */}
+    <SavingModal visible={isSaving} message="Creating recipe..." />
   </View>
   );
 }

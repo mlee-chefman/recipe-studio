@@ -11,10 +11,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { signIn } from '../modules/user/userAuth';
+import { signIn , convertToAuthUser } from '../modules/user/userAuth';
 import { getUserProfile } from '../modules/user/userService';
 import { useAuthStore } from '../store/store';
-import { convertToAuthUser } from '../modules/user/userAuth';
 import { getCredentials, saveCredentials } from '../services/keychainService';
 import { setHasSignedUpBefore } from '../services/authStorageService';
 import { useAppTheme } from '../theme';
@@ -167,17 +166,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     padding: theme.spacing.xl,
+    paddingTop: theme.spacing['3xl'],
   },
   formContainer: {
     backgroundColor: theme.colors.surface.primary,
-    padding: theme.spacing['3xl'],
+    paddingHorizontal: theme.spacing['3xl'],
+    paddingBottom: theme.spacing['3xl'],
+    paddingTop: theme.spacing['4xl'],
     borderRadius: theme.borderRadius.xl,
     ...theme.shadows.md,
+    overflow: 'visible',
   },
   title: {
     ...theme.typography.styles.h1,
     textAlign: 'center',
     marginBottom: theme.spacing.md,
+    includeFontPadding: false,
+    lineHeight: undefined,
   },
   subtitle: {
     fontSize: theme.typography.fontSize.base,

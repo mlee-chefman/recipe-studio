@@ -1,5 +1,5 @@
 import { useEffect, useRef, ReactNode } from 'react';
-import { View, Modal, StyleSheet, Animated, TouchableOpacity, ViewStyle } from 'react-native';
+import { View, Modal, StyleSheet, Animated, TouchableOpacity, ViewStyle, Keyboard, Platform } from 'react-native';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
 
@@ -15,6 +15,7 @@ interface BaseModalProps {
   maxHeight?: string | number;
   enableBackdropClose?: boolean;
   contentStyle?: ViewStyle;
+  avoidKeyboard?: boolean;
 }
 
 export default function BaseModal({
@@ -27,10 +28,44 @@ export default function BaseModal({
   maxHeight,
   enableBackdropClose = true,
   contentStyle,
+  avoidKeyboard = false,
 }: BaseModalProps) {
   const slideAnim = useRef(new Animated.Value(500)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const keyboardOffset = useRef(new Animated.Value(0)).current;
   const styles = useStyles(createStyles);
+
+  // Keyboard event handlers
+  useEffect(() => {
+    if (!avoidKeyboard || variant !== 'bottom-sheet') return;
+
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        Animated.timing(keyboardOffset, {
+          toValue: -e.endCoordinates.height,
+          duration: Platform.OS === 'ios' ? e.duration : 250,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      (e) => {
+        Animated.timing(keyboardOffset, {
+          toValue: 0,
+          duration: Platform.OS === 'ios' ? e.duration : 250,
+          useNativeDriver: true,
+        }).start();
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, [avoidKeyboard, variant, keyboardOffset]);
 
   useEffect(() => {
     if (visible) {
@@ -117,7 +152,10 @@ export default function BaseModal({
           style={[
             getContentContainerStyle(),
             variant === 'bottom-sheet' && {
-              transform: [{ translateY: slideAnim }]
+              transform: [
+                { translateY: slideAnim },
+                ...(avoidKeyboard ? [{ translateY: keyboardOffset }] : [])
+              ]
             },
             variant !== 'bottom-sheet' && {
               opacity: fadeAnim

@@ -23,22 +23,35 @@ export default function RecipeOCRImportScreen() {
   const styles = useStyles(createStyles);
 
   const navigation = useNavigation();
-  const [isEditing, setIsEditing] = useState(false);
 
   // OCR import hook
   const {
     imageUri,
-    extractedText,
     parsedRecipe,
     isProcessing,
     processingStep,
     processImage,
-    setExtractedText,
   } = useOCRImport();
+
+  // Handle image selection with auto-navigation
+  const handleImageSelected = async (uri: string) => {
+    const recipe = await processImage(uri, { generateAICover: true });
+
+    // Auto-navigate to RecipeCreator if recipe was successfully parsed
+    if (recipe) {
+      navigation.goBack(); // Remove RecipeOCRImport from stack
+      setTimeout(() => {
+        (navigation as any).navigate('RecipeCreator', {
+          importedRecipe: recipe,
+          fromWebImport: true
+        });
+      }, 100);
+    }
+  };
 
   // Image picker hook
   const { takePhoto, pickFromLibrary } = useImagePicker({
-    onImageSelected: processImage,
+    onImageSelected: handleImageSelected,
     allowsEditing: true,
     quality: 1,
   });
@@ -78,7 +91,7 @@ export default function RecipeOCRImportScreen() {
 
         // Check if it's an image
         if (result.assets[0].mimeType?.startsWith('image/')) {
-          await processImage(uri);
+          await handleImageSelected(uri);
         } else if (result.assets[0].mimeType === 'application/pdf') {
           Alert.alert(
             'PDF Not Supported Yet',
@@ -105,27 +118,6 @@ export default function RecipeOCRImportScreen() {
     );
   };
 
-  const handleImport = () => {
-    if (!extractedText.trim()) {
-      Alert.alert('No Text', 'Please scan an image first.');
-      return;
-    }
-
-    if (!parsedRecipe) {
-      Alert.alert('No Recipe', 'Please scan an image first.');
-      return;
-    }
-
-    // Navigate to recipe creator with parsed recipe
-    // Remove this screen from the stack first
-    navigation.goBack(); // Remove RecipeOCRImport from stack
-    setTimeout(() => {
-      (navigation as any).navigate('RecipeCreator', {
-        importedRecipe: parsedRecipe,
-        fromWebImport: true
-      });
-    }, 100); // Small delay to ensure goBack completes first
-  };
 
   return (
     <View style={styles.container}>
@@ -160,7 +152,7 @@ export default function RecipeOCRImportScreen() {
               <View style={styles.instructionItem}>
                 <Text style={styles.instructionNumber}>4</Text>
                 <Text style={styles.instructionText}>
-                  Import the recipe to your collection
+                  AI will generate a professional cover photo
                 </Text>
               </View>
             </View>
@@ -191,52 +183,23 @@ export default function RecipeOCRImportScreen() {
             <Text style={styles.processingText}>
               {processingStep || 'Processing...'}
             </Text>
-          </View>
-        )}
-
-        {/* Extracted Text */}
-        {extractedText && !isProcessing && (
-          <View style={styles.textContainer}>
-            <View style={styles.textHeader}>
-              <Text style={styles.textTitle}>Extracted Text</Text>
-              <TouchableOpacity onPress={() => setIsEditing(!isEditing)}>
-                <Text style={styles.editButton}>{isEditing ? 'Done' : 'Edit'}</Text>
-              </TouchableOpacity>
-            </View>
-            {isEditing ? (
-              <TextInput
-                style={styles.textInput}
-                value={extractedText}
-                onChangeText={setExtractedText}
-                multiline
-                textAlignVertical="top"
-              />
-            ) : (
-              <ScrollView style={styles.textDisplay} nestedScrollEnabled>
-                <Text style={styles.textContent}>{extractedText}</Text>
-              </ScrollView>
-            )}
+            <Text style={styles.processingSubtext}>
+              This will only take a moment...
+            </Text>
           </View>
         )}
       </ScrollView>
 
-      {/* Bottom Action Buttons */}
+      {/* Bottom Action Button */}
       <View style={styles.bottomActions}>
-        {!imageUri && !isProcessing && (
+        {!isProcessing && (
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={showImageOptions}
           >
-            <Text style={styles.primaryButtonText}>Select Image</Text>
-          </TouchableOpacity>
-        )}
-
-        {extractedText && !isProcessing && (
-          <TouchableOpacity
-            style={styles.importButton}
-            onPress={handleImport}
-          >
-            <Text style={styles.importButtonText}>Import Recipe</Text>
+            <Text style={styles.primaryButtonText}>
+              {imageUri ? 'Scan Another Recipe' : 'Scan Recipe'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
@@ -317,8 +280,17 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: theme.spacing.md,
   },
   processingText: {
+    marginTop: theme.spacing.md,
     fontSize: theme.typography.fontSize.base,
     color: theme.colors.text.secondary,
+    textAlign: 'center',
+    fontWeight: theme.typography.fontWeight.medium as any,
+  },
+  processingSubtext: {
+    marginTop: theme.spacing.xs,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.tertiary,
+    textAlign: 'center',
   },
   textContainer: {
     marginBottom: theme.spacing.xl,
@@ -376,17 +348,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'center',
   },
   primaryButtonText: {
-    fontSize: theme.typography.fontSize.lg,
-    fontWeight: theme.typography.fontWeight.semibold as any,
-    color: 'white',
-  },
-  importButton: {
-    backgroundColor: theme.colors.success.main,
-    padding: theme.spacing.lg,
-    borderRadius: theme.borderRadius.lg,
-    alignItems: 'center',
-  },
-  importButtonText: {
     fontSize: theme.typography.fontSize.lg,
     fontWeight: theme.typography.fontWeight.semibold as any,
     color: 'white',
