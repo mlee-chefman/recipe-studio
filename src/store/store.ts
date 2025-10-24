@@ -27,6 +27,7 @@ import {
 } from '~/types/ingredient';
 
 export type ViewMode = 'detailed' | 'compact' | 'grid';
+export type SortOption = 'newest' | 'oldest' | 'title-asc' | 'title-desc' | 'cooktime-asc' | 'cooktime-desc';
 
 export interface BearState {
   bears: number;
@@ -62,6 +63,7 @@ export interface RecipeState {
   allRecipesSelectedTags: string[];
   allRecipesSelectedAppliance: string;
   allRecipesViewMode: ViewMode;
+  allRecipesSortOption: SortOption;
   // Search and filter state for MyRecipes tab
   userRecipesSearchQuery: string;
   userRecipesSelectedCategory: string;
@@ -69,6 +71,7 @@ export interface RecipeState {
   userRecipesSelectedTags: string[];
   userRecipesSelectedAppliance: string;
   userRecipesViewMode: ViewMode;
+  userRecipesSortOption: SortOption;
   selectionMode: boolean;
   // Actions for Home tab
   setAllRecipesSearchQuery: (query: string) => void;
@@ -77,6 +80,7 @@ export interface RecipeState {
   setAllRecipesSelectedTags: (tags: string[]) => void;
   setAllRecipesSelectedAppliance: (appliance: string) => void;
   setAllRecipesViewMode: (mode: ViewMode) => void;
+  setAllRecipesSortOption: (option: SortOption) => void;
   filterAllRecipes: () => void;
   // Actions for MyRecipes tab
   setUserRecipesSearchQuery: (query: string) => void;
@@ -85,6 +89,7 @@ export interface RecipeState {
   setUserRecipesSelectedTags: (tags: string[]) => void;
   setUserRecipesSelectedAppliance: (appliance: string) => void;
   setUserRecipesViewMode: (mode: ViewMode) => void;
+  setUserRecipesSortOption: (option: SortOption) => void;
   setSelectionMode: (mode: boolean) => void;
   filterUserRecipes: () => void;
   // Data fetching
@@ -202,6 +207,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   // View mode for both tabs
   allRecipesViewMode: 'detailed' as ViewMode,
   userRecipesViewMode: 'detailed' as ViewMode,
+  // Sort options for both tabs (default to newest first)
+  allRecipesSortOption: 'newest' as SortOption,
+  userRecipesSortOption: 'newest' as SortOption,
   selectionMode: false,
   // Actions for Home tab
   setAllRecipesSearchQuery: (query: string) => {
@@ -225,13 +233,14 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     get().filterAllRecipes();
   },
   filterAllRecipes: () => {
-    const { 
-      allRecipes, 
-      allRecipesSearchQuery, 
-      allRecipesSelectedCategory, 
-      allRecipesSelectedDifficulty, 
-      allRecipesSelectedTags, 
-      allRecipesSelectedAppliance 
+    const {
+      allRecipes,
+      allRecipesSearchQuery,
+      allRecipesSelectedCategory,
+      allRecipesSelectedDifficulty,
+      allRecipesSelectedTags,
+      allRecipesSelectedAppliance,
+      allRecipesSortOption
     } = get();
     let filtered = allRecipes;
 
@@ -272,6 +281,50 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       filtered = filtered.filter((recipe: Recipe) => recipe.chefiqAppliance === allRecipesSelectedAppliance);
     }
 
+    // Apply sorting - create a new array to ensure React detects the change
+    filtered = [...filtered].sort((a: Recipe, b: Recipe) => {
+      switch (allRecipesSortOption) {
+        case 'newest': {
+          // Use createdAt, fallback to updatedAt if createdAt is missing
+          const dateRawA = a.createdAt || a.updatedAt;
+          const dateRawB = b.createdAt || b.updatedAt;
+
+          // Handle missing timestamps - put recipes without dates at the end
+          if (!dateRawA && !dateRawB) return 0;
+          if (!dateRawA) return 1;
+          if (!dateRawB) return -1;
+
+          const dateA = typeof dateRawA === 'string' ? new Date(dateRawA) : dateRawA;
+          const dateB = typeof dateRawB === 'string' ? new Date(dateRawB) : dateRawB;
+          return dateB.getTime() - dateA.getTime();
+        }
+        case 'oldest': {
+          // Use createdAt, fallback to updatedAt if createdAt is missing
+          const dateRawA = a.createdAt || a.updatedAt;
+          const dateRawB = b.createdAt || b.updatedAt;
+
+          // Handle missing timestamps - put recipes without dates at the end
+          if (!dateRawA && !dateRawB) return 0;
+          if (!dateRawA) return 1;
+          if (!dateRawB) return -1;
+
+          const dateA = typeof dateRawA === 'string' ? new Date(dateRawA) : dateRawA;
+          const dateB = typeof dateRawB === 'string' ? new Date(dateRawB) : dateRawB;
+          return dateA.getTime() - dateB.getTime();
+        }
+        case 'title-asc':
+          return a.title.localeCompare(b.title);
+        case 'title-desc':
+          return b.title.localeCompare(a.title);
+        case 'cooktime-asc':
+          return (a.cookTime || 0) - (b.cookTime || 0);
+        case 'cooktime-desc':
+          return (b.cookTime || 0) - (a.cookTime || 0);
+        default:
+          return 0;
+      }
+    });
+
     set({ filteredAllRecipes: filtered });
   },
   // Actions for MyRecipes tab
@@ -296,13 +349,14 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     get().filterUserRecipes();
   },
   filterUserRecipes: () => {
-    const { 
-      userRecipes, 
-      userRecipesSearchQuery, 
-      userRecipesSelectedCategory, 
-      userRecipesSelectedDifficulty, 
-      userRecipesSelectedTags, 
-      userRecipesSelectedAppliance 
+    const {
+      userRecipes,
+      userRecipesSearchQuery,
+      userRecipesSelectedCategory,
+      userRecipesSelectedDifficulty,
+      userRecipesSelectedTags,
+      userRecipesSelectedAppliance,
+      userRecipesSortOption
     } = get();
     let filtered = userRecipes;
 
@@ -343,6 +397,50 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       filtered = filtered.filter((recipe: Recipe) => recipe.chefiqAppliance === userRecipesSelectedAppliance);
     }
 
+    // Apply sorting - create a new array to ensure React detects the change
+    filtered = [...filtered].sort((a: Recipe, b: Recipe) => {
+      switch (userRecipesSortOption) {
+        case 'newest': {
+          // Use createdAt, fallback to updatedAt if createdAt is missing
+          const dateRawA = a.createdAt || a.updatedAt;
+          const dateRawB = b.createdAt || b.updatedAt;
+
+          // Handle missing timestamps - put recipes without dates at the end
+          if (!dateRawA && !dateRawB) return 0;
+          if (!dateRawA) return 1;
+          if (!dateRawB) return -1;
+
+          const dateA = typeof dateRawA === 'string' ? new Date(dateRawA) : dateRawA;
+          const dateB = typeof dateRawB === 'string' ? new Date(dateRawB) : dateRawB;
+          return dateB.getTime() - dateA.getTime();
+        }
+        case 'oldest': {
+          // Use createdAt, fallback to updatedAt if createdAt is missing
+          const dateRawA = a.createdAt || a.updatedAt;
+          const dateRawB = b.createdAt || b.updatedAt;
+
+          // Handle missing timestamps - put recipes without dates at the end
+          if (!dateRawA && !dateRawB) return 0;
+          if (!dateRawA) return 1;
+          if (!dateRawB) return -1;
+
+          const dateA = typeof dateRawA === 'string' ? new Date(dateRawA) : dateRawA;
+          const dateB = typeof dateRawB === 'string' ? new Date(dateRawB) : dateRawB;
+          return dateA.getTime() - dateB.getTime();
+        }
+        case 'title-asc':
+          return a.title.localeCompare(b.title);
+        case 'title-desc':
+          return b.title.localeCompare(a.title);
+        case 'cooktime-asc':
+          return (a.cookTime || 0) - (b.cookTime || 0);
+        case 'cooktime-desc':
+          return (b.cookTime || 0) - (a.cookTime || 0);
+        default:
+          return 0;
+      }
+    });
+
     set({ filteredUserRecipes: filtered });
   },
   // View mode actions
@@ -351,6 +449,15 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   },
   setUserRecipesViewMode: (mode: ViewMode) => {
     set({ userRecipesViewMode: mode });
+  },
+  // Sort option actions
+  setAllRecipesSortOption: (option: SortOption) => {
+    set({ allRecipesSortOption: option });
+    get().filterAllRecipes();
+  },
+  setUserRecipesSortOption: (option: SortOption) => {
+    set({ userRecipesSortOption: option });
+    get().filterUserRecipes();
   },
   setSelectionMode: (mode: boolean) => {
     set({ selectionMode: mode });
@@ -372,6 +479,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
               (recipe as any).cookingActions
             );
 
+        // For old recipes without timestamps, use a default old date
+        const defaultOldDate = new Date('2024-01-01').toISOString();
+
         return {
           id: recipe.id,
           userId: recipe.userId,
@@ -392,6 +502,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
           useProbe: recipe.useProbe,
           published: recipe.published,
           status: recipe.published ? 'Published' : 'Draft',
+          createdAt: recipe.createdAt || defaultOldDate,
+          updatedAt: recipe.updatedAt || defaultOldDate,
         };
       });
 
@@ -423,6 +535,9 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
               (recipe as any).cookingActions
             );
 
+        // For old recipes without timestamps, use a default old date
+        const defaultOldDate = new Date('2024-01-01').toISOString();
+
         return {
           id: recipe.id,
           userId: recipe.userId,
@@ -443,6 +558,8 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
           useProbe: recipe.useProbe,
           published: recipe.published,
           status: recipe.published ? 'Published' : 'Draft',
+          createdAt: recipe.createdAt || defaultOldDate,
+          updatedAt: recipe.updatedAt || defaultOldDate,
         };
       });
 
