@@ -1,5 +1,6 @@
 import { useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Platform, Keyboard, Animated } from 'react-native';
+import { CTAButton } from '@components/CTAButton';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -274,19 +275,16 @@ export default function RecipeWebImportScreen() {
         </TouchableOpacity>
 
         {/* Import Button */}
-        <TouchableOpacity
-          onPress={() => handleImport(currentUrl)}
-          disabled={!isImportable || isImporting}
-          style={[styles.importButton, !isImportable && styles.importButtonDisabled]}
-          activeOpacity={0.8}>
-          {isImporting ? (
-            <ActivityIndicator color="white" size="small" />
-          ) : (
-            <Text style={styles.importButtonText}>
-              {isImportable ? 'Import Recipe' : 'Browse to a Recipe'}
-            </Text>
-          )}
-        </TouchableOpacity>
+        <View style={styles.importButtonContainer}>
+          <CTAButton
+            onPress={() => handleImport(currentUrl)}
+            disabled={!isImportable}
+            loading={isImporting}
+            text={isImportable ? 'Import Recipe' : 'Browse to a Recipe'}
+            loadingText="Importing..."
+            fullWidth={true}
+          />
+        </View>
 
         {/* Forward Button */}
         <TouchableOpacity
@@ -367,16 +365,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   // Bottom navigation
   bottomNavContainer: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: theme.spacing.lg,
-    paddingTop: theme.spacing.md,
-    backgroundColor: theme.colors.background.primary,
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.gray[200],
+    paddingHorizontal: theme.spacing.md,
     gap: theme.spacing.sm,
   },
   bottomNavButton: {
@@ -398,21 +390,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   bottomNavTextDisabled: {
     color: theme.colors.gray[300],
   },
-  importButton: {
+  importButtonContainer: {
     flex: 1,
-    backgroundColor: theme.colors.primary[500],
-    paddingVertical: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 48,
-  },
-  importButtonDisabled: {
-    backgroundColor: theme.colors.gray[400],
-  },
-  importButtonText: {
-    color: 'white',
-    fontSize: theme.typography.fontSize.md,
-    fontWeight: theme.typography.fontWeight.semibold as any,
   },
 });

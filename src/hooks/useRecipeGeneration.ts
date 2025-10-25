@@ -34,6 +34,7 @@ export const useRecipeGeneration = (
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [currentRecipe, setCurrentRecipe] = useState<ExtendedScrapedRecipe | null>(null);
+  const [aiGeneratedRecipes, setAiGeneratedRecipes] = useState<ExtendedScrapedRecipe[]>([]);
   const [matchedExistingRecipes, setMatchedExistingRecipes] = useState<MatchedRecipe[]>([]);
   const [showResultsModal, setShowResultsModal] = useState(false);
 
@@ -69,41 +70,45 @@ export const useRecipeGeneration = (
         });
 
         if (aiResult.success && aiResult.recipes && aiResult.recipes.length > 0) {
-          console.log(`Generated ${RECIPES_PER_GENERATION} AI recipe${RECIPES_PER_GENERATION > 1 ? 's' : ''}`);
+          console.log(`Generated ${aiResult.recipes.length} AI recipe${aiResult.recipes.length > 1 ? 's' : ''}`);
 
-          const firstRecipe = aiResult.recipes[0];
+          // Auto-generate cover images for all recipes
+          const recipesWithImages = await Promise.all(
+            aiResult.recipes.map(async (recipe) => {
+              if (userId) {
+                console.log(`Auto-generating cover image for recipe: ${recipe.title}`);
+                const tempRecipeId = Crypto.randomUUID();
 
-          // Auto-generate cover image for the first recipe
-          if (userId) {
-            console.log('Auto-generating cover image for My Fridge recipe...');
-            const tempRecipeId = Crypto.randomUUID();
+                const imageResult = await generateImageForRecipe({
+                  userId,
+                  recipeId: tempRecipeId,
+                  recipeData: {
+                    title: recipe.title,
+                    description: recipe.description,
+                    ingredients: recipe.ingredients,
+                    category: recipe.category,
+                    tags: recipe.tags,
+                  },
+                  silent: true,
+                });
 
-            const imageResult = await generateImageForRecipe({
-              userId,
-              recipeId: tempRecipeId,
-              recipeData: {
-                title: firstRecipe.title,
-                description: firstRecipe.description,
-                ingredients: firstRecipe.ingredients,
-                category: firstRecipe.category,
-                tags: firstRecipe.tags,
-              },
-              silent: true,
-            });
+                if (imageResult.success && imageResult.imageUrl) {
+                  recipe.image = imageResult.imageUrl;
+                  console.log('Cover image auto-generated:', imageResult.imageUrl);
+                } else if (!imageResult.skipped) {
+                  console.warn('Cover image generation failed:', imageResult.error);
+                }
+              }
+              return recipe;
+            })
+          );
 
-            if (imageResult.success && imageResult.imageUrl) {
-              // Add the generated image URL to the recipe
-              firstRecipe.image = imageResult.imageUrl;
-              console.log('Cover image auto-generated for My Fridge recipe:', imageResult.imageUrl);
-            } else if (!imageResult.skipped) {
-              console.warn('Cover image generation failed:', imageResult.error);
-            }
-          }
-
-          setCurrentRecipe(firstRecipe);
+          setAiGeneratedRecipes(recipesWithImages);
+          setCurrentRecipe(recipesWithImages[0]); // Keep for backward compatibility
         } else {
           setGenerationError(aiResult.error || 'Failed to generate recipe');
           setCurrentRecipe(null);
+          setAiGeneratedRecipes([]);
         }
 
         // Match existing recipes from user's collection
@@ -117,8 +122,8 @@ export const useRecipeGeneration = (
         console.log(`Found ${matchedRecipes.length} matching existing recipes`);
         setMatchedExistingRecipes(matchedRecipes);
 
-        // Don't show results modal - display inline instead
-        // setShowResultsModal(true);
+        // Show results modal with both AI and existing recipes
+        setShowResultsModal(true);
       } catch (error) {
         console.error('Error generating recipes:', error);
         setGenerationError('An unexpected error occurred');
@@ -131,12 +136,14 @@ export const useRecipeGeneration = (
 
   const clearCurrentRecipe = useCallback(() => {
     setCurrentRecipe(null);
+    setAiGeneratedRecipes([]);
   }, []);
 
   return {
     isGenerating: isGenerating || isGeneratingImage,
     generationError,
     currentRecipe,
+    aiGeneratedRecipes,
     matchedExistingRecipes,
     showResultsModal,
     setShowResultsModal,
