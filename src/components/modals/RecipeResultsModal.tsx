@@ -6,6 +6,7 @@ import type { Theme } from '@theme/index';
 import { Ionicons } from '@expo/vector-icons';
 import { useAppTheme } from '@theme/index';
 import { RecipeResultCard } from '../RecipeResultCard';
+import { CTAButton } from '../CTAButton';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { MatchedRecipe } from '~/utils/ingredientMatcher';
 
@@ -104,7 +105,11 @@ export function RecipeResultsModal({
         </View>
 
         {/* Recipe List */}
-        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={true}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollViewContent}
+          showsVerticalScrollIndicator={true}
+        >
           {/* AI Generated Recipes */}
           {activeTab === 'ai' && (
             <View>
@@ -161,19 +166,19 @@ export function RecipeResultsModal({
               )}
             </View>
           )}
+        </ScrollView>
 
-          {/* Generate More Button */}
-          <TouchableOpacity
+        {/* Floating Generate More Button */}
+        <View style={styles.floatingButtonContainer}>
+          <CTAButton
             onPress={() => {
               onGenerateMore();
               onClose();
             }}
-            style={styles.generateMoreButton}
-          >
-            <Ionicons name="refresh" size={20} color={theme.colors.primary.main} />
-            <Text style={styles.generateMoreText}>Generate New Ideas</Text>
-          </TouchableOpacity>
-        </ScrollView>
+            icon="refresh"
+            text="Generate New Ideas"
+          />
+        </View>
       </View>
     </BaseModal>
   );
@@ -183,7 +188,8 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
       paddingHorizontal: 16,
-      paddingBottom: 20,
+      height: '100%',
+      position: 'relative',
     },
     header: {
       flexDirection: 'row',
@@ -229,7 +235,10 @@ const createStyles = (theme: Theme) =>
       color: '#fff',
     },
     scrollView: {
-      maxHeight: 600,
+      maxHeight: '70%',
+    },
+    scrollViewContent: {
+      paddingBottom: 120, // Space for floating button
     },
     emptyState: {
       padding: 40,
@@ -241,22 +250,13 @@ const createStyles = (theme: Theme) =>
       marginTop: 12,
       textAlign: 'center',
     },
-    generateMoreButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: theme.colors.background.secondary,
-      paddingVertical: 14,
-      borderRadius: 8,
-      marginTop: 16,
-      marginBottom: 20,
-      borderWidth: 1,
-      borderColor: theme.colors.primary.main,
-      gap: 8,
-    },
-    generateMoreText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: theme.colors.primary.main,
+    floatingButtonContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 20,
     },
   });

@@ -240,13 +240,9 @@ export const createStyles = (theme: Theme) =>
       bottom: 0,
       left: 0,
       right: 0,
-      backgroundColor: theme.colors.background.primary,
       paddingHorizontal: theme.spacing.lg,
       paddingVertical: theme.spacing.md,
       paddingBottom: theme.spacing.xl,
-      borderTopWidth: 1,
-      borderTopColor: theme.colors.border.default,
-      ...theme.shadows.lg,
     },
     ctaButton: {
       paddingVertical: theme.spacing.lg,

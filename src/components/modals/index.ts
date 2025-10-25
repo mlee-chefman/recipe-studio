@@ -10,7 +10,8 @@ export { default as CreateRecipeOptionsModal } from './CreateRecipeOptionsModal'
 export { ChefIQExportModal } from './ChefIQExportModal';
 export { RecipeDetailModal } from './RecipeDetailModal';
 export { PreferenceSelectorModal } from './PreferenceSelectorModal';
-export { ImportOptionsModal } from './ImportOptionsModal';
+export { default as ImportOptionsModal } from './ImportOptionsModal';
 export { AvatarPickerModal } from './AvatarPickerModal';
 export { SortModal } from './SortModal';
+export { RecipeSimplificationModal } from './RecipeSimplificationModal';
 export { default as BaseModal } from './BaseModal';

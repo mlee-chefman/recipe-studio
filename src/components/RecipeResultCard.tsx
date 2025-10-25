@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
@@ -39,6 +39,11 @@ export function RecipeResultCard({
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
+      {/* Recipe Image */}
+      {recipe.image && (
+        <Image source={{ uri: recipe.image }} style={styles.image} resizeMode="cover" />
+      )}
+
       {/* Header with match percentage */}
       <View style={styles.header}>
         <View style={styles.titleContainer}>
@@ -58,81 +63,84 @@ export function RecipeResultCard({
         </View>
       </View>
 
-      {/* Description */}
-      {recipe.description && (
-        <Text style={styles.description} numberOfLines={2}>
-          {recipe.description}
-        </Text>
-      )}
-
-      {/* Recipe Info */}
-      <View style={styles.infoRow}>
-        <View style={styles.infoItem}>
-          <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
-          <Text style={styles.infoText}>
-            {('prepTime' in recipe ? recipe.prepTime : 0) + recipe.cookTime} min
+      {/* Content Container */}
+      <View style={styles.contentContainer}>
+        {/* Description */}
+        {recipe.description && (
+          <Text style={styles.description} numberOfLines={2}>
+            {recipe.description}
           </Text>
-        </View>
-        <View style={styles.infoItem}>
-          <Ionicons name="restaurant-outline" size={16} color={theme.colors.text.secondary} />
-          <Text style={styles.infoText}>{recipe.servings} servings</Text>
-        </View>
-        {recipe.category && (
+        )}
+
+        {/* Recipe Info */}
+        <View style={styles.infoRow}>
           <View style={styles.infoItem}>
-            <Ionicons name="pricetag-outline" size={16} color={theme.colors.text.secondary} />
-            <Text style={styles.infoText}>{recipe.category}</Text>
+            <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
+            <Text style={styles.infoText}>
+              {('prepTime' in recipe ? recipe.prepTime : 0) + recipe.cookTime} min
+            </Text>
+          </View>
+          <View style={styles.infoItem}>
+            <Ionicons name="restaurant-outline" size={16} color={theme.colors.text.secondary} />
+            <Text style={styles.infoText}>{recipe.servings} servings</Text>
+          </View>
+          {recipe.category && (
+            <View style={styles.infoItem}>
+              <Ionicons name="pricetag-outline" size={16} color={theme.colors.text.secondary} />
+              <Text style={styles.infoText}>{recipe.category}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Missing Ingredients */}
+        {hasMissingIngredients && (
+          <View style={styles.missingSection}>
+            <Text style={styles.missingSectionTitle}>
+              <Ionicons name="alert-circle-outline" size={14} /> Missing:{' '}
+            </Text>
+            <Text style={styles.missingText} numberOfLines={2}>
+              {missingIngredients.slice(0, 3).join(', ')}
+              {missingIngredients.length > 3 && ` +${missingIngredients.length - 3} more`}
+            </Text>
           </View>
         )}
-      </View>
 
-      {/* Missing Ingredients */}
-      {hasMissingIngredients && (
-        <View style={styles.missingSection}>
-          <Text style={styles.missingSectionTitle}>
-            <Ionicons name="alert-circle-outline" size={14} /> Missing:{' '}
-          </Text>
-          <Text style={styles.missingText} numberOfLines={2}>
-            {missingIngredients.slice(0, 3).join(', ')}
-            {missingIngredients.length > 3 && ` +${missingIngredients.length - 3} more`}
-          </Text>
-        </View>
-      )}
-
-      {/* Substitutions */}
-      {hasSubstitutions && (
-        <View style={styles.substitutionsSection}>
-          <Text style={styles.substitutionsSectionTitle}>
-            <Ionicons name="swap-horizontal-outline" size={14} /> Substitutions Available
-          </Text>
-          {substitutions.slice(0, 2).map((sub, index) => (
-            <Text key={index} style={styles.substitutionText} numberOfLines={1}>
-              • {sub.missing} → {sub.substitutes.slice(0, 2).join(' or ')}
+        {/* Substitutions */}
+        {hasSubstitutions && (
+          <View style={styles.substitutionsSection}>
+            <Text style={styles.substitutionsSectionTitle}>
+              <Ionicons name="swap-horizontal-outline" size={14} /> Substitutions Available
             </Text>
-          ))}
-          {substitutions.length > 2 && (
-            <Text style={styles.moreSubstitutions}>+{substitutions.length - 2} more</Text>
-          )}
-        </View>
-      )}
+            {substitutions.slice(0, 2).map((sub, index) => (
+              <Text key={index} style={styles.substitutionText} numberOfLines={1}>
+                • {sub.missing} → {sub.substitutes.slice(0, 2).join(' or ')}
+              </Text>
+            ))}
+            {substitutions.length > 2 && (
+              <Text style={styles.moreSubstitutions}>+{substitutions.length - 2} more</Text>
+            )}
+          </View>
+        )}
 
-      {/* Tags */}
-      {recipe.tags && recipe.tags.length > 0 && (
-        <View style={styles.tagsContainer}>
-          {recipe.tags.slice(0, 3).map((tag, index) => (
-            <View key={index} style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          ))}
-          {recipe.tags.length > 3 && (
-            <Text style={styles.moreTags}>+{recipe.tags.length - 3}</Text>
-          )}
-        </View>
-      )}
+        {/* Tags */}
+        {recipe.tags && recipe.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            {recipe.tags.slice(0, 3).map((tag, index) => (
+              <View key={index} style={styles.tag}>
+                <Text style={styles.tagText}>{tag}</Text>
+              </View>
+            ))}
+            {recipe.tags.length > 3 && (
+              <Text style={styles.moreTags}>+{recipe.tags.length - 3}</Text>
+            )}
+          </View>
+        )}
 
-      {/* Action Hint */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Tap to view full recipe</Text>
-        <Ionicons name="chevron-forward" size={16} color={theme.colors.text.secondary} />
+        {/* Action Hint */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Tap to view full recipe</Text>
+          <Ionicons name="chevron-forward" size={16} color={theme.colors.text.secondary} />
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -143,16 +151,27 @@ const createStyles = (theme: Theme) =>
     card: {
       backgroundColor: theme.colors.background.secondary,
       borderRadius: 12,
-      padding: 16,
       marginBottom: 12,
       borderWidth: 1,
       borderColor: theme.colors.border.default,
+      overflow: 'hidden',
+    },
+    image: {
+      width: '100%',
+      height: 200,
+      backgroundColor: theme.colors.background.tertiary,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
       marginBottom: 8,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+    },
+    contentContainer: {
+      paddingHorizontal: 16,
+      paddingBottom: 16,
     },
     titleContainer: {
       flex: 1,

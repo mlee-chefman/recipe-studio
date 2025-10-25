@@ -10,7 +10,7 @@ import {
 export const MAX_INGREDIENTS = 12;
 
 // Number of recipes to generate at a time
-export const RECIPES_PER_GENERATION = 1;
+export const RECIPES_PER_GENERATION = 2;
 
 // Preference options
 export const DIETARY_OPTIONS: readonly DietaryPreference[] = [

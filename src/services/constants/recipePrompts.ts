@@ -183,11 +183,25 @@ ${stepsText}
 
 Available ChefIQ Appliances and Methods:
 1. **iQ Cooker (Multi Cooker)**: Pressure Cook, Sear/Sauté, Steam, Slow Cook, Sous Vide
-2. **iQ MiniOven** (supports meat probe): Bake, Air Fry, Roast, Broil, Toast, Dehydrate
+2. **iQ Sense (Temperature Hub)**: Monitor Temperature (for grilling/smoking with probe)
+3. **iQ MiniOven** (supports meat probe): Bake, Air Fry, Roast, Broil, Toast, Dehydrate
 
 CRITICAL RULES:
 
-1. **Oven Methods Take Priority** ⚠️ VERY IMPORTANT:
+1. **Grill/Smoker Detection** ⚠️ IMPORTANT FOR iQ SENSE:
+   - If a recipe is primarily for OUTDOOR GRILL or SMOKER (not oven-adaptable), suggest iQ Sense for temperature monitoring
+   - Keywords for grill/smoker recipes: "grill", "grilled", "barbecue", "bbq", "smoke", "smoked", "smoker", "smoking", "outdoor grill", "charcoal grill", "gas grill"
+   - iQ Sense is ONLY for monitoring temperature during grilling/smoking - it doesn't cook, just monitors with a probe
+   - Examples:
+     - ✅ "Smoked Brisket on outdoor smoker at 225°F until 203°F" → Suggest iQ Sense (monitor temp)
+     - ✅ "Grilled Ribeye on charcoal grill to 135°F" → Suggest iQ Sense (monitor temp)
+     - ✅ "BBQ Ribs on smoker for 6 hours" → Suggest iQ Sense (monitor temp)
+     - ❌ "Grilled chicken (or bake in oven at 375°F)" → Suggest iQ MiniOven (oven alternative available)
+   - When suggesting iQ Sense, ALWAYS include both target_probe_temp AND remove_probe_temp for carryover cooking
+   - For grilling: remove_probe_temp is typically 5-10°F below target_probe_temp
+   - If recipe can be done in oven as alternative, suggest iQ MiniOven instead
+
+2. **Oven Methods Take Priority** ⚠️ VERY IMPORTANT:
    - If a recipe has BOTH stovetop searing AND oven cooking (Bake/Air Fry/Roast), ONLY suggest the oven method
    - Brief stovetop searing/sautéing (<5 minutes) before oven cooking should be done MANUALLY, not as a ChefIQ action
    - Only suggest Sear/Sauté if it's the PRIMARY cooking method (e.g., stir-fry, pan-seared fish, sautéed vegetables)
@@ -294,6 +308,14 @@ ChefIQ Appliance IDs and Method IDs:
   - Parameters: cooking_time, temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm, delay_time
 - Sous Vide: methodId = "5"
   - Parameters: cooking_time, cooking_temp (in Fahrenheit), delay_time
+
+**iQ Sense** (category_id = "a542fa25-5053-4946-8b77-e358467baa0f") - TEMPERATURE MONITORING HUB:
+- Monitor Temperature: methodId = "monitor_temp"
+  - Parameters: target_probe_temp (in Fahrenheit), remove_probe_temp (in Fahrenheit, for carryover cooking)
+  - USE THIS FOR: Outdoor grilling, smoking, barbecue recipes where user cooks on their own grill/smoker
+  - This appliance ONLY monitors temperature - it doesn't cook
+  - ALWAYS include remove_probe_temp (typically 5-10°F below target for large cuts of meat)
+  - Example: Smoked brisket → target_probe_temp: 203, remove_probe_temp: 195
 
 **iQ MiniOven** (category_id = "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE:
 - Bake: methodId = "METHOD_BAKE"
@@ -457,6 +479,24 @@ Step 4: "Bake at 400°F for 25-30 minutes until pastry is golden and beef reache
   }
 }
 NOTE: ⚠️ DO NOT suggest Sear/Sauté for Step 2. The quick stovetop searing is done MANUALLY. Only the main oven cooking (Bake) is suggested as a ChefIQ action because the MiniOven is the PRIMARY appliance for this recipe. stepIndex is 3 because it's "Step 4" (4-1=3).
+
+Example 9 (Grilled/Smoked Recipe - Use iQ Sense):
+Step 1: "Prepare smoker to 225°F using hickory wood"
+Step 2: "Season brisket with dry rub"
+Step 3: "Place brisket on smoker and smoke for 10-12 hours until internal temperature reaches 203°F, remove at 195°F"
+Step 4: "Wrap in butcher paper and let rest for 1 hour"
+→ Create ONE action at stepIndex 2 (for "Step 3" - iQ Sense monitors temperature):
+{
+  "stepIndex": 2,
+  "applianceId": "a542fa25-5053-4946-8b77-e358467baa0f",
+  "methodId": "monitor_temp",
+  "methodName": "Monitor Temperature",
+  "parameters": {
+    "target_probe_temp": 203,
+    "remove_probe_temp": 195
+  }
+}
+NOTE: ⚠️ iQ Sense is for OUTDOOR GRILLING/SMOKING only - it monitors temperature via probe but doesn't cook. Perfect for smoker recipes. ALWAYS include both target and remove temps. stepIndex is 2 because it's "Step 3" (3-1=2).
 
 IMPORTANT:
 - Return ONLY valid JSON
@@ -700,7 +740,12 @@ Available ChefIQ Appliances:
    - Slow Cook (methodId: "3"): cooking_time (seconds), temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm (0=Off, 1=On)
    - Sous Vide (methodId: "5"): cooking_time (seconds), cooking_temp (°F)
 
-2. **iQ MiniOven** (applianceId: "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE
+2. **iQ Sense** (applianceId: "a542fa25-5053-4946-8b77-e358467baa0f") - TEMPERATURE MONITORING HUB
+   - Monitor Temperature (methodId: "monitor_temp"): target_probe_temp (°F), remove_probe_temp (°F)
+   - USE FOR: Outdoor grilling, smoking, barbecue recipes (monitors temperature, doesn't cook)
+   - ALWAYS include remove_probe_temp (typically 5-10°F below target for carryover cooking)
+
+3. **iQ MiniOven** (applianceId: "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE
    - Bake (methodId: "METHOD_BAKE"):
      * Normal: cooking_time (seconds), target_cavity_temp (°F), fan_speed (0=Low, 1=Medium, 2=High)
      * With Probe: target_cavity_temp (°F), target_probe_temp (°F), remove_probe_temp (°F), fan_speed, NO cooking_time
@@ -757,4 +802,102 @@ Important:
 - Make sure the JSON is properly formatted and can be parsed
 
 Return the recipes as a JSON array:`;
+}
+
+/**
+ * Creates a prompt for simplifying and cleaning up verbose recipe instructions
+ */
+export function createRecipeSimplificationPrompt(
+  title: string,
+  ingredients: string[],
+  steps: Array<{ text: string; cookingAction?: any }>,
+  notes: string
+): string {
+  const stepsText = steps.map((step, index) => {
+    let stepText = `${index + 1}. ${step.text}`;
+    if (step.cookingAction) {
+      const action = step.cookingAction;
+      stepText += `\n   [COOKING ACTION: ${action.methodName} on ${action.applianceId}`;
+      if (action.parameters && Object.keys(action.parameters).length > 0) {
+        stepText += ` - Parameters: ${JSON.stringify(action.parameters)}`;
+      }
+      stepText += ']';
+    }
+    return stepText;
+  }).join('\n');
+
+  return `You are a professional recipe editor specializing in making recipes clear, concise, and easy to follow.
+
+Your task: Analyze this recipe and simplify/consolidate the instructions WITHOUT losing important cooking details.
+
+Recipe Title: ${title}
+
+Ingredients:
+${ingredients.map((ing, i) => `${i + 1}. ${ing}`).join('\n')}
+
+Current Instructions:
+${stepsText}
+
+Notes: ${notes || 'None'}
+
+**Your Goal:**
+1. **Consolidate repetitive steps** - Combine similar consecutive actions
+2. **Remove unnecessary details** - Cut out redundant explanations or overly verbose descriptions
+3. **Keep essential information** - PRESERVE all cooking times, temperatures, and critical techniques
+4. **Maintain logical flow** - Steps should still be in proper cooking order
+5. **Simplify notes** - If notes are very long or repetitive, condense them while keeping important info
+6. **Re-analyze cooking actions** - CRITICAL: Some steps have [COOKING ACTION] with appliance and parameters. When simplifying:
+   - If a step with a cooking action is kept mostly unchanged, preserve the same cooking action
+   - If multiple steps are combined and one has a cooking action, assign it to the combined step
+   - Adjust cooking action parameters if the simplified step description changes significantly (e.g., if time or temperature changes in the text, update the parameters)
+7. **Preserve step images** - If a step has an image, note that in your response
+
+**Guidelines:**
+- Combine steps like "Chop onions" + "Dice tomatoes" + "Mince garlic" → "Prep vegetables: chop onions, dice tomatoes, and mince garlic"
+- Remove repetitive phrases like "then", "next", "after that" unless they clarify timing
+- Keep ALL cooking temperatures, times, and doneness indicators (e.g., "until golden brown", "reaches 165°F")
+- Keep safety-critical steps separate (e.g., don't combine "add raw chicken" with "add vegetables")
+- If a recipe genuinely NEEDS many steps (e.g., complex baking, multi-stage cooking), preserve them
+- DO NOT over-simplify - if a recipe has 3-4 well-written steps, it may not need changes
+
+**What NOT to do:**
+- ❌ Don't remove cooking times or temperatures
+- ❌ Don't combine unrelated cooking actions (e.g., searing meat with baking)
+- ❌ Don't merge steps that need to happen sequentially with wait time
+- ❌ Don't simplify recipes that are already concise and well-written
+
+Return a JSON object with the following structure:
+
+{
+  "simplified": true,
+  "originalStepCount": ${steps.length},
+  "simplifiedStepCount": 3,
+  "steps": [
+    {
+      "text": "Combined or simplified step text here",
+      "cookingAction": {
+        "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+        "methodId": "00000000-0000-0000-0000-000000000001",
+        "methodName": "Sauté",
+        "parameters": {"time": 10, "temperature": 350}
+      }
+    },
+    {"text": "Next step without cooking action"}
+  ],
+  "notes": "Simplified notes (or original if no changes needed)",
+  "changesSummary": "Brief explanation of what was simplified (1-2 sentences)",
+  "significantChanges": true
+}
+
+**IMPORTANT:**
+- Set "simplified" to false if the recipe is already well-written and doesn't need changes
+- Set "significantChanges" to false if you only made minor wording tweaks
+- Include "changesSummary" explaining what you did
+- For each step, include "cookingAction" ONLY if the original step(s) had a cooking action and it's still relevant
+- The cookingAction object should include: applianceId, methodId, methodName, and parameters (object with cooking settings)
+- Preserve the exact applianceId and methodId from the original cooking action
+- Update the parameters object if the step description changed (e.g., different time/temp mentioned)
+- Return ONLY valid JSON, no additional text
+
+Analyze the recipe and return the JSON:`;
 }

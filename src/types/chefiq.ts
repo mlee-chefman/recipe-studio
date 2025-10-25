@@ -180,6 +180,44 @@ export const CHEFIQ_APPLIANCES: ChefIQAppliance[] = [
     ]
   },
   {
+    category_id: 'a542fa25-5053-4946-8b77-e358467baa0f',
+    name: 'iQ Sense',
+    thing_category_name: 'sense',
+    short_code: 'CQ60',
+    type: 'appliance',
+    icon: 'https://firebasestorage.googleapis.com/v0/b/reciep-studio.firebasestorage.app/o/thermometer.png?alt=media&token=9407d9eb-e025-471b-8567-85a96e5fcf57',
+    picture: 'https://firebasestorage.googleapis.com/v0/b/reciep-studio.firebasestorage.app/o/CQ60-1C-HUB-overhead.png?alt=media&token=4e7172cb-636c-4d7d-9b03-ae8eea783059',
+    order: 2,
+    supports_probe: true,
+    cookingMethods: [
+      {
+        id: 'monitor_temp',
+        name: 'Monitor Temperature',
+        description: 'Monitor internal temperature with probe',
+        parameters: [
+          {
+            name: 'target_probe_temp',
+            type: 'number',
+            defaultValue: 145,
+            unit: '°F',
+            min: 100,
+            max: 300,
+            required: true
+          },
+          {
+            name: 'remove_probe_temp',
+            type: 'number',
+            defaultValue: 140,
+            unit: '°F',
+            min: 100,
+            max: 300,
+            required: false
+          }
+        ]
+      }
+    ]
+  },
+  {
     category_id: '4a3cd4f1-839b-4f45-80ea-08f594ff74c3',
     name: 'iQ MiniOven',
     thing_category_name: 'oven',
@@ -387,6 +425,7 @@ export const formatCookingAction = (action: CookingAction): string => {
 export const getApplianceByLegacyId = (legacyId: string): ChefIQAppliance | undefined => {
   const mapping: { [key: string]: string } = {
     'rj40': 'c8ff3aef-3de6-4a74-bba6-03e943b2762c',
+    'cq60': 'a542fa25-5053-4946-8b77-e358467baa0f',
     'cq50': '4a3cd4f1-839b-4f45-80ea-08f594ff74c3'
   };
 

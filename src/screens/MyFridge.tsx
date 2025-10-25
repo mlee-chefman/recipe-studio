@@ -17,6 +17,7 @@ import { useFridgeStore, useRecipeStore, useAuthStore } from '@store/store';
 import { RecipeResultsModal } from '@components/modals/RecipeResultsModal';
 import { PreferenceSelectorModal } from '@components/modals';
 import { SavingModal } from '@components/modals/SavingModal';
+import { CTAButton } from '@components/CTAButton';
 import {
   MAX_INGREDIENTS,
   DIETARY_OPTIONS,
@@ -67,6 +68,9 @@ export default function MyFridgeScreen() {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showStrictnessModal, setShowStrictnessModal] = useState(false);
 
+  // Local state for caching
+  const [lastGeneratedIngredients, setLastGeneratedIngredients] = useState<string[]>([]);
+
   // Custom hooks
   const {
     searchQuery,
@@ -85,6 +89,7 @@ export default function MyFridgeScreen() {
     isGenerating,
     generationError,
     currentRecipe,
+    aiGeneratedRecipes,
     matchedExistingRecipes,
     showResultsModal,
     setShowResultsModal,
@@ -94,6 +99,21 @@ export default function MyFridgeScreen() {
 
   // Handlers
   const handleGenerateRecipe = async () => {
+    // Check if ingredients have changed
+    const currentIngredientIds = ingredients.map(ing => ing.id).sort().join(',');
+    const lastIngredientIds = [...lastGeneratedIngredients].sort().join(',');
+
+    // If ingredients are the same and we have cached results, just show the modal
+    if (currentIngredientIds === lastIngredientIds &&
+        currentIngredientIds !== '' &&
+        aiGeneratedRecipes.length > 0) {
+      console.log('Ingredients unchanged - showing cached results');
+      setShowResultsModal(true);
+      return;
+    }
+
+    console.log('Ingredients changed or no cache - generating new recipes');
+
     // Clear previous recipe titles when starting fresh
     if (!currentRecipe) {
       clearGeneratedRecipeTitles();
@@ -107,15 +127,34 @@ export default function MyFridgeScreen() {
       matchingStrictness: preferences.matchingStrictness,
       excludeTitles: generatedRecipeTitles,
     });
+
+    // Cache the ingredient IDs after successful generation
+    setLastGeneratedIngredients(ingredients.map(ing => ing.id));
   };
 
-  // Handle refresh: generate a new recipe avoiding duplicates
+  // Handle refresh: generate a new recipe avoiding duplicates (force regeneration)
   const handleRefreshRecipe = async () => {
-    if (currentRecipe) {
-      // Add current recipe title to exclusion list
-      addGeneratedRecipeTitle(currentRecipe.title);
-    }
-    await handleGenerateRecipe();
+    console.log('Force regenerating new recipes');
+
+    // Add all current AI recipe titles to exclusion list
+    aiGeneratedRecipes.forEach(recipe => {
+      addGeneratedRecipeTitle(recipe.title);
+    });
+
+    // Force regeneration by clearing cache
+    setLastGeneratedIngredients([]);
+
+    await generateRecipes(ingredients, {
+      dietary: preferences.dietary,
+      cuisine: preferences.cuisine,
+      cookingTime: preferences.cookingTime,
+      category: preferences.category,
+      matchingStrictness: preferences.matchingStrictness,
+      excludeTitles: generatedRecipeTitles,
+    });
+
+    // Update cache after generation
+    setLastGeneratedIngredients(ingredients.map(ing => ing.id));
   };
 
   const handleSelectRecipe = (recipe: any, source: 'ai' | 'existing') => {
@@ -234,7 +273,7 @@ export default function MyFridgeScreen() {
             <Text style={styles.headerSubtitle}>
               {ingredients.length === 0
                 ? `Add ingredients to get AI-powered recipe ideas`
-                : `${ingredients.length}/${MAX_INGREDIENTS} ingredients • Generate 1 recipe at a time`}
+                : `${ingredients.length}/${MAX_INGREDIENTS} ingredients • Generate 2 recipes at a time`}
             </Text>
             {ingredients.length > 0 && (
               <TouchableOpacity onPress={clearIngredients} style={styles.clearAllButton}>
@@ -340,64 +379,6 @@ export default function MyFridgeScreen() {
             </View>
           )}
 
-          {/* Generated Recipe Display */}
-          {currentRecipe && (
-            <View style={styles.recipeCardContainer}>
-              <View style={styles.recipeCardHeader}>
-                <View style={styles.recipeCardHeaderLeft}>
-                  <Ionicons name="sparkles" size={20} color={theme.colors.primary.main} />
-                  <Text style={styles.recipeCardHeaderText}>AI Generated Recipe</Text>
-                </View>
-                <TouchableOpacity
-                  onPress={handleRefreshRecipe}
-                  disabled={isGenerating}
-                  style={styles.refreshButton}
-                >
-                  <Ionicons
-                    name="refresh"
-                    size={20}
-                    color={isGenerating ? theme.colors.text.tertiary : theme.colors.primary.main}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                onPress={() => handleSelectRecipe(currentRecipe, 'ai')}
-                style={styles.recipeCard}
-                activeOpacity={0.7}
-              >
-                {currentRecipe.image && (
-                  <Image source={{ uri: currentRecipe.image }} style={styles.recipeCardImage} />
-                )}
-                <View style={styles.recipeCardContent}>
-                  <Text style={styles.recipeCardTitle}>{currentRecipe.title}</Text>
-                  {currentRecipe.description && (
-                    <Text style={styles.recipeCardDescription} numberOfLines={2}>
-                      {currentRecipe.description}
-                    </Text>
-                  )}
-                  <View style={styles.recipeCardMeta}>
-                    <View style={styles.recipeCardMetaItem}>
-                      <Ionicons name="time-outline" size={14} color={theme.colors.text.secondary} />
-                      <Text style={styles.recipeCardMetaText}>
-                        {((currentRecipe.prepTime || 0) + currentRecipe.cookTime)} min
-                      </Text>
-                    </View>
-                    {currentRecipe.category && (
-                      <View style={styles.recipeCardMetaItem}>
-                        <Ionicons name="pricetag-outline" size={14} color={theme.colors.text.secondary} />
-                        <Text style={styles.recipeCardMetaText}>{currentRecipe.category}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.recipeCardAction}>
-                    <Text style={styles.recipeCardActionText}>Tap to view details</Text>
-                    <Ionicons name="chevron-forward" size={18} color={theme.colors.primary.main} />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         {/* Error Message */}
@@ -411,33 +392,25 @@ export default function MyFridgeScreen() {
 
         {/* Fixed CTA Button at Bottom */}
         <View style={styles.ctaContainer}>
-          <TouchableOpacity
+          <CTAButton
             onPress={handleGenerateRecipe}
-            disabled={isGenerating || ingredients.length === 0}
-            style={[
-              styles.ctaButton,
-              isGenerating || ingredients.length === 0
-                ? styles.ctaButtonDisabled
-                : styles.ctaButtonEnabled,
-            ]}
-          >
-            {isGenerating ? (
-              <>
-                <ActivityIndicator size="small" color={theme.colors.text.inverse} />
-                <Text style={styles.ctaButtonText}>Generating Recipe...</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name="restaurant" size={20} color={theme.colors.text.inverse} />
-                <Text style={styles.ctaButtonText}>
-                  {ingredients.length === 0 ? 'Add Ingredients to Start' : currentRecipe ? 'Generate Another Recipe' : 'Generate Recipe'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+            disabled={ingredients.length === 0}
+            loading={isGenerating}
+            icon="restaurant"
+            text={
+              ingredients.length === 0
+                ? 'Add Ingredients to Start'
+                : aiGeneratedRecipes.length > 0
+                  ? 'View Recipe Ideas'
+                  : 'Generate Recipe Ideas'
+            }
+            loadingText="Generating Recipes..."
+          />
           {ingredients.length > 0 && !isGenerating && (
             <Text style={styles.ctaSubtext}>
-              {currentRecipe ? 'Get a new AI recipe idea (no duplicates)' : 'Get an AI-powered recipe idea'}
+              {aiGeneratedRecipes.length > 0
+                ? 'Tap to see your saved results or generate new ideas'
+                : 'Get 2 AI-powered recipe ideas + similar recipes from your collection'}
             </Text>
           )}
         </View>
@@ -491,8 +464,18 @@ export default function MyFridgeScreen() {
         getOptionDescription={getStrictnessDescription}
       />
 
+      {/* Recipe Results Modal */}
+      <RecipeResultsModal
+        visible={showResultsModal}
+        onClose={() => setShowResultsModal(false)}
+        aiRecipes={aiGeneratedRecipes}
+        existingRecipes={matchedExistingRecipes}
+        onSelectRecipe={handleSelectRecipe}
+        onGenerateMore={handleRefreshRecipe}
+      />
+
       {/* Saving Modal */}
-      <SavingModal visible={isGenerating} message="Generating recipe..." />
+      <SavingModal visible={isGenerating} message="Generating recipes..." />
     </SafeAreaView>
   );
 }
