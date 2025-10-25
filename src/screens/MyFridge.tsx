@@ -16,6 +16,7 @@ import { useStyles } from '@hooks/useStyles';
 import { useFridgeStore, useRecipeStore, useAuthStore } from '@store/store';
 import { RecipeResultsModal } from '@components/modals/RecipeResultsModal';
 import { PreferenceSelectorModal } from '@components/modals';
+import { SavingModal } from '@components/modals/SavingModal';
 import {
   MAX_INGREDIENTS,
   DIETARY_OPTIONS,
@@ -134,12 +135,13 @@ export default function MyFridgeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background.primary }}>
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
+      <View style={{ flex: 1 }} pointerEvents={isGenerating ? 'none' : 'auto'}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         {/* Preferences Section */}
         <View style={styles.preferencesContainer}>
           <TouchableOpacity
@@ -407,37 +409,38 @@ export default function MyFridgeScreen() {
         )}
       </ScrollView>
 
-      {/* Fixed CTA Button at Bottom */}
-      <View style={styles.ctaContainer}>
-        <TouchableOpacity
-          onPress={handleGenerateRecipe}
-          disabled={isGenerating || ingredients.length === 0}
-          style={[
-            styles.ctaButton,
-            isGenerating || ingredients.length === 0
-              ? styles.ctaButtonDisabled
-              : styles.ctaButtonEnabled,
-          ]}
-        >
-          {isGenerating ? (
-            <>
-              <ActivityIndicator size="small" color={theme.colors.text.inverse} />
-              <Text style={styles.ctaButtonText}>Generating Recipe...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="restaurant" size={20} color={theme.colors.text.inverse} />
-              <Text style={styles.ctaButtonText}>
-                {ingredients.length === 0 ? 'Add Ingredients to Start' : currentRecipe ? 'Generate Another Recipe' : 'Generate Recipe'}
-              </Text>
-            </>
+        {/* Fixed CTA Button at Bottom */}
+        <View style={styles.ctaContainer}>
+          <TouchableOpacity
+            onPress={handleGenerateRecipe}
+            disabled={isGenerating || ingredients.length === 0}
+            style={[
+              styles.ctaButton,
+              isGenerating || ingredients.length === 0
+                ? styles.ctaButtonDisabled
+                : styles.ctaButtonEnabled,
+            ]}
+          >
+            {isGenerating ? (
+              <>
+                <ActivityIndicator size="small" color={theme.colors.text.inverse} />
+                <Text style={styles.ctaButtonText}>Generating Recipe...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="restaurant" size={20} color={theme.colors.text.inverse} />
+                <Text style={styles.ctaButtonText}>
+                  {ingredients.length === 0 ? 'Add Ingredients to Start' : currentRecipe ? 'Generate Another Recipe' : 'Generate Recipe'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+          {ingredients.length > 0 && !isGenerating && (
+            <Text style={styles.ctaSubtext}>
+              {currentRecipe ? 'Get a new AI recipe idea (no duplicates)' : 'Get an AI-powered recipe idea'}
+            </Text>
           )}
-        </TouchableOpacity>
-        {ingredients.length > 0 && !isGenerating && (
-          <Text style={styles.ctaSubtext}>
-            {currentRecipe ? 'Get a new AI recipe idea (no duplicates)' : 'Get an AI-powered recipe idea'}
-          </Text>
-        )}
+        </View>
       </View>
 
       {/* Preference Modals */}
@@ -487,6 +490,9 @@ export default function MyFridgeScreen() {
         getOptionLabel={getStrictnessLabel}
         getOptionDescription={getStrictnessDescription}
       />
+
+      {/* Saving Modal */}
+      <SavingModal visible={isGenerating} message="Generating recipe..." />
     </SafeAreaView>
   );
 }
