@@ -160,15 +160,16 @@ export default function BaseModal({
             activeOpacity={1}
             onPress={handleBackdropPress}
           />
-          <View style={[getContentContainerStyle(), contentStyle]} pointerEvents="box-none">
+          <View
+            style={[getContentContainerStyle(), contentStyle]}
+            pointerEvents="auto"
+          >
             {showDragIndicator && variant === 'bottom-sheet' && (
               <View style={styles.dragIndicatorContainer}>
                 <View style={styles.dragIndicator} />
               </View>
             )}
-            <View pointerEvents="auto">
-              {children}
-            </View>
+            {children}
           </View>
         </View>
       </Modal>
