@@ -803,3 +803,101 @@ Important:
 
 Return the recipes as a JSON array:`;
 }
+
+/**
+ * Creates a prompt for simplifying and cleaning up verbose recipe instructions
+ */
+export function createRecipeSimplificationPrompt(
+  title: string,
+  ingredients: string[],
+  steps: Array<{ text: string; cookingAction?: any }>,
+  notes: string
+): string {
+  const stepsText = steps.map((step, index) => {
+    let stepText = `${index + 1}. ${step.text}`;
+    if (step.cookingAction) {
+      const action = step.cookingAction;
+      stepText += `\n   [COOKING ACTION: ${action.methodName} on ${action.applianceId}`;
+      if (action.parameters && Object.keys(action.parameters).length > 0) {
+        stepText += ` - Parameters: ${JSON.stringify(action.parameters)}`;
+      }
+      stepText += ']';
+    }
+    return stepText;
+  }).join('\n');
+
+  return `You are a professional recipe editor specializing in making recipes clear, concise, and easy to follow.
+
+Your task: Analyze this recipe and simplify/consolidate the instructions WITHOUT losing important cooking details.
+
+Recipe Title: ${title}
+
+Ingredients:
+${ingredients.map((ing, i) => `${i + 1}. ${ing}`).join('\n')}
+
+Current Instructions:
+${stepsText}
+
+Notes: ${notes || 'None'}
+
+**Your Goal:**
+1. **Consolidate repetitive steps** - Combine similar consecutive actions
+2. **Remove unnecessary details** - Cut out redundant explanations or overly verbose descriptions
+3. **Keep essential information** - PRESERVE all cooking times, temperatures, and critical techniques
+4. **Maintain logical flow** - Steps should still be in proper cooking order
+5. **Simplify notes** - If notes are very long or repetitive, condense them while keeping important info
+6. **Re-analyze cooking actions** - CRITICAL: Some steps have [COOKING ACTION] with appliance and parameters. When simplifying:
+   - If a step with a cooking action is kept mostly unchanged, preserve the same cooking action
+   - If multiple steps are combined and one has a cooking action, assign it to the combined step
+   - Adjust cooking action parameters if the simplified step description changes significantly (e.g., if time or temperature changes in the text, update the parameters)
+7. **Preserve step images** - If a step has an image, note that in your response
+
+**Guidelines:**
+- Combine steps like "Chop onions" + "Dice tomatoes" + "Mince garlic" → "Prep vegetables: chop onions, dice tomatoes, and mince garlic"
+- Remove repetitive phrases like "then", "next", "after that" unless they clarify timing
+- Keep ALL cooking temperatures, times, and doneness indicators (e.g., "until golden brown", "reaches 165°F")
+- Keep safety-critical steps separate (e.g., don't combine "add raw chicken" with "add vegetables")
+- If a recipe genuinely NEEDS many steps (e.g., complex baking, multi-stage cooking), preserve them
+- DO NOT over-simplify - if a recipe has 3-4 well-written steps, it may not need changes
+
+**What NOT to do:**
+- ❌ Don't remove cooking times or temperatures
+- ❌ Don't combine unrelated cooking actions (e.g., searing meat with baking)
+- ❌ Don't merge steps that need to happen sequentially with wait time
+- ❌ Don't simplify recipes that are already concise and well-written
+
+Return a JSON object with the following structure:
+
+{
+  "simplified": true,
+  "originalStepCount": ${steps.length},
+  "simplifiedStepCount": 3,
+  "steps": [
+    {
+      "text": "Combined or simplified step text here",
+      "cookingAction": {
+        "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+        "methodId": "00000000-0000-0000-0000-000000000001",
+        "methodName": "Sauté",
+        "parameters": {"time": 10, "temperature": 350}
+      }
+    },
+    {"text": "Next step without cooking action"}
+  ],
+  "notes": "Simplified notes (or original if no changes needed)",
+  "changesSummary": "Brief explanation of what was simplified (1-2 sentences)",
+  "significantChanges": true
+}
+
+**IMPORTANT:**
+- Set "simplified" to false if the recipe is already well-written and doesn't need changes
+- Set "significantChanges" to false if you only made minor wording tweaks
+- Include "changesSummary" explaining what you did
+- For each step, include "cookingAction" ONLY if the original step(s) had a cooking action and it's still relevant
+- The cookingAction object should include: applianceId, methodId, methodName, and parameters (object with cooking settings)
+- Preserve the exact applianceId and methodId from the original cooking action
+- Update the parameters object if the step description changed (e.g., different time/temp mentioned)
+- Return ONLY valid JSON, no additional text
+
+Analyze the recipe and return the JSON:`;
+}

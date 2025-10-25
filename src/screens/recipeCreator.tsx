@@ -15,7 +15,9 @@ import { TemperatureInfoModal ,
   AIAssistantModal,
   SavingModal,
   CoverImageRequiredModal,
+  RecipeSimplificationModal,
 } from '@components/modals';
+import { simplifyRecipeInstructions, SimplificationResult } from '@services/gemini.service';
 import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
@@ -54,6 +56,10 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const [showCoverImageRequiredModal, setShowCoverImageRequiredModal] = useState(false);
   const [showApplianceChangeConfirmation, setShowApplianceChangeConfirmation] = useState(false);
   const [pendingApplianceId, setPendingApplianceId] = useState<string>('');
+  const [showSimplificationModal, setShowSimplificationModal] = useState(false);
+  const [simplificationResult, setSimplificationResult] = useState<SimplificationResult | null>(null);
+  const [isSimplifying, setIsSimplifying] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const fabScale = useRef(new Animated.Value(1)).current;
   const styles = useStyles((theme) => createStyles(theme, fabScale));
   const { user } = useAuthStore();
@@ -407,6 +413,136 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
     }
   };
 
+  // Handle AI simplification
+  const handleSimplifyRecipe = async () => {
+    if (!formData.title || formData.title.trim() === '') {
+      Alert.alert('Missing Title', 'Please add a recipe title before simplifying.');
+      return;
+    }
+
+    if (formData.steps.length === 0 || (formData.steps.length === 1 && formData.steps[0].text.trim() === '')) {
+      Alert.alert('No Steps', 'Please add recipe steps before simplifying.');
+      return;
+    }
+
+    setIsSimplifying(true);
+    haptics.medium();
+
+    try {
+      console.log('Starting recipe simplification...');
+      console.log('Recipe title:', formData.title);
+      console.log('Steps count:', formData.steps.length);
+
+      const result = await simplifyRecipeInstructions(
+        formData.title,
+        formData.ingredients.filter(i => i.trim() !== ''),
+        formData.steps,
+        formData.notes
+      );
+
+      console.log('Simplification completed:', result.success);
+
+      if (!result.success) {
+        console.error('Simplification failed:', result.error);
+        Alert.alert('Simplification Failed', result.error || 'Could not simplify recipe. Please try again.');
+        return;
+      }
+
+      if (!result.simplified) {
+        console.log('No simplification needed');
+        Alert.alert('No Changes Needed', result.changesSummary || 'Your recipe is already concise and well-written!');
+        return;
+      }
+
+      console.log('Showing comparison modal');
+      console.log('Result data:', {
+        simplified: result.simplified,
+        simplifiedStepsCount: result.simplifiedSteps?.length,
+        originalStepsCount: formData.steps.length,
+        hasSummary: !!result.changesSummary,
+      });
+
+      // Show comparison modal
+      setSimplificationResult(result);
+      // Small delay to ensure state is updated
+      setTimeout(() => {
+        setShowSimplificationModal(true);
+      }, 100);
+    } catch (error) {
+      console.error('Simplification unexpected error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      // ALWAYS clear loading state, no matter what happens
+      console.log('Clearing simplification loading state');
+      setIsSimplifying(false);
+    }
+  };
+
+  // Accept simplified version
+  const handleAcceptSimplification = () => {
+    if (simplificationResult && simplificationResult.simplifiedSteps) {
+      haptics.success();
+      const updates: any = { steps: simplificationResult.simplifiedSteps };
+      if (simplificationResult.simplifiedNotes) {
+        updates.notes = simplificationResult.simplifiedNotes;
+      }
+      updateFormData(updates);
+      setShowSimplificationModal(false);
+      setSimplificationResult(null);
+      Alert.alert('Success', 'Recipe has been simplified!');
+    }
+  };
+
+  // Reject simplified version
+  const handleRejectSimplification = () => {
+    haptics.light();
+    setShowSimplificationModal(false);
+    setSimplificationResult(null);
+  };
+
+  // Regenerate simplification with different result
+  const handleRegenerate = async () => {
+    if (!formData.title || formData.title.trim() === '') {
+      Alert.alert('Missing Title', 'Please add a recipe title before regenerating.');
+      return;
+    }
+
+    setIsRegenerating(true);
+    haptics.medium();
+
+    try {
+      console.log('Regenerating recipe simplification with higher creativity...');
+
+      // Use higher temperature (0.7) for more variety in results
+      const result = await simplifyRecipeInstructions(
+        formData.title,
+        formData.ingredients.filter(i => i.trim() !== ''),
+        formData.steps,
+        formData.notes,
+        0.7  // Higher temperature for more creative/varied results
+      );
+
+      if (!result.success) {
+        Alert.alert('Regeneration Failed', result.error || 'Could not regenerate. Please try again.');
+        return;
+      }
+
+      if (!result.simplified) {
+        Alert.alert('No Changes', result.changesSummary || 'No different simplification was found.');
+        return;
+      }
+
+      // Update with new result
+      setSimplificationResult(result);
+      haptics.success();
+    } catch (error) {
+      console.error('Regeneration error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
   // Auto-assign cooking actions to recipe steps
   const autoAssignCookingActions = (instructions: string[], suggestedActions: CookingAction[]) => {
     const assignedActions: CookingAction[] = [];
@@ -696,17 +832,39 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         <View className="mb-4">
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-lg font-semibold" style={{ color: theme.colors.text.primary }}>INSTRUCTIONS</Text>
-            {formData.steps.length >= 3 && (
-              <TouchableOpacity
-                onPress={() => setIsStepsReorderMode(!isStepsReorderMode)}
-                className="px-3 py-1 rounded-lg"
-                style={isStepsReorderMode ? styles.reorderButtonActive : styles.reorderButtonInactive}
-              >
-                <Text style={isStepsReorderMode ? styles.reorderTextActive : styles.reorderTextInactive}>
-                  {isStepsReorderMode ? 'Done' : 'Reorder'}
-                </Text>
-              </TouchableOpacity>
-            )}
+            <View className="flex-row gap-2">
+              {/* AI Simplify Button - Shows for all recipes with steps */}
+              {formData.steps.length > 0 && formData.steps.some(s => s.text.trim() !== '') && !isStepsReorderMode && (
+                <TouchableOpacity
+                  onPress={handleSimplifyRecipe}
+                  disabled={isSimplifying}
+                  className="px-3 py-2 rounded-lg flex-row items-center"
+                  style={[styles.simplifyButton]}
+                >
+                  <MaterialCommunityIcons
+                    name={isSimplifying ? "loading" : "auto-fix"}
+                    size={16}
+                    color="white"
+                    style={{ marginRight: 6 }}
+                  />
+                  <Text style={styles.simplifyButtonText}>
+                    {isSimplifying ? 'Simplifying...' : 'AI Simplify'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {/* Reorder Button */}
+              {formData.steps.length >= 3 && (
+                <TouchableOpacity
+                  onPress={() => setIsStepsReorderMode(!isStepsReorderMode)}
+                  className="px-3 py-1 rounded-lg"
+                  style={isStepsReorderMode ? styles.reorderButtonActive : styles.reorderButtonInactive}
+                >
+                  <Text style={isStepsReorderMode ? styles.reorderTextActive : styles.reorderTextInactive}>
+                    {isStepsReorderMode ? 'Done' : 'Reorder'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
           <SimpleDraggableList
             data={formData.steps}
@@ -979,6 +1137,19 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
       onGenerateAI={handleGenerateAIFromModal}
       onCancel={() => setShowCoverImageRequiredModal(false)}
     />
+
+    {/* Recipe Simplification Modal */}
+    <RecipeSimplificationModal
+      visible={showSimplificationModal && simplificationResult !== null}
+      onClose={() => setShowSimplificationModal(false)}
+      originalSteps={formData.steps}
+      simplifiedSteps={simplificationResult?.simplifiedSteps || []}
+      changesSummary={simplificationResult?.changesSummary || ''}
+      onAccept={handleAcceptSimplification}
+      onReject={handleRejectSimplification}
+      onRegenerate={handleRegenerate}
+      isRegenerating={isRegenerating}
+    />
   </View>
   );
 }
@@ -1044,6 +1215,19 @@ const createStyles = (theme: Theme, fabScale: Animated.Value) => StyleSheet.crea
     color: theme.colors.primary[500],
     fontSize: theme.typography.fontSize.sm,
     fontWeight: theme.typography.fontWeight.medium,
+  },
+  simplifyButton: {
+    backgroundColor: theme.colors.primary[500],
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  simplifyButtonText: {
+    color: 'white',
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.semibold,
   },
   stepReorderView: {
     minHeight: 40,

@@ -10,6 +10,7 @@ import {
   createCookingActionAnalysisPrompt,
   createRecipeFromIngredientsPrompt,
   createMultipleRecipesFromIngredientsPrompt,
+  createRecipeSimplificationPrompt,
 } from './constants/recipePrompts';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
@@ -1823,5 +1824,291 @@ export async function generateMultipleRecipesFromIngredients(
       error: error instanceof Error ? error.message : 'Unknown error occurred',
       totalFound: 0,
     };
+  }
+}
+
+/**
+ * Simplification result interface
+ */
+export interface SimplificationResult {
+  success: boolean;
+  simplified: boolean;
+  simplifiedSteps?: Step[];
+  simplifiedNotes?: string;
+  originalStepCount?: number;
+  simplifiedStepCount?: number;
+  changesSummary?: string;
+  significantChanges?: boolean;
+  error?: string;
+}
+
+/**
+ * Simplifies and consolidates recipe instructions using AI
+ * Removes repetitive steps while preserving cooking details
+ * @param title - Recipe title
+ * @param ingredients - Recipe ingredients
+ * @param steps - Current recipe steps
+ * @param notes - Recipe notes
+ * @param temperature - AI temperature (0-1). Lower = more consistent, Higher = more creative. Default: 0.2
+ * @returns SimplificationResult with simplified steps or indication that no simplification is needed
+ */
+export async function simplifyRecipeInstructions(
+  title: string,
+  ingredients: string[],
+  steps: Step[],
+  notes: string = '',
+  temperature: number = 0.2
+): Promise<SimplificationResult> {
+  try {
+    if (!GEMINI_API_KEY) {
+      return {
+        success: false,
+        simplified: false,
+        error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
+      };
+    }
+
+    if (!steps || steps.length === 0) {
+      return {
+        success: false,
+        simplified: false,
+        error: 'No recipe steps provided.',
+      };
+    }
+
+    // If recipe already has very few steps (3 or fewer), it likely doesn't need simplification
+    if (steps.length <= 3) {
+      return {
+        success: true,
+        simplified: false,
+        originalStepCount: steps.length,
+        simplifiedStepCount: steps.length,
+        changesSummary: 'Recipe is already concise and well-written.',
+        significantChanges: false,
+      };
+    }
+
+    console.log(`Simplifying recipe: ${title} (${steps.length} steps)`);
+
+    // Prepare the prompt for Gemini
+    const prompt = createRecipeSimplificationPrompt(title, ingredients, steps, notes);
+
+    // Call Gemini API with extended timeout for complex recipes
+    const response = await axios.post(
+      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: Math.max(0, Math.min(1, temperature)), // Clamp between 0-1
+          maxOutputTokens: 2048,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 60000, // 60 seconds for complex recipes
+      }
+    );
+
+    const data: GeminiResponse = response.data;
+
+    // Check for API errors
+    if (data.error) {
+      return {
+        success: false,
+        simplified: false,
+        error: `Gemini API error: ${data.error.message}`,
+      };
+    }
+
+    // Extract the generated text
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!generatedText) {
+      console.error('No response from Gemini API');
+      return {
+        success: false,
+        simplified: false,
+        error: 'No response from Gemini API',
+      };
+    }
+
+    console.log('Received simplification response from Gemini');
+
+    // Parse the JSON response with original steps for cooking action mapping
+    const result = parseSimplificationResponse(generatedText, steps);
+
+    if (!result) {
+      return {
+        success: false,
+        simplified: false,
+        error: 'Failed to parse simplification response',
+      };
+    }
+
+    // If AI says no simplification is needed
+    if (!result.simplified || !result.significantChanges) {
+      return {
+        success: true,
+        simplified: false,
+        originalStepCount: steps.length,
+        simplifiedStepCount: steps.length,
+        changesSummary: result.changesSummary || 'Recipe is already well-written.',
+        significantChanges: false,
+      };
+    }
+
+    // Return simplified steps
+    return {
+      success: true,
+      simplified: true,
+      simplifiedSteps: result.steps,
+      simplifiedNotes: result.notes || notes,
+      originalStepCount: steps.length,
+      simplifiedStepCount: result.steps.length,
+      changesSummary: result.changesSummary,
+      significantChanges: result.significantChanges,
+    };
+  } catch (error) {
+    console.error('Recipe simplification error:', error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const message = error.response?.data?.error?.message || error.message;
+
+      // Check for timeout
+      if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+        return {
+          success: false,
+          simplified: false,
+          error: 'Request timed out. Your recipe may be too complex. Please try simplifying manually.',
+        };
+      }
+
+      if (status === 429) {
+        return {
+          success: false,
+          simplified: false,
+          error: 'API rate limit exceeded. Please try again in a moment.',
+        };
+      }
+
+      if (status === 403) {
+        return {
+          success: false,
+          simplified: false,
+          error: 'API key is invalid or restricted. Please check your Gemini API key configuration.',
+        };
+      }
+
+      if (status === 503) {
+        return {
+          success: false,
+          simplified: false,
+          error: 'AI service is temporarily unavailable. Please try again in a few moments.',
+        };
+      }
+
+      return {
+        success: false,
+        simplified: false,
+        error: `API error: ${message}`,
+      };
+    }
+
+    return {
+      success: false,
+      simplified: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
+}
+
+/**
+ * Parses Gemini's simplification response and maps cooking actions from original steps
+ */
+function parseSimplificationResponse(responseText: string, originalSteps: Step[]): any {
+  try {
+    // Extract JSON from the response (handle markdown code blocks)
+    let jsonText = responseText.trim();
+
+    // Remove markdown code blocks if present
+    if (jsonText.startsWith('```json')) {
+      jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+    } else if (jsonText.startsWith('```')) {
+      jsonText = jsonText.replace(/```\n?/g, '');
+    }
+
+    // Parse the JSON
+    const result = JSON.parse(jsonText);
+
+    // Validate structure
+    if (typeof result.simplified !== 'boolean') {
+      console.error('Invalid simplification response: missing simplified field');
+      return null;
+    }
+
+    if (result.simplified && (!Array.isArray(result.steps) || result.steps.length === 0)) {
+      console.error('Invalid simplification response: missing steps array');
+      return null;
+    }
+
+    // Convert steps to Step objects and use AI-suggested cooking actions
+    if (result.steps) {
+      result.steps = result.steps.map((step: any, index: number) => {
+        let newStep: Step;
+
+        if (typeof step === 'string') {
+          newStep = { text: step };
+        } else if (step && typeof step === 'object' && step.text) {
+          newStep = { text: step.text, image: step.image };
+
+          // Use AI-provided cooking action if present
+          if (step.cookingAction && typeof step.cookingAction === 'object') {
+            // Validate required fields
+            if (step.cookingAction.applianceId &&
+                step.cookingAction.methodId &&
+                step.cookingAction.methodName) {
+              // Generate a unique ID for this cooking action
+              newStep.cookingAction = {
+                id: `simplified-${Date.now()}-${index}`,
+                applianceId: step.cookingAction.applianceId,
+                methodId: step.cookingAction.methodId,
+                methodName: step.cookingAction.methodName,
+                parameters: step.cookingAction.parameters || {},
+                stepIndex: index,
+              };
+              console.log(`AI re-analyzed cooking action for simplified step ${index}: ${step.cookingAction.methodName}`);
+            }
+          }
+        } else {
+          newStep = { text: '' };
+        }
+
+        return newStep;
+      }).filter((step: Step) => step.text && step.text.trim());
+    }
+
+    console.log('Simplification result:', {
+      simplified: result.simplified,
+      significantChanges: result.significantChanges,
+      originalCount: result.originalStepCount,
+      simplifiedCount: result.simplifiedStepCount,
+    });
+
+    return result;
+  } catch (error) {
+    console.error('Failed to parse simplification response:', error);
+    console.error('Response text:', responseText);
+    return null;
   }
 }
