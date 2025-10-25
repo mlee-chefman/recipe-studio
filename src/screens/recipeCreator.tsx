@@ -10,7 +10,12 @@ import { ScrapedRecipe } from '@utils/recipeScraper';
 import { CookingAction, getApplianceById } from '~/types/chefiq';
 import ChefIQCookingSelector from '@components/ChefIQCookingSelector';
 import { ApplianceDropdown } from '@components/ApplianceDropdown';
-import { TemperatureInfoModal } from '@components/modals';
+import { TemperatureInfoModal ,
+  ConfirmationModal,
+  AIAssistantModal,
+  SavingModal,
+  CoverImageRequiredModal,
+} from '@components/modals';
 import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
@@ -25,12 +30,6 @@ import { useAICoverGeneration } from '@hooks/useAICoverGeneration';
 import * as recipeHelpers from '@utils/helpers/recipeFormHelpers';
 import { formatCookTime } from '@utils/helpers/recipeHelpers';
 import StepImage from '@components/StepImage';
-import {
-  ConfirmationModal,
-  AIAssistantModal,
-  SavingModal,
-  CoverImageRequiredModal,
-} from '@components/modals';
 import RecipeCoverImage from '@components/RecipeCoverImage';
 import { haptics } from '@utils/haptics';
 
@@ -53,6 +52,8 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
   const [tempInfoStepIndex, setTempInfoStepIndex] = useState<number | null>(null);
   const [tempRecipeId] = useState(() => uuidv4()); // Generate temp ID for new recipes
   const [showCoverImageRequiredModal, setShowCoverImageRequiredModal] = useState(false);
+  const [showApplianceChangeConfirmation, setShowApplianceChangeConfirmation] = useState(false);
+  const [pendingApplianceId, setPendingApplianceId] = useState<string>('');
   const fabScale = useRef(new Animated.Value(1)).current;
   const styles = useStyles((theme) => createStyles(theme, fabScale));
   const { user } = useAuthStore();
@@ -279,6 +280,40 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         'AI cover generation is currently unavailable. You can upload a photo manually instead.'
       );
     }
+  };
+
+  // Handler for appliance change with confirmation
+  const handleApplianceChange = (newApplianceId: string) => {
+    // Check if there are any cooking actions in the steps
+    const hasCookingActions = formData.steps.some(step => step.cookingAction);
+
+    if (hasCookingActions && newApplianceId !== formData.selectedAppliance) {
+      // Show confirmation modal
+      setPendingApplianceId(newApplianceId);
+      setShowApplianceChangeConfirmation(true);
+    } else {
+      // No cooking actions, just change the appliance
+      updateFormData({ selectedAppliance: newApplianceId, useProbe: false });
+    }
+  };
+
+  // Confirm appliance change and remove all cooking actions
+  const confirmApplianceChange = () => {
+    haptics.warning();
+    // Remove all cooking actions from steps
+    const updatedSteps = formData.steps.map(step => {
+      const { cookingAction, ...stepWithoutAction } = step;
+      return stepWithoutAction;
+    });
+
+    updateFormData({
+      steps: updatedSteps,
+      selectedAppliance: pendingApplianceId,
+      useProbe: false
+    });
+
+    setShowApplianceChangeConfirmation(false);
+    setPendingApplianceId('');
   };
 
   // Cooking actions hook
@@ -574,12 +609,14 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
           <View className="mb-3">
             <ApplianceDropdown
               selectedAppliance={formData.selectedAppliance}
-              onSelect={(appliance) => updateFormData({ selectedAppliance: appliance })}
+              onSelect={handleApplianceChange}
             />
           </View>
 
-          {/* Probe Toggle */}
-          {formData.selectedAppliance && getApplianceById(formData.selectedAppliance)?.supports_probe && (
+          {/* Probe Toggle - Only show for iQ MiniOven */}
+          {formData.selectedAppliance &&
+           getApplianceById(formData.selectedAppliance)?.thing_category_name === 'oven' &&
+           getApplianceById(formData.selectedAppliance)?.supports_probe && (
             <View className="flex-row items-center justify-between mb-3 p-3 rounded-lg" style={{ backgroundColor: theme.colors.background.secondary }}>
               <View className="flex-1">
                 <Text className="text-base font-medium" style={{ color: theme.colors.text.primary }}>Use Thermometer Probe</Text>
@@ -845,6 +882,21 @@ export default function RecipeCreatorScreen({ onComplete }: RecipeCreatorProps =
         confirmStyle="danger"
         onConfirm={confirmCancel}
         onCancel={() => updateModalStates({ showCancelConfirmation: false })}
+      />
+
+      {/* Appliance Change Confirmation Modal */}
+      <ConfirmationModal
+        visible={showApplianceChangeConfirmation}
+        title="Change Appliance?"
+        message="Changing the appliance will remove all cooking actions from your recipe steps. This cannot be undone."
+        confirmText="Change"
+        cancelText="Cancel"
+        confirmStyle="danger"
+        onConfirm={confirmApplianceChange}
+        onCancel={() => {
+          setShowApplianceChangeConfirmation(false);
+          setPendingApplianceId('');
+        }}
       />
 
       {/* Temperature Info Modal for imported recipes */}

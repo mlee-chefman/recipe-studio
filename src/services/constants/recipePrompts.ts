@@ -183,11 +183,25 @@ ${stepsText}
 
 Available ChefIQ Appliances and Methods:
 1. **iQ Cooker (Multi Cooker)**: Pressure Cook, Sear/Sauté, Steam, Slow Cook, Sous Vide
-2. **iQ MiniOven** (supports meat probe): Bake, Air Fry, Roast, Broil, Toast, Dehydrate
+2. **iQ Sense (Temperature Hub)**: Monitor Temperature (for grilling/smoking with probe)
+3. **iQ MiniOven** (supports meat probe): Bake, Air Fry, Roast, Broil, Toast, Dehydrate
 
 CRITICAL RULES:
 
-1. **Oven Methods Take Priority** ⚠️ VERY IMPORTANT:
+1. **Grill/Smoker Detection** ⚠️ IMPORTANT FOR iQ SENSE:
+   - If a recipe is primarily for OUTDOOR GRILL or SMOKER (not oven-adaptable), suggest iQ Sense for temperature monitoring
+   - Keywords for grill/smoker recipes: "grill", "grilled", "barbecue", "bbq", "smoke", "smoked", "smoker", "smoking", "outdoor grill", "charcoal grill", "gas grill"
+   - iQ Sense is ONLY for monitoring temperature during grilling/smoking - it doesn't cook, just monitors with a probe
+   - Examples:
+     - ✅ "Smoked Brisket on outdoor smoker at 225°F until 203°F" → Suggest iQ Sense (monitor temp)
+     - ✅ "Grilled Ribeye on charcoal grill to 135°F" → Suggest iQ Sense (monitor temp)
+     - ✅ "BBQ Ribs on smoker for 6 hours" → Suggest iQ Sense (monitor temp)
+     - ❌ "Grilled chicken (or bake in oven at 375°F)" → Suggest iQ MiniOven (oven alternative available)
+   - When suggesting iQ Sense, ALWAYS include both target_probe_temp AND remove_probe_temp for carryover cooking
+   - For grilling: remove_probe_temp is typically 5-10°F below target_probe_temp
+   - If recipe can be done in oven as alternative, suggest iQ MiniOven instead
+
+2. **Oven Methods Take Priority** ⚠️ VERY IMPORTANT:
    - If a recipe has BOTH stovetop searing AND oven cooking (Bake/Air Fry/Roast), ONLY suggest the oven method
    - Brief stovetop searing/sautéing (<5 minutes) before oven cooking should be done MANUALLY, not as a ChefIQ action
    - Only suggest Sear/Sauté if it's the PRIMARY cooking method (e.g., stir-fry, pan-seared fish, sautéed vegetables)
@@ -294,6 +308,14 @@ ChefIQ Appliance IDs and Method IDs:
   - Parameters: cooking_time, temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm, delay_time
 - Sous Vide: methodId = "5"
   - Parameters: cooking_time, cooking_temp (in Fahrenheit), delay_time
+
+**iQ Sense** (category_id = "a542fa25-5053-4946-8b77-e358467baa0f") - TEMPERATURE MONITORING HUB:
+- Monitor Temperature: methodId = "monitor_temp"
+  - Parameters: target_probe_temp (in Fahrenheit), remove_probe_temp (in Fahrenheit, for carryover cooking)
+  - USE THIS FOR: Outdoor grilling, smoking, barbecue recipes where user cooks on their own grill/smoker
+  - This appliance ONLY monitors temperature - it doesn't cook
+  - ALWAYS include remove_probe_temp (typically 5-10°F below target for large cuts of meat)
+  - Example: Smoked brisket → target_probe_temp: 203, remove_probe_temp: 195
 
 **iQ MiniOven** (category_id = "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE:
 - Bake: methodId = "METHOD_BAKE"
@@ -457,6 +479,24 @@ Step 4: "Bake at 400°F for 25-30 minutes until pastry is golden and beef reache
   }
 }
 NOTE: ⚠️ DO NOT suggest Sear/Sauté for Step 2. The quick stovetop searing is done MANUALLY. Only the main oven cooking (Bake) is suggested as a ChefIQ action because the MiniOven is the PRIMARY appliance for this recipe. stepIndex is 3 because it's "Step 4" (4-1=3).
+
+Example 9 (Grilled/Smoked Recipe - Use iQ Sense):
+Step 1: "Prepare smoker to 225°F using hickory wood"
+Step 2: "Season brisket with dry rub"
+Step 3: "Place brisket on smoker and smoke for 10-12 hours until internal temperature reaches 203°F, remove at 195°F"
+Step 4: "Wrap in butcher paper and let rest for 1 hour"
+→ Create ONE action at stepIndex 2 (for "Step 3" - iQ Sense monitors temperature):
+{
+  "stepIndex": 2,
+  "applianceId": "a542fa25-5053-4946-8b77-e358467baa0f",
+  "methodId": "monitor_temp",
+  "methodName": "Monitor Temperature",
+  "parameters": {
+    "target_probe_temp": 203,
+    "remove_probe_temp": 195
+  }
+}
+NOTE: ⚠️ iQ Sense is for OUTDOOR GRILLING/SMOKING only - it monitors temperature via probe but doesn't cook. Perfect for smoker recipes. ALWAYS include both target and remove temps. stepIndex is 2 because it's "Step 3" (3-1=2).
 
 IMPORTANT:
 - Return ONLY valid JSON
@@ -700,7 +740,12 @@ Available ChefIQ Appliances:
    - Slow Cook (methodId: "3"): cooking_time (seconds), temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm (0=Off, 1=On)
    - Sous Vide (methodId: "5"): cooking_time (seconds), cooking_temp (°F)
 
-2. **iQ MiniOven** (applianceId: "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE
+2. **iQ Sense** (applianceId: "a542fa25-5053-4946-8b77-e358467baa0f") - TEMPERATURE MONITORING HUB
+   - Monitor Temperature (methodId: "monitor_temp"): target_probe_temp (°F), remove_probe_temp (°F)
+   - USE FOR: Outdoor grilling, smoking, barbecue recipes (monitors temperature, doesn't cook)
+   - ALWAYS include remove_probe_temp (typically 5-10°F below target for carryover cooking)
+
+3. **iQ MiniOven** (applianceId: "4a3cd4f1-839b-4f45-80ea-08f594ff74c3") - SUPPORTS MEAT PROBE
    - Bake (methodId: "METHOD_BAKE"):
      * Normal: cooking_time (seconds), target_cavity_temp (°F), fan_speed (0=Low, 1=Medium, 2=High)
      * With Probe: target_cavity_temp (°F), target_probe_temp (°F), remove_probe_temp (°F), fan_speed, NO cooking_time

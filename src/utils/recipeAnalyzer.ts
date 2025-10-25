@@ -353,72 +353,128 @@ export const analyzeRecipeForChefIQ = (
   // Detect primary protein cooking vs auxiliary steps
   const proteinKeywords = ['pork', 'chicken', 'beef', 'lamb', 'fish', 'salmon', 'turkey', 'steak', 'chops'];
   const grillKeywords = ['grill', 'grilled', 'outdoor grill', 'preheated grill', 'grate', 'barbecue', 'bbq'];
+  const smokerKeywords = ['smoke', 'smoked', 'smoker', 'smoking', 'wood chips'];
   const ovenKeywords = ['oven', 'bake', 'roast', 'broil', 'air fry'];
 
-  // Check for grilling (should suggest oven as substitute)
+  // Check for grilling/smoking (should suggest iQ Sense for monitoring)
   const hasGrilling = grillKeywords.some(keyword => allTextLower.includes(keyword));
+  const hasSmoking = smokerKeywords.some(keyword => allTextLower.includes(keyword));
   const hasProtein = proteinKeywords.some(keyword => allTextLower.includes(keyword));
   const hasTemperatureCheck = allTextLower.includes('degrees') || allTextLower.includes('thermometer') || allTextLower.includes('internal temperature');
+  const hasOvenMethods = ovenKeywords.some(keyword => allTextLower.includes(keyword));
 
-  if (hasGrilling && hasProtein) {
-    reasoning.push('Detected grilling recipe with protein - suggesting oven as ChefIQ alternative.');
+  // Check if recipe is primarily grill/smoker (use iQ Sense) or oven-compatible (use iQ Mini Oven)
+  if ((hasGrilling || hasSmoking) && hasProtein) {
+    // Determine if this is primarily a grill/smoker recipe or if oven is explicitly mentioned
+    const isPrimaryGrillSmoke = (hasGrilling || hasSmoking) && !hasOvenMethods;
+    const canUseOven = hasOvenMethods || allTextLower.includes('or oven') || allTextLower.includes('alternatively');
 
-    // For grilled proteins, suggest oven methods (air fry, broil, or bake)
-    let suggestedOvenMethod = OvenMethod.AirFry; // Default for crispy results
+    // If primarily grill/smoke without oven alternative, suggest iQ Sense for temperature monitoring
+    if (isPrimaryGrillSmoke && hasTemperatureCheck) {
+      reasoning.push('Detected grill/smoker recipe with protein - suggesting iQ Sense for temperature monitoring.');
 
-    if (allTextLower.includes('crispy') || allTextLower.includes('crunchy')) {
-      suggestedOvenMethod = OvenMethod.AirFry;
-      reasoning.push('Detected need for crispy texture - suggesting Air Fry.');
-    } else if (allTextLower.includes('char') || allTextLower.includes('sear') || allTextLower.includes('brown')) {
-      suggestedOvenMethod = OvenMethod.Broil;
-      reasoning.push('Detected need for browning/searing - suggesting Broil.');
-    } else if (cookTime > 20) {
-      suggestedOvenMethod = OvenMethod.Bake;
-      reasoning.push('Longer cooking time detected - suggesting Bake.');
-    }
+      const senseAppliance = CHEFIQ_APPLIANCES.find(a => a.thing_category_name === 'sense');
+      if (senseAppliance) {
+        // Find which instruction step contains grilling/smoking keywords
+        const grillSmokeStepIndex = stepTexts.findIndex(stepText => {
+          const stepLower = stepText.toLowerCase();
+          return grillKeywords.some(keyword => stepLower.includes(keyword)) ||
+                 smokerKeywords.some(keyword => stepLower.includes(keyword));
+        });
 
-    const ovenAppliance = CHEFIQ_APPLIANCES.find(a => a.thing_category_name === 'oven');
-    if (ovenAppliance) {
-      const methodPattern = COOKING_METHOD_PATTERNS.find(p => p.methodId === suggestedOvenMethod);
-      if (methodPattern) {
-        // Find which instruction step contains grilling keywords
-        const grillStepIndex = stepTexts.findIndex(stepText =>
-          grillKeywords.some(keyword => stepText.toLowerCase().includes(keyword))
-        );
+        // Get protein temperature
+        const targetTemp = getProteinTemperature(allText);
 
-        // Check for remove temp in grilled protein recipes
-        let grillRemoveTemp: number | null = null;
-        if (hasTemperatureCheck && shouldUseRemoveTemp(allText)) {
-          const targetTemp = getProteinTemperature(allText);
-          grillRemoveTemp = extractRemoveTemperature(allText, targetTemp);
+        // Check for remove temp (important for grilling/smoking)
+        let removeTemp: number | null = null;
+        if (shouldUseRemoveTemp(allText)) {
+          removeTemp = extractRemoveTemperature(allText, targetTemp);
         }
 
         const action: CookingAction = {
           id: uuidv4(),
-          applianceId: ovenAppliance.category_id,
-          methodId: String(suggestedOvenMethod),
-          methodName: methodPattern.keywords[0].split(' ').map(word =>
-            word.charAt(0).toUpperCase() + word.slice(1)
-          ).join(' '),
+          applianceId: senseAppliance.category_id,
+          methodId: 'monitor_temp',
+          methodName: 'Monitor Temperature',
           parameters: {
-            ...methodPattern.defaultParams,
-            ...(extractedTemp && suggestedOvenMethod === OvenMethod.Bake ? { target_cavity_temp: extractedTemp } : {}),
-            ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allText) } : {}),
-            ...(hasTemperatureCheck && grillRemoveTemp && grillRemoveTemp !== getProteinTemperature(allText)
-                ? { remove_probe_temp: grillRemoveTemp } : {}),
-            cooking_time: cookTime * 60 || methodPattern.estimatedTime! * 60,
+            target_probe_temp: targetTemp,
+            ...(removeTemp && removeTemp !== targetTemp ? { remove_probe_temp: removeTemp } : {}),
           },
-          ...(grillStepIndex >= 0 ? { stepIndex: grillStepIndex } : {}),
+          ...(grillSmokeStepIndex >= 0 ? { stepIndex: grillSmokeStepIndex } : {}),
         };
 
         return {
-          suggestedAppliance: ovenAppliance.category_id,
+          suggestedAppliance: senseAppliance.category_id,
           suggestedActions: [action],
-          useProbe: hasTemperatureCheck,
-          probeTemp: hasTemperatureCheck ? getProteinTemperature(allText) : undefined,
-          confidence: 0.8,
+          useProbe: true,
+          probeTemp: targetTemp,
+          confidence: 0.85,
           reasoning
         };
+      }
+    }
+
+    // If oven alternative is available or recipe can be adapted to oven, suggest iQ Mini Oven
+    if (canUseOven || !isPrimaryGrillSmoke) {
+      reasoning.push('Detected grilling recipe with protein - suggesting iQ Mini Oven as ChefIQ alternative.');
+
+      // For grilled proteins, suggest oven methods (air fry, broil, or bake)
+      let suggestedOvenMethod = OvenMethod.AirFry; // Default for crispy results
+
+      if (allTextLower.includes('crispy') || allTextLower.includes('crunchy')) {
+        suggestedOvenMethod = OvenMethod.AirFry;
+        reasoning.push('Detected need for crispy texture - suggesting Air Fry.');
+      } else if (allTextLower.includes('char') || allTextLower.includes('sear') || allTextLower.includes('brown')) {
+        suggestedOvenMethod = OvenMethod.Broil;
+        reasoning.push('Detected need for browning/searing - suggesting Broil.');
+      } else if (cookTime > 20) {
+        suggestedOvenMethod = OvenMethod.Bake;
+        reasoning.push('Longer cooking time detected - suggesting Bake.');
+      }
+
+      const ovenAppliance = CHEFIQ_APPLIANCES.find(a => a.thing_category_name === 'oven');
+      if (ovenAppliance) {
+        const methodPattern = COOKING_METHOD_PATTERNS.find(p => p.methodId === suggestedOvenMethod);
+        if (methodPattern) {
+          // Find which instruction step contains grilling keywords
+          const grillStepIndex = stepTexts.findIndex(stepText =>
+            grillKeywords.some(keyword => stepText.toLowerCase().includes(keyword))
+          );
+
+          // Check for remove temp in grilled protein recipes
+          let grillRemoveTemp: number | null = null;
+          if (hasTemperatureCheck && shouldUseRemoveTemp(allText)) {
+            const targetTemp = getProteinTemperature(allText);
+            grillRemoveTemp = extractRemoveTemperature(allText, targetTemp);
+          }
+
+          const action: CookingAction = {
+            id: uuidv4(),
+            applianceId: ovenAppliance.category_id,
+            methodId: String(suggestedOvenMethod),
+            methodName: methodPattern.keywords[0].split(' ').map(word =>
+              word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' '),
+            parameters: {
+              ...methodPattern.defaultParams,
+              ...(extractedTemp && suggestedOvenMethod === OvenMethod.Bake ? { target_cavity_temp: extractedTemp } : {}),
+              ...(hasTemperatureCheck ? { target_probe_temp: getProteinTemperature(allText) } : {}),
+              ...(hasTemperatureCheck && grillRemoveTemp && grillRemoveTemp !== getProteinTemperature(allText)
+                  ? { remove_probe_temp: grillRemoveTemp } : {}),
+              cooking_time: cookTime * 60 || methodPattern.estimatedTime! * 60,
+            },
+            ...(grillStepIndex >= 0 ? { stepIndex: grillStepIndex } : {}),
+          };
+
+          return {
+            suggestedAppliance: ovenAppliance.category_id,
+            suggestedActions: [action],
+            useProbe: hasTemperatureCheck,
+            probeTemp: hasTemperatureCheck ? getProteinTemperature(allText) : undefined,
+            confidence: 0.8,
+            reasoning
+          };
+        }
       }
     }
   }

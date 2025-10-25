@@ -73,6 +73,10 @@ const CQ50_METHODS = [
   { id: 'METHOD_SLOW_COOK', name: 'Slow Cook', icon: '🥘' },
 ];
 
+const CQ60_METHODS = [
+  { id: 'monitor_temp', name: 'Monitor Temperature', icon: '🌡️' },
+];
+
 const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
   visible,
   onClose,
@@ -99,7 +103,8 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
   const appliance = getApplianceById(applianceId);
   const isRJ40 = appliance?.thing_category_name === 'cooker';
   const isCQ50 = appliance?.thing_category_name === 'oven';
-  const methods = isRJ40 ? RJ40_METHODS : CQ50_METHODS;
+  const isCQ60 = appliance?.thing_category_name === 'sense';
+  const methods = isRJ40 ? RJ40_METHODS : isCQ60 ? CQ60_METHODS : CQ50_METHODS;
 
   useEffect(() => {
     // Only initialize when modal becomes visible
@@ -152,6 +157,14 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
           initialAction.parameters.remove_probe_temp !== initialAction.parameters.target_probe_temp) {
         setShowRemoveTemp(true);
       }
+    } else if (isCQ60 && methods.length > 0) {
+      // iQ Sense defaults
+      const defaultMethod = methods[0];
+      setSelectedMethod(defaultMethod.id);
+      setParameters({
+        target_probe_temp: 145, // Default safe temperature
+      });
+      setValidationErrors({});
     } else if (isRJ40 && methods.length > 0) {
       const defaultMethod = methods[0];
       setSelectedMethod(defaultMethod.id);
@@ -170,7 +183,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
       });
       setValidationErrors({});
     }
-  }, [visible, applianceId, isRJ40, isCQ50, methods, initialAction]);
+  }, [visible, applianceId, isRJ40, isCQ50, isCQ60, methods, initialAction]);
 
   // Animate protein guide show/hide
   useEffect(() => {
@@ -270,7 +283,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         }
       }
 
-      if (key === 'target_probe_temp' && useProbe) {
+      if (key === 'target_probe_temp' && (useProbe || isCQ60)) {
         const numValue = parseInt(value);
         if (isNaN(numValue)) return 'Temperature must be a number';
         if (numValue < 100) {
@@ -281,7 +294,7 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
         }
       }
 
-      if (key === 'remove_probe_temp' && useProbe) {
+      if (key === 'remove_probe_temp' && (useProbe || isCQ60)) {
         const numValue = parseInt(value);
         if (isNaN(numValue)) return 'Temperature must be a number';
         if (numValue < 100) {
@@ -420,6 +433,11 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
           finalParameters.target_probe_temp = 160;
         }
       }
+    } else if (isCQ60) {
+      // iQ Sense only needs target_probe_temp (remove_probe_temp is optional)
+      if (finalParameters.target_probe_temp === undefined) {
+        finalParameters.target_probe_temp = 145;
+      }
     }
 
     const action: CookingAction = {
@@ -431,6 +449,384 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
     };
 
     onSelect(action);
+  };
+
+  const renderCQ60Parameters = () => {
+    // iQ Sense only monitors temperature - no cooking actions
+    // Always show probe temperature inputs
+    return (
+      <View className="mt-4">
+        <View className="mb-4">
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-base font-semibold">🌡️ Probe Temperatures</Text>
+            <TouchableOpacity
+              onPress={() => setShowProteinGuide(!showProteinGuide)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 6,
+                backgroundColor: showProteinGuide ? theme.colors.primary[500] : theme.colors.primary[100],
+                borderWidth: 1,
+                borderColor: showProteinGuide ? theme.colors.primary[600] : theme.colors.primary[300],
+              }}
+            >
+              <Text style={{ fontSize: 12, fontWeight: '600', color: showProteinGuide ? 'white' : theme.colors.primary[700] }}>
+                {showProteinGuide ? 'Hide' : 'Suggestions'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={{ fontSize: 13, color: theme.colors.text.secondary, marginBottom: 12 }}>
+            Monitor your protein's internal temperature while grilling or smoking. The iQ Sense hub will track temperature via the probe and alert you when ready.
+          </Text>
+
+          {/* Protein Guide - Animated */}
+          <Animated.View
+            style={{
+              maxHeight: proteinGuideAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 500],
+              }),
+              opacity: proteinGuideAnimation,
+              overflow: 'hidden',
+            }}
+          >
+            {showProteinGuide && (
+              <View
+                style={{
+                  backgroundColor: theme.colors.gray[50],
+                  borderRadius: 8,
+                  padding: 12,
+                  marginBottom: 12,
+                  borderWidth: 1,
+                  borderColor: theme.colors.gray[200],
+                }}
+              >
+                <Text style={{ fontSize: 12, color: theme.colors.text.secondary, marginBottom: 8 }}>
+                  Suggested by protein type:
+                </Text>
+
+                {/* Proteins - Horizontal Scroll */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+                  {TEMPERATURE_GUIDE.map((protein) => {
+                    const isSelected = expandedProtein === protein.nameKey;
+                    return (
+                      <TouchableOpacity
+                        key={protein.nameKey}
+                        onPress={() => setExpandedProtein(isSelected ? null : protein.nameKey)}
+                        className="items-center mr-3"
+                        style={{
+                          width: 70,
+                          padding: 8,
+                          borderRadius: 8,
+                          backgroundColor: isSelected ? theme.colors.primary[50] : theme.colors.background.primary,
+                          borderWidth: 1,
+                          borderColor: isSelected ? theme.colors.primary[300] : theme.colors.gray[200],
+                        }}
+                      >
+                        <View
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 18,
+                            backgroundColor: 'rgba(0,0,0,0.08)',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Image
+                            source={{ uri: protein.icon }}
+                            style={{ width: 32, height: 32 }}
+                            resizeMode="contain"
+                          />
+                        </View>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: isSelected ? '600' : '500',
+                            color: theme.colors.text.primary,
+                            textAlign: 'center'
+                          }}
+                          numberOfLines={2}
+                        >
+                          {PROTEIN_LABELS[protein.nameKey] || protein.nameKey}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Doneness Options - Animated Horizontal Scroll */}
+                <Animated.View
+                  style={{
+                    maxHeight: donenessAnimation.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, 200],
+                    }),
+                    opacity: donenessAnimation,
+                    overflow: 'hidden',
+                  }}
+                >
+                  {expandedProtein && (
+                    <View style={{ marginTop: 4 }}>
+                      <Text style={{ fontSize: 11, color: theme.colors.text.secondary, marginBottom: 6 }}>
+                        Select doneness:
+                      </Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        {TEMPERATURE_GUIDE.find(p => p.nameKey === expandedProtein)?.doneness.map((doneness) => {
+                          const protein = TEMPERATURE_GUIDE.find(p => p.nameKey === expandedProtein);
+                          return (
+                            <TouchableOpacity
+                              key={doneness.nameKey}
+                              onPress={() => {
+                                // Always set remove temp for iQ Sense (important for grilling/smoking)
+                                const removeTemp = doneness.removeTemp || Math.max(100, doneness.targetTemp - 5);
+                                updateBothProbeTemps(doneness.targetTemp, removeTemp);
+                                setManualTemp(doneness.targetTemp.toString());
+                                setManualRemoveTemp(removeTemp.toString());
+                                setShowRemoveTemp(true);
+                                setSelectedProteinInfo({
+                                  proteinKey: expandedProtein,
+                                  donenessKey: doneness.nameKey,
+                                  icon: protein!.icon,
+                                });
+                                setExpandedProtein(null);
+                                setShowProteinGuide(false);
+                              }}
+                              className="mr-3"
+                              style={{
+                                width: 110,
+                                padding: 10,
+                                borderRadius: 8,
+                                backgroundColor: theme.colors.background.primary,
+                                borderWidth: 1,
+                                borderColor: theme.colors.gray[200],
+                              }}
+                            >
+                              <View className="flex-row items-center" style={{ gap: 4, marginBottom: 4 }}>
+                                <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text.primary }} numberOfLines={1}>
+                                  {DONENESS_LABELS[doneness.nameKey] || doneness.nameKey}
+                                </Text>
+                                {doneness.isUsdaApproved && (
+                                  <View
+                                    className="flex-row items-center px-1 rounded-full"
+                                    style={{ backgroundColor: theme.colors.success.light, gap: 2 }}
+                                  >
+                                    <Feather name="shield" size={8} color={theme.colors.success.main} />
+                                  </View>
+                                )}
+                              </View>
+                              <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.primary[600] }}>
+                                {doneness.targetTemp}°F
+                              </Text>
+                              {doneness.removeTemp && doneness.removeTemp !== doneness.targetTemp && (
+                                <Text style={{ fontSize: 10, color: theme.colors.text.secondary }}>
+                                  Remove: {doneness.removeTemp}°F
+                                </Text>
+                              )}
+                              {!doneness.isUsdaApproved && (
+                                <Text style={{ fontSize: 9, color: theme.colors.warning.main, marginTop: 2 }}>
+                                  ⚠️ Not USDA
+                                </Text>
+                              )}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    </View>
+                  )}
+                </Animated.View>
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Selected Protein Info Chip */}
+          {selectedProteinInfo && (
+            <View
+              className="flex-row items-center mb-2 p-2 rounded-lg"
+              style={{
+                backgroundColor: theme.colors.primary[50],
+                borderWidth: 1,
+                borderColor: theme.colors.primary[200],
+              }}
+            >
+              <View
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 14,
+                  backgroundColor: 'rgba(0,0,0,0.08)',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 8,
+                }}
+              >
+                <Image
+                  source={{ uri: selectedProteinInfo.icon }}
+                  style={{ width: 24, height: 24 }}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={{ flex: 1, fontSize: 13, fontWeight: '600', color: theme.colors.primary[800] }}>
+                {PROTEIN_LABELS[selectedProteinInfo.proteinKey]} - {DONENESS_LABELS[selectedProteinInfo.donenessKey]}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setSelectedProteinInfo(null)}
+                style={{ padding: 4 }}
+              >
+                <Feather name="x" size={16} color={theme.colors.text.secondary} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Target and Remove Temperature */}
+          <View className="flex-row mb-2" style={{ gap: 12, alignItems: 'flex-start' }}>
+            {/* Target Temperature */}
+            <View>
+              <Text style={{ fontSize: 11, color: theme.colors.text.secondary, marginBottom: 4, height: 15, lineHeight: 15 }}>
+                Target (°F)
+              </Text>
+              <View
+                style={{
+                  borderWidth: 2,
+                  borderColor: validationErrors.target_probe_temp
+                    ? theme.colors.error.main
+                    : parameters.target_probe_temp
+                      ? theme.colors.primary[500]
+                      : theme.colors.gray[300],
+                  backgroundColor: theme.colors.background.secondary,
+                  borderRadius: 8,
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  minWidth: 90,
+                  alignItems: 'center',
+                }}
+              >
+                <TextInput
+                  style={{
+                    fontSize: 24,
+                    fontWeight: '700',
+                    color: theme.colors.text.primary,
+                    textAlign: 'center',
+                    padding: 0,
+                    minWidth: 50,
+                  }}
+                  value={
+                    parameters.target_probe_temp !== undefined && parameters.target_probe_temp !== null
+                      ? String(parameters.target_probe_temp)
+                      : ''
+                  }
+                  placeholder="---"
+                  placeholderTextColor={theme.colors.gray[400]}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  onChangeText={handleTargetTempChange}
+                />
+              </View>
+            </View>
+
+            {/* Remove Temperature */}
+            {showRemoveTemp && parameters.target_probe_temp && (
+              <View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4, height: 15 }}>
+                  <Text style={{ fontSize: 11, color: theme.colors.text.secondary, flex: 1, lineHeight: 15 }}>
+                    Remove (°F)
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setShowRemoveTemp(false);
+                      updateParameter('remove_probe_temp', undefined);
+                      setManualRemoveTemp('');
+                    }}
+                    style={{ padding: 0, marginLeft: 4 }}
+                  >
+                    <Feather name="x" size={14} color={theme.colors.text.secondary} />
+                  </TouchableOpacity>
+                </View>
+                <View
+                  style={{
+                    borderWidth: 2,
+                    borderColor: validationErrors.remove_probe_temp
+                      ? theme.colors.error.main
+                      : parameters.remove_probe_temp && parameters.remove_probe_temp !== parameters.target_probe_temp
+                        ? theme.colors.warning.main
+                        : theme.colors.gray[300],
+                    backgroundColor: theme.colors.background.secondary,
+                    borderRadius: 8,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    minWidth: 90,
+                    alignItems: 'center',
+                  }}
+                >
+                  <TextInput
+                    style={{
+                      fontSize: 24,
+                      fontWeight: '700',
+                      color: theme.colors.text.primary,
+                      textAlign: 'center',
+                      padding: 0,
+                      minWidth: 50,
+                    }}
+                    value={
+                      parameters.remove_probe_temp !== undefined && parameters.remove_probe_temp !== null
+                        ? String(parameters.remove_probe_temp)
+                        : ''
+                    }
+                    placeholder="---"
+                    placeholderTextColor={theme.colors.gray[400]}
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    onChangeText={handleRemoveTempChange}
+                  />
+                </View>
+              </View>
+            )}
+
+            {/* Button to add Remove Temperature */}
+            {!showRemoveTemp && parameters.target_probe_temp && (
+              <View>
+                <View style={{ height: 15, marginBottom: 4 }} />
+                <TouchableOpacity
+                  onPress={handleInitializeRemoveTemp}
+                  style={{
+                    borderWidth: 2,
+                    borderColor: theme.colors.primary[300],
+                    borderStyle: 'dashed',
+                    backgroundColor: theme.colors.primary[50],
+                    borderRadius: 8,
+                    paddingHorizontal: 16,
+                    paddingVertical: 8,
+                    minWidth: 90,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <View style={{ height: 24, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 18, color: theme.colors.primary[600], textAlign: 'center' }}>+</Text>
+                  </View>
+                  <Text style={{ fontSize: 10, color: theme.colors.primary[700], fontWeight: '600', marginTop: 2 }}>
+                    Remove Temp
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Helper text */}
+          {parameters.target_probe_temp && showRemoveTemp && (
+            <Text style={{ fontSize: 10, color: validationErrors.remove_probe_temp ? theme.colors.error.main : theme.colors.text.secondary, marginBottom: 8 }}>
+              {validationErrors.remove_probe_temp || `Remove temp for carryover cooking (≤ ${parameters.target_probe_temp}°F)`}
+            </Text>
+          )}
+
+          {validationErrors.target_probe_temp && (
+            <Text className="text-sm mt-1" style={{ color: appTheme.colors.error.main }}>{validationErrors.target_probe_temp}</Text>
+          )}
+        </View>
+      </View>
+    );
   };
 
   const renderRJ40Parameters = () => {
@@ -1233,9 +1629,9 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
             <Text className="text-xl font-bold">
               {appliance?.name || 'ChefIQ'} Settings
             </Text>
-            {useProbe && (
+            {(useProbe || isCQ60) && (
               <Text className="text-sm mt-1" style={{ color: appTheme.colors.warning.dark }}>
-                🌡️ Thermometer Probe Mode
+                🌡️ {isCQ60 ? 'Temperature Monitoring Hub' : 'Thermometer Probe Mode'}
               </Text>
             )}
           </View>
@@ -1249,30 +1645,32 @@ const ChefIQCookingSelector: React.FC<ChefIQCookingSelectorProps> = ({
           keyboardDismissMode="interactive"
           keyboardShouldPersistTaps="handled"
         >
-          {/* Method Selection */}
-          <View className="mb-4">
-            <Text className="text-lg font-semibold mb-2">Cooking Method</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {methods.map((method) => (
-                <TouchableOpacity
-                  key={method.id}
-                  onPress={() => handleMethodChange(method.id)}
-                  className="mr-3 px-4 py-3 rounded-lg"
-                  style={{
-                    backgroundColor: selectedMethod === method.id ? appTheme.colors.primary[500] : appTheme.colors.gray[100]
-                  }}
-                >
-                  <Text className="text-2xl text-center mb-1">{method.icon}</Text>
-                  <Text className="text-sm font-semibold" style={{
-                    color: selectedMethod === method.id ? appTheme.colors.text.inverse : appTheme.colors.text.secondary
-                  }}>{method.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
+          {/* Method Selection - Hide for iQ Sense since it only has one method */}
+          {!isCQ60 && (
+            <View className="mb-4">
+              <Text className="text-lg font-semibold mb-2">Cooking Method</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                {methods.map((method) => (
+                  <TouchableOpacity
+                    key={method.id}
+                    onPress={() => handleMethodChange(method.id)}
+                    className="mr-3 px-4 py-3 rounded-lg"
+                    style={{
+                      backgroundColor: selectedMethod === method.id ? appTheme.colors.primary[500] : appTheme.colors.gray[100]
+                    }}
+                  >
+                    <Text className="text-2xl text-center mb-1">{method.icon}</Text>
+                    <Text className="text-sm font-semibold" style={{
+                      color: selectedMethod === method.id ? appTheme.colors.text.inverse : appTheme.colors.text.secondary
+                    }}>{method.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Parameters */}
-          {isRJ40 ? renderRJ40Parameters() : renderCQ50Parameters()}
+          {isRJ40 ? renderRJ40Parameters() : isCQ60 ? renderCQ60Parameters() : renderCQ50Parameters()}
         </ScrollView>
 
         {/* Save Button */}

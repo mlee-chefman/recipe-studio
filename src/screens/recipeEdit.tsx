@@ -43,6 +43,8 @@ export default function RecipeEditScreen() {
   const { recipe, previewMode } = route.params;
   const [newInstructionText, setNewInstructionText] = React.useState('');
   const [showCoverImageRequiredModal, setShowCoverImageRequiredModal] = useState(false);
+  const [showApplianceChangeConfirmation, setShowApplianceChangeConfirmation] = useState(false);
+  const [pendingApplianceId, setPendingApplianceId] = useState<string>('');
 
   const {
     formData,
@@ -159,6 +161,40 @@ export default function RecipeEditScreen() {
   const handleGenerateAIFromModal = async () => {
     setShowCoverImageRequiredModal(false);
     await handleGenerateAICover();
+  };
+
+  // Handler for appliance change with confirmation
+  const handleApplianceChange = (newApplianceId: string) => {
+    // Check if there are any cooking actions in the steps
+    const hasCookingActions = formData.steps.some(step => step.cookingAction);
+
+    if (hasCookingActions && newApplianceId !== formData.selectedAppliance) {
+      // Show confirmation modal
+      setPendingApplianceId(newApplianceId);
+      setShowApplianceChangeConfirmation(true);
+    } else {
+      // No cooking actions, just change the appliance
+      updateFormData({ selectedAppliance: newApplianceId, useProbe: false });
+    }
+  };
+
+  // Confirm appliance change and remove all cooking actions
+  const confirmApplianceChange = () => {
+    haptics.warning();
+    // Remove all cooking actions from steps
+    const updatedSteps = formData.steps.map(step => {
+      const { cookingAction, ...stepWithoutAction } = step;
+      return stepWithoutAction;
+    });
+
+    updateFormData({
+      steps: updatedSteps,
+      selectedAppliance: pendingApplianceId,
+      useProbe: false
+    });
+
+    setShowApplianceChangeConfirmation(false);
+    setPendingApplianceId('');
   };
 
   // Cooking actions hook
@@ -346,12 +382,14 @@ export default function RecipeEditScreen() {
           <View className="mb-3">
             <ApplianceDropdown
               selectedAppliance={formData.selectedAppliance}
-              onSelect={(appliance) => updateFormData({ selectedAppliance: appliance })}
+              onSelect={handleApplianceChange}
             />
           </View>
 
-          {/* Probe Toggle */}
-          {formData.selectedAppliance && getApplianceById(formData.selectedAppliance) && (
+          {/* Probe Toggle - Only show for iQ MiniOven */}
+          {formData.selectedAppliance &&
+           getApplianceById(formData.selectedAppliance)?.thing_category_name === 'oven' &&
+           getApplianceById(formData.selectedAppliance)?.supports_probe && (
             <View className="flex-row items-center justify-between mb-3 p-3 rounded-lg" style={{ backgroundColor: theme.colors.background.secondary }}>
               <View className="flex-1">
                 <Text className="text-base font-medium" style={{ color: theme.colors.text.primary }}>Use Thermometer Probe</Text>
@@ -622,6 +660,21 @@ export default function RecipeEditScreen() {
         confirmStyle="danger"
         onConfirm={confirmCancel}
         onCancel={() => updateModalStates({ showCancelConfirmation: false })}
+      />
+
+      {/* Appliance Change Confirmation Modal */}
+      <ConfirmationModal
+        visible={showApplianceChangeConfirmation}
+        title="Change Appliance?"
+        message="Changing the appliance will remove all cooking actions from your recipe steps. This cannot be undone."
+        confirmText="Change"
+        cancelText="Cancel"
+        confirmStyle="danger"
+        onConfirm={confirmApplianceChange}
+        onCancel={() => {
+          setShowApplianceChangeConfirmation(false);
+          setPendingApplianceId('');
+        }}
       />
       </KeyboardAwareScrollView>
 
