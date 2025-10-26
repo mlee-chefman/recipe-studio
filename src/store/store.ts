@@ -6,10 +6,12 @@ import { AuthUser } from '../modules/user/userAuth';
 import { UserProfile } from '../modules/user/userService';
 import {
   createRecipe,
+  createRecipesBatch,
   getRecipes,
   getRecipesByUserId,
   updateRecipe as updateRecipeService,
   deleteRecipe as deleteRecipeService,
+  deleteRecipesBatch,
   enrichRecipesWithAuthorNames,
   CreateRecipeData,
   Recipe as FirebaseRecipe
@@ -96,6 +98,7 @@ export interface RecipeState {
   fetchRecipes: (userId: string) => Promise<void>;
   fetchUserRecipes: (userId: string) => Promise<void>;
   addRecipe: (recipe: Omit<Recipe, 'id'>, userId: string) => Promise<void>;
+  addRecipesBatch: (recipes: Omit<Recipe, 'id'>[], userId: string) => Promise<void>;
   deleteRecipe: (id: string, userId: string) => Promise<void>;
   deleteRecipes: (ids: string[], userId: string) => Promise<void>;
   updateRecipe: (id: string, recipe: Partial<Omit<Recipe, 'id'>>, userId: string) => Promise<void>;
@@ -627,6 +630,60 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
       throw new Error(errorMessage);
     }
   },
+  addRecipesBatch: async (recipes: Omit<Recipe, 'id'>[], userId: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // Convert all recipes to CreateRecipeData format
+      const createDataArray: CreateRecipeData[] = recipes.map(recipe => {
+        const createData: any = {
+          userId,
+          title: recipe.title,
+          description: recipe.description,
+          ingredients: recipe.ingredients,
+          steps: recipe.steps,
+          cookTime: recipe.cookTime,
+          servings: recipe.servings,
+          difficulty: recipe.difficulty,
+          category: recipe.category,
+          published: recipe.published ?? false,
+        };
+        if (recipe.tags !== undefined) {
+          createData.tags = recipe.tags;
+        }
+        if (recipe.image !== undefined) {
+          createData.image = recipe.image;
+        }
+        if (recipe.chefiqAppliance !== undefined) {
+          createData.chefiqAppliance = recipe.chefiqAppliance;
+        }
+        if (recipe.stepSections !== undefined) {
+          createData.stepSections = recipe.stepSections;
+        }
+        if (recipe.useProbe !== undefined) {
+          createData.useProbe = recipe.useProbe;
+        }
+        return createData;
+      });
+
+      // Use batch create for better performance
+      await createRecipesBatch(createDataArray);
+
+      // Refetch both recipe lists to ensure store is up-to-date
+      await get().fetchRecipes(userId);
+      await get().fetchUserRecipes(userId);
+
+      set({ isLoading: false });
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to add recipes';
+      set({
+        error: errorMessage,
+        isLoading: false
+      });
+      // Re-throw the error so it can be caught in the UI
+      throw new Error(errorMessage);
+    }
+  },
   deleteRecipe: async (id: string, userId: string) => {
     try {
       set({ isLoading: true, error: null });
@@ -646,17 +703,22 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
 
-      // Delete all recipes in parallel
-      await Promise.all(ids.map(id => deleteRecipeService(id, userId)));
+      // Use batch delete for better performance (10-100x faster for multiple recipes)
+      console.log(`Deleting ${ids.length} recipes using batch write...`);
+      await deleteRecipesBatch(ids, userId);
 
       // Refetch both recipe lists to ensure store is up-to-date
       await get().fetchRecipes(userId);
       await get().fetchUserRecipes(userId);
+
+      set({ isLoading: false });
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : 'Failed to delete recipes',
         isLoading: false
       });
+      // Re-throw the error so it can be caught in the UI
+      throw error;
     }
   },
   updateRecipe: async (id: string, recipe: Partial<Omit<Recipe, 'id'>>, userId: string) => {
