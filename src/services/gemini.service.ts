@@ -17,9 +17,9 @@ const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
 // Rate limiting configuration
-// Free tier (15 RPM): Use 5000ms (5 seconds) to stay under limit
-// Paid tier (1000 RPM): Use 1000-2000ms (1-2 seconds) for faster processing
-const GEMINI_DELAY_BETWEEN_CALLS_MS = 5000; // Change to 2000 for paid tier
+// Paid tier (1000 RPM): Using 100ms for optimal performance
+// 1000 RPM = ~60ms minimum between calls, using 100ms for safety margin
+const GEMINI_DELAY_BETWEEN_CALLS_MS = 100;
 
 interface GeminiResponse {
   candidates?: {

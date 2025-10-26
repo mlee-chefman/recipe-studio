@@ -44,18 +44,20 @@ export default function RecipePDFImportScreen() {
       headerTitle: 'Import from PDF',
       headerLeft: () => (
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => !isProcessing && navigation.goBack()}
+          disabled={isProcessing}
           style={{
             paddingLeft: theme.spacing.lg,
             paddingRight: theme.spacing.md,
             paddingVertical: theme.spacing.sm,
+            opacity: isProcessing ? 0.3 : 1,
           }}
         >
           <Feather name="x" size={28} color={theme.colors.text.secondary} />
         </TouchableOpacity>
       ),
     });
-  }, [navigation]);
+  }, [navigation, isProcessing]);
 
   const pickPDF = async () => {
     try {

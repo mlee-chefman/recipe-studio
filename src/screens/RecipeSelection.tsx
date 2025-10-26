@@ -33,6 +33,7 @@ export default function RecipeSelectionScreen() {
   const { recipes = [], source, filename } = route.params || {};
   const user = useAuthStore((state) => state.user);
   const addRecipe = useRecipeStore((state) => state.addRecipe);
+  const addRecipesBatch = useRecipeStore((state) => state.addRecipesBatch);
 
   const [selectedRecipes, setSelectedRecipes] = useState<Set<number>>(new Set());
   const [isImporting, setIsImporting] = useState(false);
@@ -101,14 +102,18 @@ export default function RecipeSelectionScreen() {
         .sort((a, b) => a - b)
         .map(idx => recipes[idx]);
 
-      // Save each recipe directly to the store
-      for (const scrapedRecipe of recipesToImport) {
-        const recipe = convertScrapedToRecipe(scrapedRecipe);
-        await addRecipe(recipe, user.uid);
-      }
+      const count = recipesToImport.length;
+
+      // Convert all scraped recipes to Recipe format
+      const convertedRecipes = recipesToImport.map(scrapedRecipe =>
+        convertScrapedToRecipe(scrapedRecipe)
+      );
+
+      // Use batch import for better performance (10-100x faster for multiple recipes)
+      console.log(`Importing ${count} recipes using batch write...`);
+      await addRecipesBatch(convertedRecipes, user.uid);
 
       // Show success message
-      const count = recipesToImport.length;
       haptics.success();
       Alert.alert(
         'Success!',

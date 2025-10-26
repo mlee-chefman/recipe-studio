@@ -1,13 +1,14 @@
 // PDF extraction configuration
+// Optimized for paid Gemini account (1000 RPM)
 export const PDF_EXTRACTION_CONFIG = {
-  // Pages per chunk - keep small to avoid 400 errors (file size limit)
-  PAGES_PER_CHUNK: 8,
+  // Pages per chunk - increased for faster processing with paid tier
+  PAGES_PER_CHUNK: 12,
 
-  // Delay between API calls to avoid rate limiting
-  DELAY_BETWEEN_CHUNKS_MS: 4000,
+  // Delay between API calls (reduced for paid tier: 1000 RPM = ~60ms minimum, using 500ms for safety)
+  DELAY_BETWEEN_CHUNKS_MS: 500,
 
-  // Retry delay when rate limited
-  RATE_LIMIT_RETRY_DELAY_MS: 10000,
+  // Retry delay when rate limited (reduced for paid tier)
+  RATE_LIMIT_RETRY_DELAY_MS: 3000,
 
   // API timeout
   API_TIMEOUT_MS: 180000, // 3 minutes
