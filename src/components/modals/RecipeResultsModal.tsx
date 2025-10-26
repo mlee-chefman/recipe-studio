@@ -99,7 +99,7 @@ export function RecipeResultsModal({
                 activeTab === 'existing' && styles.tabTextActive,
               ]}
             >
-              Your Recipes ({existingRecipes.length})
+              Similar Recipes ({existingRecipes.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -160,7 +160,7 @@ export function RecipeResultsModal({
                 <View style={styles.emptyState}>
                   <Ionicons name="search-outline" size={48} color={theme.colors.text.secondary} />
                   <Text style={styles.emptyText}>
-                    No matching recipes found in your collection.
+                    No similar recipes found in our database.
                   </Text>
                 </View>
               )}
