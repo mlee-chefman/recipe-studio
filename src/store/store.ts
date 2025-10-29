@@ -208,7 +208,7 @@ export const useRecipeStore = create<RecipeState>((set, get) => ({
   userRecipesSelectedTags: [],
   userRecipesSelectedAppliance: '',
   // View mode for both tabs
-  allRecipesViewMode: 'detailed' as ViewMode,
+  allRecipesViewMode: 'grid' as ViewMode,
   userRecipesViewMode: 'detailed' as ViewMode,
   // Sort options for both tabs (default to newest first)
   allRecipesSortOption: 'newest' as SortOption,
