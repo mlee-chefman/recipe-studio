@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, StatusBar } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -14,6 +14,8 @@ import { useAppTheme } from '@theme/index';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
 import StepImage from '@components/StepImage';
+import { useIngredientImages } from '@hooks/useIngredientImages';
+import { instacartService } from '@services/instacart.service';
 
 type RootStackParamList = {
   RecipeDetail: { recipe: Recipe };
@@ -46,8 +48,47 @@ export default function RecipeDetailScreen() {
                  userRecipes.find(r => r.id === routeRecipe.id) ||
                  routeRecipe;
 
+  // Serving size adjustment state
+  const [currentServings, setCurrentServings] = useState(recipe.servings);
+  const [scaledIngredients, setScaledIngredients] = useState<string[]>(recipe.ingredients);
+
+  // Load ingredient images (fully parallel, super fast!)
+  // Use ORIGINAL ingredients for image lookup (images don't change when servings change)
+  const { images: ingredientImages, loading: imagesLoading, loadedCount } = useIngredientImages(
+    recipe.ingredients,
+    true // enabled
+  );
+
   // Check if current user owns this recipe
   const isOwner = user?.uid === recipe.userId;
+
+  // Scale ingredients when servings change
+  const handleServingsChange = (newServings: number) => {
+    if (newServings < 1) return; // Minimum 1 serving
+
+    const scale = newServings / recipe.servings;
+    const scaled = recipe.ingredients.map(ingredient => {
+      const parsed = instacartService.parseIngredient(ingredient);
+
+      if (parsed.quantity) {
+        const newQuantity = parsed.quantity * scale;
+        const formattedQuantity = instacartService.formatQuantity(newQuantity);
+
+        // Reconstruct ingredient string with new quantity
+        const parts = [];
+        parts.push(formattedQuantity);
+        if (parsed.unit) parts.push(parsed.unit);
+        parts.push(parsed.name);
+
+        return parts.join(' ');
+      }
+
+      return ingredient; // Return unchanged if no quantity
+    });
+
+    setCurrentServings(newServings);
+    setScaledIngredients(scaled);
+  };
 
   const handleEdit = () => {
     // @ts-ignore - Navigation typing issue with static navigation
@@ -156,19 +197,6 @@ export default function RecipeDetailScreen() {
                   </View>
                 </View>
 
-                <View style={[styles.statDivider, { backgroundColor: theme.colors.border.main }]} />
-
-                {/* Servings */}
-                <View style={styles.statItem}>
-                  <View style={styles.statIconContainer}>
-                    <Text style={styles.statIcon}>👥</Text>
-                  </View>
-                  <View>
-                    <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{recipe.servings}</Text>
-                    <Text style={[styles.statLabel, { color: theme.colors.text.tertiary }]}>Servings</Text>
-                  </View>
-                </View>
-
                 {recipe.difficulty && (
                   <>
                     <View style={[styles.statDivider, { backgroundColor: theme.colors.border.main }]} />
@@ -245,49 +273,113 @@ export default function RecipeDetailScreen() {
           {recipe.chefiqAppliance && (
             <View className="mb-6">
               <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.text.primary }}>ChefIQ Appliance</Text>
-              <View className="p-4 rounded-lg border" style={{
-                backgroundColor: theme.colors.primary[50],
-                borderColor: theme.colors.primary[200]
-              }}>
-                <View className="flex-row items-center">
-                  <Image
-                    source={{ uri: getApplianceById(recipe.chefiqAppliance)?.picture }}
-                    style={styles.applianceImage}
-                    contentFit="contain"
-                  />
-                  <Text className="text-lg font-semibold" style={{ color: theme.colors.primary[800] }}>
-                    {getApplianceById(recipe.chefiqAppliance)?.name}
-                  </Text>
-                  {recipe.useProbe && (
-                    <View className="ml-2 px-2 py-1 rounded-full" style={{ backgroundColor: theme.colors.warning.light }}>
-                      <Text className="text-xs font-medium" style={{ color: theme.colors.warning.dark }}>🌡️ Probe</Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-
-              {/* Export to ChefIQ Button */}
               <TouchableOpacity
                 onPress={handleExportToChefIQ}
-                className="mt-3 flex-row items-center justify-center py-3 rounded-lg"
-                style={styles.exportButton}
+                activeOpacity={0.7}
               >
-                <Feather name="download" size={18} color="white" style={styles.exportButtonIcon} />
-                <Text className="text-white font-semibold text-base">Export to ChefIQ Format</Text>
+                <View className="p-4 rounded-lg border flex-row items-center justify-between" style={{
+                  backgroundColor: theme.colors.primary[50],
+                  borderColor: theme.colors.primary[200]
+                }}>
+                  <View className="flex-row items-center flex-1">
+                    <Image
+                      source={{ uri: getApplianceById(recipe.chefiqAppliance)?.picture }}
+                      style={styles.applianceImage}
+                      contentFit="contain"
+                    />
+                    <Text className="text-lg font-semibold flex-1" style={{ color: theme.colors.primary[800] }}>
+                      {getApplianceById(recipe.chefiqAppliance)?.name}
+                    </Text>
+                    {recipe.useProbe && (
+                      <View className="ml-2 px-2 py-1 rounded-full" style={{ backgroundColor: theme.colors.warning.light }}>
+                        <Text className="text-xs font-medium" style={{ color: theme.colors.warning.dark }}>🌡️ Probe</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Export Icon */}
+                  <View className="ml-3 w-10 h-10 rounded-full items-center justify-center" style={styles.exportIconButton}>
+                    <Feather name="download" size={20} color="white" />
+                  </View>
+                </View>
               </TouchableOpacity>
             </View>
           )}
 
           {/* Ingredients */}
           <View className="mb-6">
-            <Text className="text-lg font-semibold mb-3" style={{ color: theme.colors.text.primary }}>Ingredients</Text>
-            <View className="p-4 rounded-lg" style={{ backgroundColor: theme.colors.background.secondary }}>
-              {recipe.ingredients.map((ingredient, index) => (
-                <View key={index} className="flex-row items-center mb-2">
-                  <View className="w-2 h-2 rounded-full mr-3" style={styles.ingredientBullet} />
-                  <Text className="text-base flex-1" style={{ color: theme.colors.text.secondary }}>{ingredient}</Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-lg font-semibold" style={{ color: theme.colors.text.primary }}>Ingredients</Text>
+
+              {/* Servings Adjustment Control */}
+              <View style={styles.servingsAdjustment}>
+                <Text style={[styles.servingsLabel, { color: theme.colors.text.secondary }]}>Servings:</Text>
+                <View style={styles.servingsControls}>
+                  <TouchableOpacity
+                    onPress={() => handleServingsChange(currentServings - 1)}
+                    disabled={currentServings <= 1}
+                    style={[
+                      styles.servingsButton,
+                      { backgroundColor: theme.colors.primary[100] },
+                      currentServings <= 1 && styles.servingsButtonDisabled
+                    ]}
+                  >
+                    <Feather
+                      name="minus"
+                      size={16}
+                      color={currentServings <= 1 ? theme.colors.gray[400] : theme.colors.primary[600]}
+                    />
+                  </TouchableOpacity>
+
+                  <Text style={[styles.servingsValue, { color: theme.colors.text.primary }]}>
+                    {currentServings}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => handleServingsChange(currentServings + 1)}
+                    style={[styles.servingsButton, { backgroundColor: theme.colors.primary[100] }]}
+                  >
+                    <Feather name="plus" size={16} color={theme.colors.primary[600]} />
+                  </TouchableOpacity>
                 </View>
-              ))}
+              </View>
+            </View>
+
+            <View className="p-4 rounded-lg" style={{ backgroundColor: theme.colors.background.secondary }}>
+              {scaledIngredients.map((ingredient, index) => {
+                // Look up image using ORIGINAL ingredient (images are keyed by original ingredients)
+                const originalIngredient = recipe.ingredients[index];
+                const imageUrl = ingredientImages.get(originalIngredient);
+                const isLoading = imagesLoading && !imageUrl;
+
+                return (
+                  <View key={index} className="flex-row items-center mb-3">
+                    {/* Ingredient Image Container (fixed size for alignment) */}
+                    <View style={styles.ingredientImageContainer}>
+                      {imageUrl ? (
+                        <Image
+                          source={{ uri: imageUrl }}
+                          style={styles.ingredientImage}
+                          contentFit="cover"
+                        />
+                      ) : isLoading ? (
+                        <View style={styles.ingredientImagePlaceholder}>
+                          <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+                        </View>
+                      ) : (
+                        <View style={[styles.ingredientBulletContainer, { backgroundColor: theme.colors.background.secondary }]}>
+                          <View className="w-2 h-2 rounded-full" style={styles.ingredientBullet} />
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Ingredient Text (displays scaled quantity) */}
+                    <Text className="text-base flex-1" style={{ color: theme.colors.text.secondary }}>
+                      {ingredient}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
 
@@ -496,16 +588,78 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     height: 40,
     marginRight: 12,
   },
-  exportButton: {
+  exportIconButton: {
     backgroundColor: theme.colors.primary[500],
-  },
-  exportButtonIcon: {
-    marginRight: 8,
   },
   ingredientBullet: {
     backgroundColor: theme.colors.primary[500],
   },
+  ingredientImageContainer: {
+    width: 32,
+    height: 32,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ingredientImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: theme.colors.gray[100],
+  },
+  ingredientImagePlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    backgroundColor: theme.colors.gray[100],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  ingredientBulletContainer: {
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   stepNumberBadge: {
     backgroundColor: theme.colors.primary[500],
+  },
+  servingsAdjustment: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  servingsLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  servingsControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  servingsButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  servingsButtonDisabled: {
+    opacity: 0.4,
+  },
+  servingsValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  resetButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  resetText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
