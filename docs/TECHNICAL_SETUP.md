@@ -140,53 +140,15 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ---
 
-## Google Cloud Vision Setup
+## ~~Google Cloud Vision Setup~~ (DEPRECATED)
 
-### 1. Enable API
+**Note:** As of 2025, Recipe Studio now uses **Gemini 2.5 Flash-Lite multimodal vision** instead of Google Cloud Vision API for image recognition. This provides:
+- 85-90% cost savings
+- Better recipe understanding
+- Single API call (no separate OCR + parsing)
+- Handles handwritten notes better
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Select your project
-3. Navigate to **APIs & Services** > **Library**
-4. Search for "Cloud Vision API"
-5. Click **Enable**
-
-### 2. Create Service Account
-
-1. Go to **IAM & Admin** > **Service Accounts**
-2. Click **Create Service Account**
-3. Name: "recipe-studio-vision"
-4. Grant role: **Cloud Vision API User**
-5. Click **Done**
-
-### 3. Generate Key
-
-1. Click on the service account
-2. Go to **Keys** tab
-3. Click **Add Key** > **Create new key**
-4. Select **JSON** format
-5. Download the key file
-
-### 4. Configure in App
-
-Add to `.env` file:
-```bash
-GOOGLE_CLOUD_VISION_API_KEY=your_api_key_here
-```
-
-Or use service account JSON (more secure):
-```bash
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
-```
-
-### 5. Features Using Vision API
-
-**OCR Text Detection:**
-- Extract text from recipe images
-- Works with screenshots, photos, PDFs
-- Cost: $1.50 per 1,000 images (first 1,000/month free)
-
-**Fallback to Gemini:**
-- If Vision API fails, falls back to Gemini Vision
+**No additional setup needed** - Gemini multimodal vision uses the same `EXPO_PUBLIC_GEMINI_API_KEY` as other features.
 - Gemini Vision is free in Flash model
 
 ---
