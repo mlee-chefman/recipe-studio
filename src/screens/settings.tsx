@@ -11,7 +11,7 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { signOutUser } from '../modules/user/userAuth';
-import { useAuthStore, useThemeStore } from '../store/store';
+import { useAuthStore, useThemeStore, useCartStore } from '../store/store';
 import { updateUserProfile } from '../modules/user/userService';
 import { AvatarPickerModal } from '@components/modals';
 import { themeMetadata } from '@theme/variants';
@@ -23,6 +23,7 @@ export default function SettingsScreen() {
   const navigation = useNavigation();
   const { user, userProfile, setUserProfile, signOut } = useAuthStore();
   const { themeVariant } = useThemeStore();
+  const { totalItems } = useCartStore();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const styles = useStyles(createStyles);
 
@@ -119,6 +120,37 @@ export default function SettingsScreen() {
               <Text style={styles.value}>{user?.email || 'Not set'}</Text>
             </View>
           </View>
+        </View>
+
+        {/* Shopping Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Shopping</Text>
+          <TouchableOpacity
+            style={styles.settingsOption}
+            onPress={() => {
+              // @ts-ignore - Navigation typing issue
+              navigation.navigate('GroceryCart');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <View
+                style={[
+                  styles.optionIcon,
+                  { backgroundColor: theme.colors.success.main },
+                ]}
+              >
+                <Feather name="shopping-cart" size={20} color="white" />
+              </View>
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>Grocery Cart</Text>
+                <Text style={styles.optionSubtitle}>
+                  {totalItems === 0 ? 'No items' : `${totalItems} ${totalItems === 1 ? 'item' : 'items'}`}
+                </Text>
+              </View>
+            </View>
+            <Feather name="chevron-right" size={20} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
         </View>
 
         {/* Appearance Section */}

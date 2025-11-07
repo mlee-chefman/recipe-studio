@@ -194,6 +194,23 @@ export const createStyles = (theme: Theme) =>
       fontSize: theme.typography.fontSize.base,
       color: theme.colors.error.main,
     },
+    addMissingToCartButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.success.main,
+      borderRadius: theme.borderRadius.lg,
+      marginTop: theme.spacing.md,
+      ...theme.shadows.md,
+    },
+    addMissingToCartText: {
+      fontSize: theme.typography.fontSize.base,
+      fontWeight: '600',
+      color: '#fff',
+    },
 
     // Substitutions Section
     substitutionsSection: {

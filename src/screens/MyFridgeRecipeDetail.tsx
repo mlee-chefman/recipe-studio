@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   Image,
   SafeAreaView,
-} from 'react-native';
+ Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAppTheme } from '@theme/index';
@@ -15,7 +15,8 @@ import { useStyles } from '@hooks/useStyles';
 import { createStyles } from './MyFridgeRecipeDetail.styles';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { convertScrapedToRecipe, convertRecipeToScraped } from '~/utils/helpers/recipeConversion';
-import { useRecipeStore, useAuthStore } from '@store/store';
+import { useRecipeStore, useAuthStore, useCartStore } from '@store/store';
+import { instacartService } from '@services/instacart.service';
 import { getApplianceById } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import StepImage from '@components/StepImage';
@@ -24,7 +25,7 @@ import { haptics } from '@utils/haptics';
 interface RouteParams {
   recipe: ScrapedRecipe & {
     missingIngredients?: string[];
-    substitutions?: Array<{ missing: string; substitutes: string[] }>;
+    substitutions?: { missing: string; substitutes: string[] }[];
     matchPercentage?: number;
   };
   source: 'my-fridge-ai';
@@ -38,6 +39,7 @@ export default function MyFridgeRecipeDetailScreen() {
   const params = route.params as RouteParams;
   const { user } = useAuthStore();
   const { addRecipe } = useRecipeStore();
+  const { addItems: addItemsToCart } = useCartStore();
 
   // Initialize recipe state, handling potential undefined
   const [recipe, setRecipe] = useState(params?.recipe || {} as any);
@@ -192,6 +194,65 @@ export default function MyFridgeRecipeDetailScreen() {
     }
   };
 
+  // Handle adding missing ingredients to cart
+  const handleAddMissingToCart = async () => {
+    if (!user?.uid) {
+      haptics.error();
+      Alert.alert('Sign In Required', 'Please sign in to add items to your cart.');
+      return;
+    }
+
+    if (!hasMissingIngredients) {
+      return;
+    }
+
+    try {
+      // Convert missing ingredient strings to CartItems
+      const cartItems = recipe.missingIngredients!.map((ingredient, index) => {
+        const parsed = instacartService.parseIngredient(ingredient);
+
+        return {
+          id: `${recipe.title}-missing-${index}`,
+          recipeId: 'my-fridge-ai-recipe', // Temporary ID for AI recipes
+          recipeName: recipe.title || 'My Fridge Recipe',
+          recipeImage: recipe.image,
+          recipeServings: recipe.servings || 1,
+          recipeOriginalServings: recipe.servings || 1,
+          ingredient: ingredient,
+          quantity: parsed.quantity,
+          unit: parsed.unit,
+          name: parsed.name,
+          selected: true,
+          addedAt: Date.now(),
+        };
+      });
+
+      // Save to Firebase cart
+      await addItemsToCart(cartItems, user.uid);
+
+      haptics.success();
+
+      // Navigate to Grocery Cart screen
+      // @ts-ignore - Navigation typing issue
+      navigation.navigate('GroceryCart');
+
+      // Show success feedback
+      Alert.alert(
+        'Added to Cart',
+        `${recipe.missingIngredients!.length} missing ${recipe.missingIngredients!.length === 1 ? 'ingredient' : 'ingredients'} added to your cart.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error adding missing ingredients to cart:', error);
+      haptics.error();
+      Alert.alert(
+        'Error',
+        'Failed to add items to cart. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
   const totalTime = (recipe?.prepTime || 0) + (recipe?.cookTime || 0);
 
   // Return early if recipe is not loaded
@@ -321,6 +382,16 @@ export default function MyFridgeRecipeDetailScreen() {
                 <Text style={styles.missingText}>{ingredient}</Text>
               </View>
             ))}
+            {/* Add Missing to Cart Button */}
+            <TouchableOpacity
+              onPress={handleAddMissingToCart}
+              style={styles.addMissingToCartButton}
+            >
+              <Ionicons name="cart" size={18} color="#fff" />
+              <Text style={styles.addMissingToCartText}>
+                Add Missing to Cart
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 

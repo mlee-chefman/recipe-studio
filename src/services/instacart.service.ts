@@ -2,6 +2,7 @@
 // Generates Instacart cart links with selected ingredients
 
 import { Linking, Alert } from 'react-native';
+import Constants from 'expo-constants';
 import {
   ShoppingLineItem,
   ShoppingList,
@@ -12,6 +13,14 @@ import {
   CombinedIngredient,
   ParsedIngredient,
 } from '../types/shopping';
+import { simplifyIngredientNamesBatch } from './ingredientSimplifier.service';
+
+// Instacart API configuration
+const INSTACART_API_KEY =
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_INSTACART_API_KEY ||
+  process.env.EXPO_PUBLIC_INSTACART_API_KEY;
+
+const INSTACART_IDP_ENDPOINT = 'https://connect.instacart.com/idp/v1/products/products_link';
 
 /**
  * Instacart Service
@@ -236,33 +245,131 @@ class InstacartService {
   }
 
   /**
-   * Generate Instacart cart URL
-   * Creates a deep link to Instacart with shopping items
+   * Generate Instacart-compatible shopping list JSON
+   * Matches ChefIQ's shopping_list format exactly
+   * Reference: chefiq-api-shopping/src/helpers/recipe-mapper.ts
+   *
+   * Uses Gemini AI to simplify ingredient names for better product matching
    */
-  generateInstacartUrl(shoppingList: ShoppingList): string {
+  private async generateInstacartRecipeJson(shoppingList: ShoppingList): Promise<string> {
     const { items, recipeTitles } = shoppingList;
-    const title = this.generateShoppingListTitle(recipeTitles);
 
-    // Build query parameters
-    const params = new URLSearchParams({
-      aff_id: INSTACART_CONFIG.affId,
-      offer_id: INSTACART_CONFIG.offerId,
-      utm_source: INSTACART_CONFIG.utmSource,
-      utm_medium: INSTACART_CONFIG.utmMedium,
+    // Simplify ingredient names using Gemini batch API
+    // e.g., "2 (6-ounce) salmon fillets, skin on" → "salmon"
+    console.log('🤖 Simplifying ingredient names for Instacart...');
+    const ingredientNames = items.map(item => item.name);
+    const simplifiedNames = await simplifyIngredientNamesBatch(ingredientNames);
+
+    // Generate title based on number of recipes
+    let title: string;
+    if (recipeTitles.length === 0) {
+      title = 'Shopping List';
+    } else if (recipeTitles.length === 1) {
+      title = recipeTitles[0];
+    } else {
+      title = `Shopping List - ${recipeTitles.length} Recipes`;
+    }
+
+    // Format matches ChefIQ's InstacartShoppingList format
+    const recipeData = {
       title,
-    });
+      link_type: 'shopping_list',
+      expires_in: 1, // days
+      landing_page_configuration: {
+        enable_pantry_items: true,
+      },
+      line_items: items.map(item => {
+        const simplifiedName = simplifiedNames.get(item.name) || item.name;
 
-    // Add items as JSON (Instacart API format)
-    // Note: This is a simplified version. Actual Instacart API may require different format
-    const itemsJson = JSON.stringify(items.map(item => ({
-      name: item.name,
-      quantity: item.quantity || 1,
-      unit: item.unit || '',
-    })));
+        // ShoppingLineItem format: quantity and unit at top level (not in measurements array)
+        const lineItem: any = {
+          name: simplifiedName, // Simplified name for product matching
+          display_text: item.display_text || item.name, // Full text for display
+        };
 
-    params.append('items', itemsJson);
+        // Add quantity and unit at top level (ChefIQ shopping_list format)
+        if (item.quantity) {
+          lineItem.quantity = parseFloat(item.quantity.toFixed(2));
+        } else {
+          lineItem.quantity = 1; // Default to 1 if no quantity
+        }
 
-    return `${INSTACART_CONFIG.cartBaseUrl}?${params.toString()}`;
+        if (item.unit) {
+          lineItem.unit = item.unit;
+        } else {
+          lineItem.unit = ''; // Empty string if no unit
+        }
+
+        return lineItem;
+      }),
+    };
+
+    console.log(`✅ Generated Instacart JSON: "${title}" with ${items.length} ingredients`);
+    return JSON.stringify(recipeData, null, 2);
+  }
+
+  /**
+   * Create shopping list on Instacart via IDP API
+   * Posts shopping list data to Instacart and gets back a direct link
+   * Reference: chefiq-api-shopping/src/helpers/instacart/services/idp-service.ts
+   */
+  async createInstacartShoppingList(shoppingList: ShoppingList): Promise<string> {
+    try {
+      if (!INSTACART_API_KEY) {
+        throw new Error('Instacart API key not configured. Add EXPO_PUBLIC_INSTACART_API_KEY to .env');
+      }
+
+      // Generate shopping list JSON
+      const shoppingListData = await this.generateInstacartRecipeJson(shoppingList);
+      const parsedData = JSON.parse(shoppingListData);
+
+      console.log('📤 Posting shopping list to Instacart IDP API...');
+
+      // Call Instacart IDP API to create shopping list
+      const response = await fetch(INSTACART_IDP_ENDPOINT, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${INSTACART_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(parsedData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Instacart API error:', response.status, errorText);
+        throw new Error(`Instacart API error: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      const { products_link_url } = responseData;
+
+      if (!products_link_url) {
+        console.error('No products_link_url in response:', responseData);
+        throw new Error('Invalid response from Instacart API');
+      }
+
+      console.log('✅ Shopping list created:', products_link_url);
+      return products_link_url;
+    } catch (error) {
+      console.error('Error creating Instacart shopping list:', error);
+      throw new Error('Failed to create shopping list on Instacart');
+    }
+  }
+
+  /**
+   * Generate Instacart shopping list URL via IDP API
+   */
+  async generateInstacartUrl(shoppingList: ShoppingList): Promise<string> {
+    try {
+      // Create shopping list on Instacart and get direct link
+      const productsLinkUrl = await this.createInstacartShoppingList(shoppingList);
+      return productsLinkUrl;
+    } catch (error) {
+      console.error('Error generating Instacart URL:', error);
+      throw error;
+    }
   }
 
   /**
@@ -271,7 +378,7 @@ class InstacartService {
    */
   async openInstacartCart(shoppingList: ShoppingList): Promise<boolean> {
     try {
-      const url = this.generateInstacartUrl(shoppingList);
+      const url = await this.generateInstacartUrl(shoppingList);
 
       // Check if URL can be opened
       const canOpen = await Linking.canOpenURL(url);

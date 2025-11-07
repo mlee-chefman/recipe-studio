@@ -144,6 +144,36 @@ export interface CombinedIngredient extends ParsedIngredient {
 }
 
 /**
+ * Cart item - individual ingredient in the grocery cart
+ * Tracks which recipe it came from
+ */
+export interface CartItem {
+  id: string; // Unique ID for this cart item
+  recipeId: string; // Recipe this ingredient is from
+  recipeName: string; // Recipe name for display
+  recipeImage?: string; // Recipe thumbnail image URL
+  recipeServings: number; // Current servings for this recipe
+  recipeOriginalServings: number; // Original servings from recipe
+  ingredient: string; // Full ingredient text (e.g., "2 cups flour")
+  quantity?: number; // Parsed quantity (scaled based on servings)
+  unit?: string; // Parsed unit
+  name: string; // Parsed ingredient name
+  selected: boolean; // Whether ingredient is selected for shopping
+  addedAt: number; // Timestamp when added
+}
+
+/**
+ * Grocery cart - persistent shopping cart
+ * Stored in AsyncStorage
+ */
+export interface GroceryCart {
+  items: CartItem[]; // All items in cart
+  totalItems: number; // Total count
+  recipeIds: string[]; // Unique recipe IDs in cart
+  updatedAt: number; // Last update timestamp
+}
+
+/**
  * Shopping cart state
  * Manages all shopping-related data
  */
@@ -172,5 +202,5 @@ export const INSTACART_CONFIG = {
   offerId: '1', // Standard offer
   utmSource: 'chefiq_recipe_studio',
   utmMedium: 'affiliate_recipe_mobile',
-  cartBaseUrl: 'https://www.instacart.com/store/partner_recipe',
+  cartBaseUrl: 'https://www.instacart.com/store/partner_recipes', // Note: plural!
 } as const;

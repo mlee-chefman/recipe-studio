@@ -1,10 +1,11 @@
-import { useLayoutEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, StatusBar, ActivityIndicator } from 'react-native';
+import { useLayoutEffect, useState, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, StatusBar, ActivityIndicator, Linking } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { useRecipeStore, useAuthStore } from '@store/store';
+import { useRecipeStore, useAuthStore, useCartStore } from '@store/store';
+import { Toast } from '@components/Toast';
 import { Recipe } from '~/types/recipe';
 import { getApplianceById } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
@@ -16,6 +17,7 @@ import type { Theme } from '@theme/index';
 import StepImage from '@components/StepImage';
 import { useIngredientImages } from '@hooks/useIngredientImages';
 import { instacartService } from '@services/instacart.service';
+import type { SelectableIngredient } from '~/types/shopping';
 
 type RootStackParamList = {
   RecipeDetail: { recipe: Recipe };
@@ -34,6 +36,7 @@ export default function RecipeDetailScreen() {
   const { recipe: routeRecipe } = route.params;
   const { allRecipes, userRecipes } = useRecipeStore();
   const { user } = useAuthStore();
+  const { addItems: addItemsToCart, isRecipeInCart } = useCartStore();
 
   // Export modal state
   const [showExportModal, setShowExportModal] = useState(false);
@@ -41,6 +44,10 @@ export default function RecipeDetailScreen() {
 
   // Description expand/collapse state
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+
+  // Toast notification state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   // Get the latest recipe data from store instead of route params
   // Check both allRecipes and userRecipes arrays
@@ -52,6 +59,11 @@ export default function RecipeDetailScreen() {
   const [currentServings, setCurrentServings] = useState(recipe.servings);
   const [scaledIngredients, setScaledIngredients] = useState<string[]>(recipe.ingredients);
 
+  // Ingredient selection state for shopping cart
+  const [selectedIngredients, setSelectedIngredients] = useState<Set<number>>(
+    new Set(recipe.ingredients.map((_, index) => index)) // All selected by default
+  );
+
   // Load ingredient images (fully parallel, super fast!)
   // Use ORIGINAL ingredients for image lookup (images don't change when servings change)
   const { images: ingredientImages, loading: imagesLoading, loadedCount } = useIngredientImages(
@@ -61,6 +73,9 @@ export default function RecipeDetailScreen() {
 
   // Check if current user owns this recipe
   const isOwner = user?.uid === recipe.userId;
+
+  // Check if recipe is already in cart
+  const isInCart = isRecipeInCart(recipe.id);
 
   // Scale ingredients when servings change
   const handleServingsChange = (newServings: number) => {
@@ -88,6 +103,99 @@ export default function RecipeDetailScreen() {
 
     setCurrentServings(newServings);
     setScaledIngredients(scaled);
+  };
+
+  // Ingredient selection handlers
+  const toggleIngredient = (index: number) => {
+    setSelectedIngredients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllIngredients = () => {
+    setSelectedIngredients(new Set(recipe.ingredients.map((_, index) => index)));
+  };
+
+  const deselectAllIngredients = () => {
+    setSelectedIngredients(new Set());
+  };
+
+  const allSelected = selectedIngredients.size === recipe.ingredients.length;
+  const noneSelected = selectedIngredients.size === 0;
+
+  // Add to cart handler
+  const handleAddToCart = async () => {
+    if (noneSelected) {
+      Alert.alert('No Ingredients Selected', 'Please select at least one ingredient to add to cart.');
+      return;
+    }
+
+    if (!user?.uid) {
+      Alert.alert('Sign In Required', 'Please sign in to add items to your cart.');
+      return;
+    }
+
+    try {
+      // Build SelectableIngredient array from selected ingredients
+      const selectedIngredientsList: SelectableIngredient[] = Array.from(selectedIngredients)
+        .map(index => {
+          const ingredientText = scaledIngredients[index];
+          const parsed = instacartService.parseIngredient(ingredientText);
+
+          return {
+            id: `${recipe.id}-${index}`,
+            original: ingredientText,
+            quantity: parsed.quantity,
+            unit: parsed.unit,
+            name: parsed.name,
+            notes: parsed.notes,
+            selected: true,
+          };
+        });
+
+      // Convert to CartItems for Firebase storage
+      const cartItems = selectedIngredientsList.map(ingredient => ({
+        id: ingredient.id,
+        recipeId: recipe.id,
+        recipeName: recipe.title,
+        recipeImage: recipe.image,
+        recipeServings: currentServings,
+        recipeOriginalServings: recipe.servings,
+        ingredient: ingredient.original,
+        quantity: ingredient.quantity,
+        unit: ingredient.unit,
+        name: ingredient.name,
+        selected: true,
+        addedAt: Date.now(),
+      }));
+
+      // Save to Firebase cart (with optimistic update)
+      await addItemsToCart(cartItems, user.uid);
+
+      // Show toast notification instead of navigating
+      setToastMessage(`${selectedIngredientsList.length} ${selectedIngredientsList.length === 1 ? 'ingredient' : 'ingredients'} added to cart`);
+      setToastVisible(true);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      Alert.alert(
+        'Error',
+        'Failed to add items to cart. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Toast navigation handler
+  const handleToastPress = () => {
+    setToastVisible(false);
+    // @ts-ignore - Navigation typing issue
+    navigation.navigate('GroceryCart');
   };
 
   const handleEdit = () => {
@@ -119,6 +227,18 @@ export default function RecipeDetailScreen() {
       headerTransparent: true,
       headerTintColor: '#FFFFFF',
       headerShadowVisible: false,
+      headerLeft: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.headerButton}
+        >
+          <Feather
+            name="arrow-left"
+            size={22}
+            color="#FFFFFF"
+          />
+        </TouchableOpacity>
+      ),
       headerRight: () => isOwner ? (
         <TouchableOpacity
           onPress={handleEdit}
@@ -345,42 +465,128 @@ export default function RecipeDetailScreen() {
               </View>
             </View>
 
+            {/* Select All / None Controls */}
+            <View className="flex-row items-center justify-between mb-3 px-2">
+              <Text style={[styles.selectionCount, { color: theme.colors.text.tertiary }]}>
+                {selectedIngredients.size} of {recipe.ingredients.length} selected
+              </Text>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={selectAllIngredients}
+                  disabled={allSelected}
+                  style={[
+                    styles.selectionButton,
+                    allSelected && styles.selectionButtonDisabled
+                  ]}
+                >
+                  <Text style={[
+                    styles.selectionButtonText,
+                    { color: allSelected ? theme.colors.text.tertiary : theme.colors.primary[600] }
+                  ]}>
+                    Select All
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={deselectAllIngredients}
+                  disabled={noneSelected}
+                  style={[
+                    styles.selectionButton,
+                    noneSelected && styles.selectionButtonDisabled
+                  ]}
+                >
+                  <Text style={[
+                    styles.selectionButtonText,
+                    { color: noneSelected ? theme.colors.text.tertiary : theme.colors.primary[600] }
+                  ]}>
+                    Clear All
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <View className="p-4 rounded-lg" style={{ backgroundColor: theme.colors.background.secondary }}>
               {scaledIngredients.map((ingredient, index) => {
                 // Look up image using ORIGINAL ingredient (images are keyed by original ingredients)
                 const originalIngredient = recipe.ingredients[index];
                 const imageUrl = ingredientImages.get(originalIngredient);
                 const isLoading = imagesLoading && !imageUrl;
+                const isSelected = selectedIngredients.has(index);
 
                 return (
-                  <View key={index} className="flex-row items-center mb-3">
-                    {/* Ingredient Image Container (fixed size for alignment) */}
-                    <View style={styles.ingredientImageContainer}>
-                      {imageUrl ? (
-                        <Image
-                          source={{ uri: imageUrl }}
-                          style={styles.ingredientImage}
-                          contentFit="cover"
-                        />
-                      ) : isLoading ? (
-                        <View style={styles.ingredientImagePlaceholder}>
-                          <ActivityIndicator size="small" color={theme.colors.primary[500]} />
-                        </View>
-                      ) : (
-                        <View style={[styles.ingredientBulletContainer, { backgroundColor: theme.colors.background.secondary }]}>
-                          <View className="w-2 h-2 rounded-full" style={styles.ingredientBullet} />
-                        </View>
-                      )}
-                    </View>
+                  <TouchableOpacity
+                    key={index}
+                    onPress={() => toggleIngredient(index)}
+                    activeOpacity={0.7}
+                  >
+                    <View className="flex-row items-center mb-3">
+                      {/* Checkbox */}
+                      <TouchableOpacity
+                        onPress={() => toggleIngredient(index)}
+                        style={[
+                          styles.checkbox,
+                          {
+                            borderColor: isSelected ? theme.colors.primary[500] : theme.colors.gray[300],
+                            backgroundColor: isSelected ? theme.colors.primary[500] : 'transparent'
+                          }
+                        ]}
+                      >
+                        {isSelected && (
+                          <Feather name="check" size={14} color="white" />
+                        )}
+                      </TouchableOpacity>
 
-                    {/* Ingredient Text (displays scaled quantity) */}
-                    <Text className="text-base flex-1" style={{ color: theme.colors.text.secondary }}>
-                      {ingredient}
-                    </Text>
-                  </View>
+                      {/* Ingredient Image Container (fixed size for alignment) */}
+                      <View style={styles.ingredientImageContainer}>
+                        {imageUrl ? (
+                          <Image
+                            source={{ uri: imageUrl }}
+                            style={styles.ingredientImage}
+                            contentFit="cover"
+                          />
+                        ) : isLoading ? (
+                          <View style={styles.ingredientImagePlaceholder}>
+                            <ActivityIndicator size="small" color={theme.colors.primary[500]} />
+                          </View>
+                        ) : (
+                          <View style={[styles.ingredientBulletContainer, { backgroundColor: theme.colors.background.secondary }]}>
+                            <View className="w-2 h-2 rounded-full" style={styles.ingredientBullet} />
+                          </View>
+                        )}
+                      </View>
+
+                      {/* Ingredient Text (displays scaled quantity) */}
+                      <Text className="text-base flex-1" style={{ color: theme.colors.text.secondary }}>
+                        {ingredient}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
+
+            {/* Add to Cart Button */}
+            <TouchableOpacity
+              onPress={handleAddToCart}
+              disabled={noneSelected || isInCart}
+              className="mt-4 flex-row items-center justify-center py-4 rounded-lg"
+              style={[
+                styles.addToCartButton,
+                (noneSelected || isInCart) && styles.addToCartButtonDisabled
+              ]}
+            >
+              <Feather
+                name={isInCart ? "check-circle" : "shopping-cart"}
+                size={20}
+                color="white"
+                style={{ marginRight: 8 }}
+              />
+              <Text className="text-white font-semibold text-base">
+                {isInCart
+                  ? 'Added to Cart'
+                  : `Add to Cart (${selectedIngredients.size} ${selectedIngredients.size === 1 ? 'item' : 'items'})`
+                }
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Instructions */}
@@ -449,6 +655,14 @@ export default function RecipeDetailScreen() {
         exportJSON={exportJSON}
         recipeName={recipe.title}
       />
+
+      {/* Toast Notification */}
+      <Toast
+        message={toastMessage}
+        visible={toastVisible}
+        onPress={handleToastPress}
+        onHide={() => setToastVisible(false)}
+      />
     </View>
   );
 }
@@ -463,6 +677,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingVertical: theme.spacing.sm,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderRadius: 20,
+    ...theme.shadows.md,
   },
   heroSection: {
     position: 'relative',
@@ -661,5 +876,39 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   resetText: {
     fontSize: 12,
     fontWeight: '600',
+  },
+  selectionCount: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  selectionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: theme.colors.primary[50],
+  },
+  selectionButtonDisabled: {
+    opacity: 0.5,
+  },
+  selectionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addToCartButton: {
+    backgroundColor: theme.colors.success.main,
+    ...theme.shadows.md,
+  },
+  addToCartButtonDisabled: {
+    backgroundColor: theme.colors.gray[400],
+    opacity: 0.6,
   },
 });
