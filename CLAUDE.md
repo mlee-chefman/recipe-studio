@@ -793,21 +793,31 @@ export async function generateRecipeVariation(
 - Comprehensive guides for AI, costs, configuration, and setup
 - No loss of critical information - all content consolidated
 
+**Reorganization:**
+- Moved all docs (except CLAUDE.md) to `docs/` folder
+- Removed 4 old implementation-specific docs from `docs/` folder
+- `CLAUDE.md` stays in root for easy access
+
 **Result:**
-- 37.5% fewer files (16 → 10)
-- Clearer organization
-- Less redundancy
-- Easier to maintain
+- Clean structure: 1 file in root + 9 files in docs/ = 10 total
+- All file paths updated in CLAUDE.md
+- Easier navigation and maintenance
 
 ---
 
 ## Version History
 
+- **2025-11-07**: Documentation reorganization
+  - Moved all documentation to `docs/` folder (except CLAUDE.md in root)
+  - Updated all file paths throughout CLAUDE.md
+  - Removed 10+ redundant/outdated feature-specific docs
+  - Final structure: 1 (root) + 9 (docs/) = 10 essential files
+
 - **2025-11-06**: Initial version created
+  - Created comprehensive CLAUDE.md with AI assistant guidelines
   - Based on existing project documentation
-  - Includes guidelines for AI assistants
-  - Covers all major features and patterns
-  - Documentation cleanup: Removed 6 redundant files, retained 10 essential docs
+  - Includes development rules, patterns, and best practices
+  - Covers all major features and common pitfalls
 
 ---
 
