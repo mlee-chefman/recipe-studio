@@ -9,8 +9,9 @@ Complete setup guide for all external services and configurations used in Recipe
 2. [Gemini AI Setup](#gemini-ai-setup)
 3. [Google Cloud Vision Setup](#google-cloud-vision-setup)
 4. [Spoonacular API Setup](#spoonacular-api-setup)
-5. [Environment Configuration](#environment-configuration)
-6. [ChefIQ Export Format](#chefiq-export-format)
+5. [Instacart API Setup](#instacart-api-setup)
+6. [Environment Configuration](#environment-configuration)
+7. [ChefIQ Export Format](#chefiq-export-format)
 
 ---
 
@@ -183,6 +184,74 @@ SPOONACULAR_API_KEY=your_spoonacular_api_key_here
 
 ---
 
+## Instacart API Setup
+
+### 1. Get API Key
+
+**Apply for Instacart Developer Platform Access:**
+
+1. Go to [Instacart Developer Platform](https://docs.instacart.com/developer_platform_api/get_started/)
+2. Apply for API access (requires partnership application)
+3. Once approved, get your API key from the dashboard
+4. API key format: `ic_prod_xxxxx` or `ic_test_xxxxx`
+
+### 2. Configure in App
+
+Add to `.env`:
+```bash
+EXPO_PUBLIC_INSTACART_API_KEY=ic_prod_your_key_here
+```
+
+### 3. How It Works
+
+**Shopping Cart Integration:**
+
+The app uses Instacart's IDP (Ingredient Data Platform) API to create shopping lists:
+
+1. **User selects ingredients** in Recipe Detail or Grocery Cart
+2. **Ingredient names simplified** using Gemini AI for better product matching
+   - Example: "2 (6-ounce) salmon fillets, skin on" → "salmon"
+3. **JSON posted to IDP API** at `https://connect.instacart.com/idp/v1/products/products_link`
+4. **Instacart returns direct link** like `https://customers.instacart.com/store/shopping_lists/8502939`
+5. **User clicks to open** shopping list on Instacart app/website
+
+**JSON Format:**
+```json
+{
+  "title": "Shopping List - 2 Recipes",
+  "link_type": "shopping_list",
+  "expires_in": 1,
+  "landing_page_configuration": {
+    "enable_pantry_items": true
+  },
+  "line_items": [
+    {
+      "name": "salmon",
+      "display_text": "2 (6-ounce) salmon fillets",
+      "quantity": 2,
+      "unit": "fillets"
+    }
+  ]
+}
+```
+
+**Authentication:**
+- Uses simple Bearer token authentication
+- API key passed in `Authorization: Bearer ${API_KEY}` header
+- No OAuth flow required for frontend integration
+
+**Affiliate Commission:**
+- Uses ChefIQ affiliate ID: `1538`
+- 5% commission on completed purchases
+- Tracked via UTM parameters
+
+**Code Location:**
+- Service: `src/services/instacart.service.ts`
+- Grocery Cart: `src/screens/GroceryCart.tsx`
+- Recipe Detail: `src/screens/recipeDetail.tsx`
+
+---
+
 ## Environment Configuration
 
 ### Complete .env File
@@ -199,13 +268,19 @@ FIREBASE_MESSAGING_SENDER_ID=123456789
 FIREBASE_APP_ID=1:123456789:web:abcdef123456
 
 # Gemini AI
-GEMINI_API_KEY=your_gemini_api_key_here
+EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
 
 # Google Cloud Vision (Optional - falls back to Gemini)
 GOOGLE_CLOUD_VISION_API_KEY=your_vision_api_key_here
 
 # Spoonacular API (for My Fridge feature)
-SPOONACULAR_API_KEY=your_spoonacular_api_key_here
+EXPO_PUBLIC_SPOONACULAR_API_KEY=your_spoonacular_api_key_here
+
+# Instacart API (for shopping cart integration)
+EXPO_PUBLIC_INSTACART_API_KEY=ic_prod_your_key_here
+
+# Unsplash API (for step images)
+EXPO_PUBLIC_UNSPLASH_ACCESS_KEY=your_unsplash_key_here
 ```
 
 ### Loading Environment Variables

@@ -137,8 +137,8 @@ interface Recipe {
 - [ ] **Recipe Collections**: Organize recipes into collections/cookbooks
 
 ### 💡 Low Priority (Nice-to-Have Features)
-- [ ] **Recipe Scaling**: Adjust serving sizes automatically
-- [ ] **Shopping Lists**: Generate shopping lists from recipes
+- [x] **Recipe Scaling**: Adjust serving sizes automatically (✅ Implemented in Recipe Detail)
+- [x] **Shopping Lists**: Generate shopping lists from recipes (✅ Instacart integration with IDP API)
 - [ ] **Meal Planning**: Weekly meal planning functionality
 - [ ] **Recipe Suggestions**: AI-powered recipe recommendations
 

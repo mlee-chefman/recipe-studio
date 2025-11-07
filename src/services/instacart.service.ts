@@ -256,7 +256,6 @@ class InstacartService {
 
     // Simplify ingredient names using Gemini batch API
     // e.g., "2 (6-ounce) salmon fillets, skin on" → "salmon"
-    console.log('🤖 Simplifying ingredient names for Instacart...');
     const ingredientNames = items.map(item => item.name);
     const simplifiedNames = await simplifyIngredientNamesBatch(ingredientNames);
 
@@ -304,7 +303,6 @@ class InstacartService {
       }),
     };
 
-    console.log(`✅ Generated Instacart JSON: "${title}" with ${items.length} ingredients`);
     return JSON.stringify(recipeData, null, 2);
   }
 
@@ -322,8 +320,6 @@ class InstacartService {
       // Generate shopping list JSON
       const shoppingListData = await this.generateInstacartRecipeJson(shoppingList);
       const parsedData = JSON.parse(shoppingListData);
-
-      console.log('📤 Posting shopping list to Instacart IDP API...');
 
       // Call Instacart IDP API to create shopping list
       const response = await fetch(INSTACART_IDP_ENDPOINT, {
@@ -350,7 +346,6 @@ class InstacartService {
         throw new Error('Invalid response from Instacart API');
       }
 
-      console.log('✅ Shopping list created:', products_link_url);
       return products_link_url;
     } catch (error) {
       console.error('Error creating Instacart shopping list:', error);

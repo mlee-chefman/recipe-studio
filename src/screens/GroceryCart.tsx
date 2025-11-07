@@ -486,7 +486,7 @@ export default function GroceryCartScreen() {
                           <Image
                             source={{ uri: imageUrl }}
                             style={styles.ingredientImage}
-                            contentFit="cover"
+                            contentFit="contain"
                           />
                         ) : isImageLoading ? (
                           <View style={styles.ingredientImagePlaceholder}>

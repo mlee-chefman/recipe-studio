@@ -541,7 +541,7 @@ export default function RecipeDetailScreen() {
                           <Image
                             source={{ uri: imageUrl }}
                             style={styles.ingredientImage}
-                            contentFit="cover"
+                            contentFit="contain"
                           />
                         ) : isLoading ? (
                           <View style={styles.ingredientImagePlaceholder}>
