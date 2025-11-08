@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,12 +15,14 @@ import { useStyles } from '@hooks/useStyles';
 import { createStyles } from './MyFridgeRecipeDetail.styles';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { convertScrapedToRecipe, convertRecipeToScraped } from '~/utils/helpers/recipeConversion';
-import { useRecipeStore, useAuthStore, useCartStore } from '@store/store';
+import { useRecipeStore, useAuthStore, useCartStore, useFridgeStore } from '@store/store';
 import { instacartService } from '@services/instacart.service';
-import { getApplianceById } from '~/types/chefiq';
+import { getApplianceById, getApplianceProductUrl } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import StepImage from '@components/StepImage';
 import { haptics } from '@utils/haptics';
+import { useIngredientImages } from '@hooks/useIngredientImages';
+import { Toast } from '@components/Toast';
 
 interface RouteParams {
   recipe: ScrapedRecipe & {
@@ -29,6 +31,7 @@ interface RouteParams {
     matchPercentage?: number;
   };
   source: 'my-fridge-ai';
+  recipeIndex?: number;
 }
 
 export default function MyFridgeRecipeDetailScreen() {
@@ -40,79 +43,120 @@ export default function MyFridgeRecipeDetailScreen() {
   const { user } = useAuthStore();
   const { addRecipe } = useRecipeStore();
   const { addItems: addItemsToCart } = useCartStore();
+  const { setPendingRecipeUpdate } = useFridgeStore();
 
   // Initialize recipe state, handling potential undefined
   const [recipe, setRecipe] = useState(params?.recipe || {} as any);
   const [isSaving, setIsSaving] = useState(false);
   const [activeSubstitutions, setActiveSubstitutions] = useState<Record<string, string>>({});
 
+  // Toast notification state
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  // Ingredient selection state for shopping cart
+  const [selectedIngredients, setSelectedIngredients] = useState<Set<number>>(
+    new Set(recipe?.ingredients?.map((_, index) => index) || []) // All selected by default
+  );
+
+  // Apply active substitutions to ingredients list for display (memoized to prevent infinite loops)
+  const displayIngredients = useMemo(() => {
+    return recipe?.ingredients?.map((ingredient) => {
+      // Check if this ingredient has an active substitution
+      const substitutionEntry = Object.entries(activeSubstitutions).find(([missing]) =>
+        ingredient.toLowerCase().includes(missing.toLowerCase())
+      );
+
+      if (substitutionEntry) {
+        const [missing, substitute] = substitutionEntry;
+        // Replace the missing ingredient with the substitute in the ingredient string
+        return ingredient.replace(new RegExp(missing, 'gi'), substitute);
+      }
+
+      return ingredient;
+    }) || [];
+  }, [recipe?.ingredients, activeSubstitutions]);
+
+  // Load ingredient images (using display ingredients with substitutions applied)
+  const { images: ingredientImages, loading: imagesLoading } = useIngredientImages(
+    displayIngredients,
+    true // enabled
+  );
+
   // Safely access properties with optional chaining
   const hasSubstitutions = recipe?.substitutions && recipe.substitutions.length > 0;
-  const hasMissingIngredients = recipe?.missingIngredients && recipe.missingIngredients.length > 0;
+
+  // Filter missing ingredients based on active substitutions
+  const filteredMissingIngredients = recipe?.missingIngredients?.filter(
+    (ingredient) => !Object.keys(activeSubstitutions).some((missing) =>
+      ingredient.toLowerCase().includes(missing.toLowerCase())
+    )
+  ) || [];
+  const hasMissingIngredients = filteredMissingIngredients.length > 0;
 
   // Get ChefIQ appliance info from recipe suggestions
   const chefiqAppliance = recipe?.chefiqSuggestions?.suggestedAppliance;
   const hasChefIQActions = recipe?.steps?.some(step => step.cookingAction) || false;
 
+  // Store reference to track if recipe was edited
+  const [wasEdited, setWasEdited] = useState(false);
+
   // Listen for edited recipe returning from RecipeEdit screen
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      console.log('MyFridgeRecipeDetail focused, checking for editedRecipe...');
       // @ts-ignore - navigation params
       const editedRecipe = route.params?.editedRecipe;
       if (editedRecipe) {
-        console.log('Found editedRecipe, updating state');
         // Convert the edited Recipe back to ScrapedRecipe format
         const updatedScrapedRecipe = convertRecipeToScraped(editedRecipe);
 
         // Preserve original fields that aren't in Recipe format
-        setRecipe((prevRecipe: any) => ({
+        const updatedRecipe = {
           ...updatedScrapedRecipe,
-          missingIngredients: prevRecipe?.missingIngredients,
-          substitutions: prevRecipe?.substitutions,
-          matchPercentage: prevRecipe?.matchPercentage,
-        }));
+          missingIngredients: recipe?.missingIngredients,
+          substitutions: recipe?.substitutions,
+          matchPercentage: recipe?.matchPercentage,
+          courseType: recipe?.courseType, // Preserve courseType if this is a full course recipe
+        };
+
+        setRecipe(updatedRecipe);
+        setWasEdited(true); // Mark as edited
 
         // Clear the param to avoid re-applying on future focuses
         // @ts-ignore
         navigation.setParams({ editedRecipe: undefined });
-      } else {
-        console.log('No editedRecipe found in params');
       }
     });
 
     return unsubscribe;
-  }, [navigation, route.params]);
+  }, [navigation, route.params, recipe, params?.recipeIndex]);
 
-  // Handle applying a substitution
+  // Handle applying a substitution (allows toggling on/off)
   const handleApplySubstitution = (missing: string, substitute: string) => {
-    setActiveSubstitutions((prev) => ({
-      ...prev,
-      [missing]: substitute,
-    }));
+    setActiveSubstitutions((prev) => {
+      // If already selected, deselect it
+      if (prev[missing] === substitute) {
+        const newSubstitutions = { ...prev };
+        delete newSubstitutions[missing];
+        return newSubstitutions;
+      }
+
+      // Otherwise, select it
+      return {
+        ...prev,
+        [missing]: substitute,
+      };
+    });
   };
 
   // Handle editing the recipe
   const handleEdit = () => {
     if (!recipe) return;
 
-    // Convert the scraped recipe to Recipe format for editing
-    let finalIngredients = [...(recipe.ingredients || [])];
-    Object.entries(activeSubstitutions).forEach(([missing, substitute]) => {
-      const index = finalIngredients.findIndex((ing) =>
-        ing.toLowerCase().includes(missing.toLowerCase())
-      );
-      if (index !== -1) {
-        finalIngredients[index] = finalIngredients[index].replace(
-          new RegExp(missing, 'gi'),
-          substitute
-        );
-      }
-    });
-
+    // Use display ingredients (which already have substitutions applied)
     const convertedRecipe = convertScrapedToRecipe({
       ...recipe,
-      ingredients: finalIngredients,
+      ingredients: displayIngredients,
     });
 
     const recipeToEdit = {
@@ -145,24 +189,10 @@ export default function MyFridgeRecipeDetailScreen() {
     setIsSaving(true);
 
     try {
-      // Apply active substitutions to ingredients
-      let finalIngredients = [...(recipe.ingredients || [])];
-      Object.entries(activeSubstitutions).forEach(([missing, substitute]) => {
-        const index = finalIngredients.findIndex((ing) =>
-          ing.toLowerCase().includes(missing.toLowerCase())
-        );
-        if (index !== -1) {
-          finalIngredients[index] = finalIngredients[index].replace(
-            new RegExp(missing, 'gi'),
-            substitute
-          );
-        }
-      });
-
-      // Convert to Recipe format
+      // Convert to Recipe format (using display ingredients with substitutions applied)
       const convertedRecipe = convertScrapedToRecipe({
         ...recipe,
-        ingredients: finalIngredients,
+        ingredients: displayIngredients,
       });
 
       // addRecipe handles createdAt, updatedAt, and userId automatically
@@ -194,7 +224,7 @@ export default function MyFridgeRecipeDetailScreen() {
     }
   };
 
-  // Handle adding missing ingredients to cart
+  // Handle adding missing ingredients to cart (excludes ingredients with active substitutions)
   const handleAddMissingToCart = async () => {
     if (!user?.uid) {
       haptics.error();
@@ -207,8 +237,8 @@ export default function MyFridgeRecipeDetailScreen() {
     }
 
     try {
-      // Convert missing ingredient strings to CartItems
-      const cartItems = recipe.missingIngredients!.map((ingredient, index) => {
+      // Convert filtered missing ingredient strings to CartItems
+      const cartItems = filteredMissingIngredients.map((ingredient, index) => {
         const parsed = instacartService.parseIngredient(ingredient);
 
         return {
@@ -232,16 +262,9 @@ export default function MyFridgeRecipeDetailScreen() {
 
       haptics.success();
 
-      // Navigate to Grocery Cart screen
-      // @ts-ignore - Navigation typing issue
-      navigation.navigate('GroceryCart');
-
-      // Show success feedback
-      Alert.alert(
-        'Added to Cart',
-        `${recipe.missingIngredients!.length} missing ${recipe.missingIngredients!.length === 1 ? 'ingredient' : 'ingredients'} added to your cart.`,
-        [{ text: 'OK' }]
-      );
+      // Show toast notification
+      setToastMessage(`${filteredMissingIngredients.length} missing ${filteredMissingIngredients.length === 1 ? 'ingredient' : 'ingredients'} added to cart`);
+      setToastVisible(true);
     } catch (error) {
       console.error('Error adding missing ingredients to cart:', error);
       haptics.error();
@@ -253,6 +276,107 @@ export default function MyFridgeRecipeDetailScreen() {
     }
   };
 
+  // Ingredient selection handlers
+  const toggleIngredient = (index: number) => {
+    // Haptic feedback for selection toggle
+    haptics.selection();
+
+    setSelectedIngredients(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllIngredients = () => {
+    setSelectedIngredients(new Set(recipe?.ingredients?.map((_, index) => index) || []));
+  };
+
+  const deselectAllIngredients = () => {
+    setSelectedIngredients(new Set());
+  };
+
+  const allSelected = selectedIngredients.size === (recipe?.ingredients?.length || 0);
+  const noneSelected = selectedIngredients.size === 0;
+
+  // Handle adding regular (non-missing) ingredients to cart
+  const handleAddIngredientsToCart = async () => {
+    if (noneSelected) {
+      haptics.error();
+      Alert.alert('No Ingredients Selected', 'Please select at least one ingredient to add to cart.');
+      return;
+    }
+
+    if (!user?.uid) {
+      haptics.error();
+      Alert.alert('Sign In Required', 'Please sign in to add items to your cart.');
+      return;
+    }
+
+    try {
+      // Build cart items from selected ingredients (using display ingredients with substitutions)
+      const cartItems = Array.from(selectedIngredients).map(index => {
+        const ingredient = displayIngredients[index];
+        const parsed = instacartService.parseIngredient(ingredient);
+
+        return {
+          id: `${recipe.title}-ingredient-${index}`,
+          recipeId: 'my-fridge-ai-recipe', // Temporary ID for AI recipes
+          recipeName: recipe.title || 'My Fridge Recipe',
+          recipeImage: recipe.image,
+          recipeServings: recipe.servings || 1,
+          recipeOriginalServings: recipe.servings || 1,
+          ingredient: ingredient,
+          quantity: parsed.quantity,
+          unit: parsed.unit,
+          name: parsed.name,
+          selected: true,
+          addedAt: Date.now(),
+        };
+      });
+
+      // Save to Firebase cart
+      await addItemsToCart(cartItems, user.uid);
+
+      haptics.success();
+
+      // Show toast notification
+      setToastMessage(`${selectedIngredients.size} ${selectedIngredients.size === 1 ? 'ingredient' : 'ingredients'} added to cart`);
+      setToastVisible(true);
+    } catch (error) {
+      console.error('Error adding ingredients to cart:', error);
+      haptics.error();
+      Alert.alert(
+        'Error',
+        'Failed to add items to cart. Please try again.',
+        [{ text: 'OK' }]
+      );
+    }
+  };
+
+  // Toast navigation handler
+  const handleToastPress = () => {
+    setToastVisible(false);
+    // @ts-ignore - Navigation typing issue
+    navigation.navigate('GroceryCart');
+  };
+
+  // Handle going back to MyFridge with updated recipe
+  const handleGoBack = () => {
+    // If recipe was edited and we have a recipeIndex, store it for MyFridge to pick up
+    if (wasEdited && params?.recipeIndex !== undefined && recipe) {
+      setPendingRecipeUpdate({
+        recipe: recipe,
+        index: params.recipeIndex,
+      });
+    }
+    navigation.goBack();
+  };
+
   const totalTime = (recipe?.prepTime || 0) + (recipe?.cookTime || 0);
 
   // Return early if recipe is not loaded
@@ -260,7 +384,7 @@ export default function MyFridgeRecipeDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
         </View>
@@ -276,7 +400,7 @@ export default function MyFridgeRecipeDetailScreen() {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color={theme.colors.text.primary} />
           </TouchableOpacity>
           <TouchableOpacity onPress={handleEdit} style={styles.editButton}>
@@ -364,6 +488,19 @@ export default function MyFridgeRecipeDetailScreen() {
                 </View>
               )}
             </View>
+
+            {/* Action Button */}
+            <TouchableOpacity
+              onPress={() => {
+                const productUrl = getApplianceProductUrl(chefiqAppliance);
+                Linking.openURL(productUrl);
+              }}
+              activeOpacity={0.7}
+              style={styles.shopButton}
+            >
+              <Ionicons name="bag-handle-outline" size={16} color="white" />
+              <Text style={styles.shopButtonText}>Shop this Appliance</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -373,10 +510,10 @@ export default function MyFridgeRecipeDetailScreen() {
             <View style={styles.sectionHeader}>
               <Ionicons name="alert-circle" size={20} color={theme.colors.error.main} />
               <Text style={styles.missingSectionTitle}>
-                Missing Ingredients ({recipe.missingIngredients!.length})
+                Missing Ingredients ({filteredMissingIngredients.length})
               </Text>
             </View>
-            {recipe.missingIngredients!.map((ingredient, index) => (
+            {filteredMissingIngredients.map((ingredient, index) => (
               <View key={index} style={styles.missingItem}>
                 <Ionicons name="close-circle" size={16} color={theme.colors.error.main} />
                 <Text style={styles.missingText}>{ingredient}</Text>
@@ -448,26 +585,130 @@ export default function MyFridgeRecipeDetailScreen() {
 
         {/* Ingredients Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ingredients</Text>
-          {recipe.ingredients.map((ingredient, index) => {
-            const isModified = Object.keys(activeSubstitutions).some((missing) =>
-              ingredient.toLowerCase().includes(missing.toLowerCase())
-            );
-            return (
-              <View key={index} style={styles.ingredientItem}>
-                <Ionicons
-                  name={isModified ? 'swap-horizontal' : 'ellipse'}
-                  size={8}
-                  color={isModified ? theme.colors.primary.main : theme.colors.text.secondary}
-                />
-                <Text
-                  style={[styles.ingredientText, isModified && styles.ingredientTextModified]}
+          <View style={styles.ingredientsHeader}>
+            <Text style={styles.sectionTitle}>Ingredients</Text>
+
+            {/* Select All / None Controls */}
+            <View style={styles.selectionControls}>
+              <Text style={styles.selectionCount}>
+                {selectedIngredients.size} of {displayIngredients.length} selected
+              </Text>
+              <View style={styles.selectionButtons}>
+                <TouchableOpacity
+                  onPress={selectAllIngredients}
+                  disabled={allSelected}
+                  style={[
+                    styles.selectionButton,
+                    allSelected && styles.selectionButtonDisabled
+                  ]}
                 >
-                  {ingredient}
-                </Text>
+                  <Text style={[
+                    styles.selectionButtonText,
+                    allSelected && styles.selectionButtonTextDisabled
+                  ]}>
+                    Select All
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={deselectAllIngredients}
+                  disabled={noneSelected}
+                  style={[
+                    styles.selectionButton,
+                    noneSelected && styles.selectionButtonDisabled
+                  ]}
+                >
+                  <Text style={[
+                    styles.selectionButtonText,
+                    noneSelected && styles.selectionButtonTextDisabled
+                  ]}>
+                    Clear All
+                  </Text>
+                </TouchableOpacity>
               </View>
-            );
-          })}
+            </View>
+          </View>
+
+          {/* Ingredients List with Images and Checkboxes */}
+          <View style={styles.ingredientsListContainer}>
+            {displayIngredients.map((ingredient, index) => {
+              const originalIngredient = recipe.ingredients[index];
+              const isModified = Object.keys(activeSubstitutions).some((missing) =>
+                originalIngredient.toLowerCase().includes(missing.toLowerCase())
+              );
+              const imageUrl = ingredientImages.get(ingredient);
+              const isLoading = imagesLoading && !imageUrl;
+              const isSelected = selectedIngredients.has(index);
+
+              return (
+                <TouchableOpacity
+                  key={index}
+                  onPress={() => toggleIngredient(index)}
+                  activeOpacity={0.7}
+                  style={styles.ingredientItem}
+                >
+                  {/* Checkbox */}
+                  <TouchableOpacity
+                    onPress={() => toggleIngredient(index)}
+                    style={[
+                      styles.checkbox,
+                      isSelected && styles.checkboxSelected
+                    ]}
+                  >
+                    {isSelected && (
+                      <Ionicons name="checkmark" size={14} color="#fff" />
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Ingredient Image Container */}
+                  <View style={styles.ingredientImageContainer}>
+                    {imageUrl ? (
+                      <Image
+                        source={{ uri: imageUrl }}
+                        style={styles.ingredientImage}
+                      />
+                    ) : isLoading ? (
+                      <View style={styles.ingredientImagePlaceholder}>
+                        <ActivityIndicator size="small" color={theme.colors.primary.main} />
+                      </View>
+                    ) : (
+                      <View style={styles.ingredientBulletContainer}>
+                        <Ionicons
+                          name={isModified ? 'swap-horizontal' : 'ellipse'}
+                          size={8}
+                          color={isModified ? theme.colors.primary.main : theme.colors.text.secondary}
+                        />
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Ingredient Text - shows substituted ingredient if active */}
+                  <Text
+                    style={[
+                      styles.ingredientText,
+                      isModified && styles.ingredientTextModified
+                    ]}
+                  >
+                    {ingredient}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Add to Cart Button */}
+          <TouchableOpacity
+            onPress={handleAddIngredientsToCart}
+            disabled={noneSelected}
+            style={[
+              styles.addIngredientsToCartButton,
+              noneSelected && styles.addIngredientsToCartButtonDisabled
+            ]}
+          >
+            <Ionicons name="cart" size={18} color="#fff" />
+            <Text style={styles.addIngredientsToCartText}>
+              Add to Cart ({selectedIngredients.size} {selectedIngredients.size === 1 ? 'item' : 'items'})
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Instructions Section */}
@@ -562,6 +803,14 @@ export default function MyFridgeRecipeDetailScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      {/* Toast Notification */}
+      <Toast
+        message={toastMessage}
+        visible={toastVisible}
+        onPress={handleToastPress}
+        onHide={() => setToastVisible(false)}
+      />
     </SafeAreaView>
   );
 }

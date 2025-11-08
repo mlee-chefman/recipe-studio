@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useLayoutEffect } from 'react';
+import React, { useEffect, useState, useMemo, useLayoutEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   Linking,
   StyleSheet,
+  Animated,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import { useAuthStore, useCartStore } from '@store/store';
 import { instacartService } from '@services/instacart.service';
 import { ConfirmationModal } from '@components/modals';
 import { useIngredientImages } from '@hooks/useIngredientImages';
+import { haptics } from '@utils/haptics';
 import type { Theme } from '@theme/index';
 import type { CartItem } from '~/types/shopping';
 
@@ -49,13 +51,41 @@ export default function GroceryCartScreen() {
     new Set(recipeIds)
   );
 
+  // Track animation values for each recipe
+  const animationValues = useRef<Map<string, Animated.Value>>(new Map());
+
+  // Initialize animation values for all recipes
+  useEffect(() => {
+    recipeIds.forEach(recipeId => {
+      if (!animationValues.current.has(recipeId)) {
+        animationValues.current.set(recipeId, new Animated.Value(1)); // Start expanded
+      }
+    });
+  }, [recipeIds]);
+
   // Update expanded recipes when cart changes
   useEffect(() => {
     setExpandedRecipes(new Set(recipeIds));
   }, [recipeIds]);
 
-  // Toggle recipe expand/collapse
+  // Toggle recipe expand/collapse with animation
   const toggleRecipe = (recipeId: string) => {
+    const animValue = animationValues.current.get(recipeId);
+    const isCurrentlyExpanded = expandedRecipes.has(recipeId);
+
+    // Haptic feedback for expand/collapse
+    haptics.light();
+
+    if (animValue) {
+      // Animate to collapsed (0) or expanded (1)
+      Animated.timing(animValue, {
+        toValue: isCurrentlyExpanded ? 0 : 1,
+        duration: 250,
+        useNativeDriver: false, // height animation requires useNativeDriver: false
+      }).start();
+    }
+
+    // Update state
     setExpandedRecipes(prev => {
       const next = new Set(prev);
       if (next.has(recipeId)) {
@@ -183,8 +213,16 @@ export default function GroceryCartScreen() {
     }
   };
 
-  // Get modal config based on confirmation type
-  const getModalConfig = () => {
+  // Get modal config based on confirmation type (memoized)
+  const modalConfig = useMemo(() => {
+    if (!confirmationType) {
+      return {
+        title: '',
+        message: '',
+        confirmText: 'Confirm',
+      };
+    }
+
     switch (confirmationType) {
       case 'removeItem':
         return {
@@ -214,7 +252,7 @@ export default function GroceryCartScreen() {
           confirmText: 'Confirm',
         };
     }
-  };
+  }, [confirmationType, confirmationData, totalItems, getItemsByRecipe]);
 
   // Handle shop on Instacart
   const handleShopOnInstacart = async () => {
@@ -349,6 +387,10 @@ export default function GroceryCartScreen() {
 
           const handleServingsChange = async (newServings: number) => {
             if (newServings < 1 || !user?.uid) return;
+
+            // Haptic feedback for servings adjustment
+            haptics.light();
+
             try {
               await updateRecipeServings(recipeId, newServings, user.uid);
             } catch (error) {
@@ -433,22 +475,48 @@ export default function GroceryCartScreen() {
                     <Feather name="trash-2" size={16} color={theme.colors.error.main} />
                   </TouchableOpacity>
 
-                  {/* Expand/Collapse Icon */}
-                  <Feather
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={20}
-                    color={theme.colors.text.tertiary}
-                  />
+                  {/* Expand/Collapse Icon with smooth rotation */}
+                  <Animated.View style={[
+                    styles.chevronContainer,
+                    {
+                      transform: [{
+                        rotate: animationValues.current.get(recipeId)?.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ['0deg', '180deg'],
+                        }) || '0deg'
+                      }]
+                    }
+                  ]}>
+                    <Feather
+                      name="chevron-down"
+                      size={20}
+                      color={theme.colors.text.tertiary}
+                    />
+                  </Animated.View>
                 </View>
               </TouchableOpacity>
 
-              {/* Items - Only show when expanded */}
-              {isExpanded && recipeItems.map((item) => {
+              {/* Items - Animated expand/collapse */}
+              <Animated.View
+                style={{
+                  opacity: animationValues.current.get(recipeId),
+                  maxHeight: animationValues.current.get(recipeId)?.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 10000], // Large number to accommodate all items
+                  }),
+                  overflow: 'hidden',
+                }}
+              >
+                {recipeItems.map((item) => {
                 const imageUrl = ingredientImages.get(item.ingredient);
                 const isImageLoading = imagesLoading && !imageUrl;
 
                 const handleToggleSelection = async () => {
                   if (!user?.uid) return;
+
+                  // Haptic feedback for selection toggle
+                  haptics.selection();
+
                   try {
                     await toggleItemSelection(item.id, user.uid);
                   } catch (error) {
@@ -514,6 +582,7 @@ export default function GroceryCartScreen() {
                   </TouchableOpacity>
                 );
               })}
+              </Animated.View>
             </View>
           );
         })}
@@ -544,19 +613,21 @@ export default function GroceryCartScreen() {
       </View>
 
       {/* Unified Confirmation Modal */}
-      <ConfirmationModal
-        visible={confirmationType !== null}
-        title={getModalConfig().title}
-        message={getModalConfig().message}
-        confirmText={getModalConfig().confirmText}
-        cancelText="Cancel"
-        confirmStyle="danger"
-        onConfirm={handleConfirm}
-        onCancel={() => {
-          setConfirmationType(null);
-          setConfirmationData({});
-        }}
-      />
+      {confirmationType !== null && (
+        <ConfirmationModal
+          visible={true}
+          title={modalConfig.title}
+          message={modalConfig.message}
+          confirmText={modalConfig.confirmText}
+          cancelText="Cancel"
+          confirmStyle="danger"
+          onConfirm={handleConfirm}
+          onCancel={() => {
+            setConfirmationType(null);
+            setConfirmationData({});
+          }}
+        />
+      )}
     </View>
   );
 }
@@ -817,5 +888,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: theme.typography.fontSize.lg,
     fontWeight: '700',
     color: '#fff',
+  },
+  chevronContainer: {
+    // Ensures smooth rotation animation
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

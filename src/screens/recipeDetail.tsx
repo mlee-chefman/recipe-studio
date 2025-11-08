@@ -7,7 +7,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useRecipeStore, useAuthStore, useCartStore } from '@store/store';
 import { Toast } from '@components/Toast';
 import { Recipe } from '~/types/recipe';
-import { getApplianceById } from '~/types/chefiq';
+import { getApplianceById, getApplianceProductUrl } from '~/types/chefiq';
 import { getCookingMethodIcon, formatKeyParameters } from '@utils/cookingActionHelpers';
 import { generateExportJSON } from '@utils/chefiqExport';
 import { ChefIQExportModal } from '@components/modals';
@@ -17,6 +17,7 @@ import type { Theme } from '@theme/index';
 import StepImage from '@components/StepImage';
 import { useIngredientImages } from '@hooks/useIngredientImages';
 import { instacartService } from '@services/instacart.service';
+import { haptics } from '@utils/haptics';
 import type { SelectableIngredient } from '~/types/shopping';
 
 type RootStackParamList = {
@@ -81,6 +82,9 @@ export default function RecipeDetailScreen() {
   const handleServingsChange = (newServings: number) => {
     if (newServings < 1) return; // Minimum 1 serving
 
+    // Haptic feedback for servings adjustment
+    haptics.light();
+
     const scale = newServings / recipe.servings;
     const scaled = recipe.ingredients.map(ingredient => {
       const parsed = instacartService.parseIngredient(ingredient);
@@ -107,6 +111,9 @@ export default function RecipeDetailScreen() {
 
   // Ingredient selection handlers
   const toggleIngredient = (index: number) => {
+    // Haptic feedback for selection toggle
+    haptics.selection();
+
     setSelectedIngredients(prev => {
       const newSet = new Set(prev);
       if (newSet.has(index)) {
@@ -393,36 +400,55 @@ export default function RecipeDetailScreen() {
           {recipe.chefiqAppliance && (
             <View className="mb-6">
               <Text className="text-lg font-semibold mb-2" style={{ color: theme.colors.text.primary }}>ChefIQ Appliance</Text>
-              <TouchableOpacity
-                onPress={handleExportToChefIQ}
-                activeOpacity={0.7}
-              >
-                <View className="p-4 rounded-lg border flex-row items-center justify-between" style={{
-                  backgroundColor: theme.colors.primary[50],
-                  borderColor: theme.colors.primary[200]
-                }}>
-                  <View className="flex-row items-center flex-1">
-                    <Image
-                      source={{ uri: getApplianceById(recipe.chefiqAppliance)?.picture }}
-                      style={styles.applianceImage}
-                      contentFit="contain"
-                    />
-                    <Text className="text-lg font-semibold flex-1" style={{ color: theme.colors.primary[800] }}>
-                      {getApplianceById(recipe.chefiqAppliance)?.name}
-                    </Text>
-                    {recipe.useProbe && (
-                      <View className="ml-2 px-2 py-1 rounded-full" style={{ backgroundColor: theme.colors.warning.light }}>
-                        <Text className="text-xs font-medium" style={{ color: theme.colors.warning.dark }}>🌡️ Probe</Text>
-                      </View>
-                    )}
-                  </View>
 
-                  {/* Export Icon */}
-                  <View className="ml-3 w-10 h-10 rounded-full items-center justify-center" style={styles.exportIconButton}>
-                    <Feather name="download" size={20} color="white" />
-                  </View>
+              <View className="p-4 rounded-lg border" style={{
+                backgroundColor: theme.colors.primary[50],
+                borderColor: theme.colors.primary[200]
+              }}>
+                <View className="flex-row items-center mb-3">
+                  <Image
+                    source={{ uri: getApplianceById(recipe.chefiqAppliance)?.picture }}
+                    style={styles.applianceImage}
+                    contentFit="contain"
+                  />
+                  <Text className="text-lg font-semibold flex-1" style={{ color: theme.colors.primary[800] }}>
+                    {getApplianceById(recipe.chefiqAppliance)?.name}
+                  </Text>
+                  {recipe.useProbe && (
+                    <View className="ml-2 px-2 py-1 rounded-full" style={{ backgroundColor: theme.colors.warning.light }}>
+                      <Text className="text-xs font-medium" style={{ color: theme.colors.warning.dark }}>🌡️ Probe</Text>
+                    </View>
+                  )}
                 </View>
-              </TouchableOpacity>
+
+                {/* Action Buttons */}
+                <View className="flex-row gap-2">
+                  <TouchableOpacity
+                    onPress={handleExportToChefIQ}
+                    activeOpacity={0.7}
+                    className="flex-1"
+                  >
+                    <View className="flex-row items-center justify-center py-2.5 px-4 rounded-lg" style={{ backgroundColor: theme.colors.primary[500] }}>
+                      <Feather name="download" size={16} color="white" style={{ marginRight: 6 }} />
+                      <Text className="text-white font-semibold text-sm">Export</Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      const productUrl = getApplianceProductUrl(recipe.chefiqAppliance!);
+                      Linking.openURL(productUrl);
+                    }}
+                    activeOpacity={0.7}
+                    className="flex-1"
+                  >
+                    <View className="flex-row items-center justify-center py-2.5 px-4 rounded-lg" style={{ backgroundColor: theme.colors.success.main }}>
+                      <Feather name="shopping-bag" size={16} color="white" style={{ marginRight: 6 }} />
+                      <Text className="text-white font-semibold text-sm">Shop</Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              </View>
             </View>
           )}
 

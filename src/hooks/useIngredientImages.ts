@@ -44,19 +44,27 @@ export function useIngredientImages(
     console.log(`🎨 Starting to load images for ${ingredients.length} ingredients...`);
     setLoading(true);
     setError(null);
-    setImages(new Map());
+    // Don't clear images immediately - keep old ones while loading new ones
     setLoadedCount(0);
 
     try {
       const finalImages = await getIngredientImagesProgressive(
         ingredients,
         (progressImages) => {
-          // Update state when all images are loaded
-          setImages(new Map(progressImages));
+          // Merge new images with existing ones to prevent flickering
+          setImages(prevImages => {
+            const merged = new Map(prevImages);
+            progressImages.forEach((url, ingredient) => {
+              merged.set(ingredient, url);
+            });
+            return merged;
+          });
           setLoadedCount(progressImages.size);
         }
       );
 
+      // Once loading is complete, update to final images and remove any old unused ones
+      setImages(finalImages);
       setLoading(false);
       console.log(`✅ Finished loading images: ${finalImages.size}/${ingredients.length} successful`);
 

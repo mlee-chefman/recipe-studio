@@ -31,6 +31,38 @@ Total cost per recipe: ~$0.000044 (0.004 cents)
 ~80% cost reduction vs. Gemini 2.0 Flash
 ```
 
+### Full Course Menu Generation (NEW Feature)
+
+**What it is:** Generate a complete 3-course meal (Appetizer, Main Course, Dessert) from available ingredients.
+
+**Requirement:** Minimum 5 ingredients in "My Kitchen" to unlock this feature.
+
+**Token Usage:**
+- Input: ~500 tokens (larger prompt for cohesive menu planning)
+- Output: ~1800 tokens (3 complete recipes)
+- **Total tokens**: ~2300 tokens per full course generation
+
+**Cost Per Full Course Menu:**
+```
+Input cost:  500 tokens × $0.075 / 1M = $0.000038
+Output cost: 1800 tokens × $0.030 / 1M = $0.000054
+───────────────────────────────────────────────
+Total cost per full course: ~$0.000092 (0.009 cents)
+Still extremely affordable! 3 recipes for less than 1/100th of a cent
+```
+
+**Comparison:**
+- Single recipe generation: $0.000044
+- Full course (3 recipes): $0.000092
+- **2.1x more expensive** but generates **3x more recipes**
+- **Cost per recipe in full course: $0.000031** (30% cheaper per recipe!)
+
+**Appliance Detection (Included):**
+- Each recipe in full course menu automatically detects ChefIQ appliances
+- Additional ~150 tokens input + ~400 tokens output per recipe
+- **Added cost per full course**: ~$0.000050 (3 appliance detections)
+- **Total with appliance detection**: ~$0.000142 per full course menu
+
 ## Scaling Cost Projections
 
 ### Monthly Usage Scenarios

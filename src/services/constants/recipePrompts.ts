@@ -901,3 +901,140 @@ Return a JSON object with the following structure:
 
 Analyze the recipe and return the JSON:`;
 }
+
+/**
+ * Creates a prompt for generating a full course menu (appetizer, main, dessert, drink)
+ */
+export function createFullCourseMenuPrompt(
+  ingredients: string[],
+  dietary?: string,
+  cuisine?: string,
+  cookingTime?: string
+): string {
+  const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
+  const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
+  const timeFilter = cookingTime && cookingTime !== 'Any' ? cookingTime : null;
+
+  return `You are a professional chef and menu planner. Your task is to create a complete, cohesive full course menu using the ingredients the user has available.
+
+**Available Ingredients**: ${ingredients.join(', ')}
+
+${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
+${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
+${timeFilter ? `**Total Meal Preparation Time**: ${timeFilter}` : ''}
+
+Please create a complete 3-course menu that includes:
+1. **Appetizer** - A light starter to begin the meal
+2. **Main Course** - The centerpiece of the meal
+3. **Dessert** - A sweet ending to the meal
+
+**Guidelines:**
+- Make good use of the available ingredients across all courses
+- Create a cohesive menu where courses complement each other
+- ${dietaryFilter ? `All recipes must follow ${dietaryFilter} dietary restrictions` : 'No dietary restrictions'}
+- ${cuisineFilter ? `All recipes should be inspired by ${cuisineFilter} cuisine` : 'Recipes can be from any cuisine, but should work well together'}
+- ${timeFilter ? `Total preparation time for all courses combined should be approximately ${timeFilter}` : 'Use reasonable cooking times'}
+- You may suggest a few additional ingredients for each course to make the menu complete
+- Each course should be practical and achievable for home cooks
+
+Return a JSON array of exactly 3 recipe objects in this order: [Appetizer, Main Course, Dessert]
+
+Each recipe object should have the following structure:
+
+{
+  "title": "Recipe title",
+  "description": "A brief, appetizing description of the dish (1-2 sentences)",
+  "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
+  "cookTime": 30,
+  "prepTime": 15,
+  "servings": 4,
+  "category": "Appetizer" | "Main Course" | "Dessert",
+  "tags": ["tag1", "tag2", "tag3"],
+  "missingIngredients": ["ingredient that user doesn't have but recipe needs"],
+  "substitutions": [
+    {"missing": "ingredient name", "substitutes": ["substitute 1", "substitute 2"]}
+  ],
+  "matchPercentage": 85,
+  "courseType": "appetizer" | "main" | "dessert"
+}
+
+**Important:**
+- Return EXACTLY 3 recipes in this order: Appetizer, Main Course, Dessert
+- Each recipe must have the "courseType" field set appropriately
+- Make sure the menu flows well and courses complement each other
+- Return ONLY valid JSON array, no additional text
+- Make sure the JSON is properly formatted and can be parsed
+
+Return the full course menu as a JSON array:`;
+}
+
+/**
+ * Creates a prompt for regenerating a single course in a full course menu
+ */
+export function createSingleCourseRegenerationPrompt(
+  ingredients: string[],
+  courseType: 'appetizer' | 'main' | 'dessert',
+  dietary?: string,
+  cuisine?: string
+): string {
+  const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
+  const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
+
+  const courseDescriptions = {
+    appetizer: 'A light starter to begin the meal',
+    main: 'The centerpiece main course of the meal',
+    dessert: 'A sweet ending to the meal',
+  };
+
+  const courseEmojis = {
+    appetizer: '🥗',
+    main: '🍽️',
+    dessert: '🍰',
+  };
+
+  return `You are a professional chef. Your task is to create a single ${courseType} recipe using the ingredients the user has available.
+
+**Available Ingredients**: ${ingredients.join(', ')}
+
+${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
+${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
+
+Please create ${courseEmojis[courseType]} **${courseType.toUpperCase()}**: ${courseDescriptions[courseType]}
+
+**Guidelines:**
+- Make good use of the available ingredients
+- ${dietaryFilter ? `Must follow ${dietaryFilter} dietary restrictions` : 'No dietary restrictions'}
+- ${cuisineFilter ? `Should be inspired by ${cuisineFilter} cuisine` : 'Can be from any cuisine'}
+- You may suggest a few additional ingredients to make the recipe complete
+- The recipe should be practical and achievable for home cooks
+- The recipe should work well as a ${courseType} in a multi-course meal
+
+Return a JSON object (NOT an array) with the following structure:
+
+{
+  "title": "Recipe title",
+  "description": "A brief, appetizing description of the dish (1-2 sentences)",
+  "ingredients": ["ingredient 1 with quantity", "ingredient 2 with quantity", ...],
+  "steps": [{"text": "step 1"}, {"text": "step 2"}, ...],
+  "cookTime": 30,
+  "prepTime": 15,
+  "servings": 4,
+  "category": "${courseType === 'main' ? 'Main Course' : courseType.charAt(0).toUpperCase() + courseType.slice(1)}",
+  "tags": ["tag1", "tag2", "tag3"],
+  "missingIngredients": ["ingredient that user doesn't have but recipe needs"],
+  "substitutions": [
+    {"missing": "ingredient name", "substitutes": ["substitute 1", "substitute 2"]}
+  ],
+  "matchPercentage": 85,
+  "courseType": "${courseType}"
+}
+
+**Important:**
+- Return a single JSON object (not an array)
+- Make sure the JSON is properly formatted and can be parsed
+- Include the "courseType" field set to "${courseType}"
+- Return ONLY valid JSON, no additional text
+
+Return the ${courseType} recipe as a JSON object:`;
+}

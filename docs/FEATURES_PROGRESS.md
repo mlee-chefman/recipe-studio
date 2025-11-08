@@ -59,6 +59,21 @@
 - **Step-Level Analysis**: Assign cooking actions to specific recipe steps
 - **Temperature Detection**: Identify probe temperature requirements
 
+### 🥘 My Kitchen Feature (AI-Powered Recipe Generation)
+- **Ingredient Management**: Add ingredients from Spoonacular API with autocomplete
+- **Quick Recipe Mode**: Generate 2 recipe ideas from available ingredients
+- **Full Course Menu Mode**: Generate complete 3-course meal (Appetizer, Main, Dessert)
+  - Requires minimum 5 ingredients
+  - Auto-generates cover images for all courses
+  - Individual course regeneration
+  - Batch save selected courses
+- **Automatic Appliance Detection**: All generated recipes include ChefIQ appliance suggestions
+- **Recipe Matching**: Find similar recipes from your collection
+- **Ingredient Substitutions**: AI suggests substitutes for missing ingredients
+- **Dietary Preferences**: Support for dietary restrictions (Vegetarian, Vegan, Gluten-Free, etc.)
+- **Cuisine Preferences**: Filter by cuisine type (Italian, Mexican, Asian, etc.)
+- **Cooking Time Filter**: Filter by total preparation time
+
 ## 🔧 Technical Implementation Details
 
 ### Data Models

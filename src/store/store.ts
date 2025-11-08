@@ -117,6 +117,8 @@ export interface FridgeState {
   preferences: FridgePreferences;
   // Track generated recipe titles to avoid duplicates
   generatedRecipeTitles: string[];
+  // Temporary holder for updated recipe from detail screen
+  pendingRecipeUpdate: { recipe: any; index: number } | null;
   // Loading and error states
   isLoading: boolean;
   error: string | null;
@@ -136,6 +138,8 @@ export interface FridgeState {
   // Actions for tracking generated recipes
   addGeneratedRecipeTitle: (title: string) => void;
   clearGeneratedRecipeTitles: () => void;
+  // Actions for pending recipe updates
+  setPendingRecipeUpdate: (update: { recipe: any; index: number } | null) => void;
 }
 
 export const useStore = create<BearState>((set) => ({
@@ -785,6 +789,7 @@ export const useFridgeStore = create<FridgeState>()(
         recipeSource: 'ai',
       },
       generatedRecipeTitles: [],
+      pendingRecipeUpdate: null,
       isLoading: false,
       error: null,
 
@@ -853,6 +858,11 @@ export const useFridgeStore = create<FridgeState>()(
 
       clearGeneratedRecipeTitles: () => {
         set({ generatedRecipeTitles: [] });
+      },
+
+      // Pending recipe update actions
+      setPendingRecipeUpdate: (update: { recipe: any; index: number } | null) => {
+        set({ pendingRecipeUpdate: update });
       },
     }),
     {
