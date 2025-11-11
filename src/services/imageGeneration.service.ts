@@ -3,13 +3,14 @@ import { Recipe, Step } from '../types/recipe';
 import { uploadBase64ImageToStorage } from '../utils/imageUpload';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
-const IMAGEN_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict';
+const IMAGEN_4_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict';
 
-// Cost per image: $0.03 (as of 2025)
-export const IMAGEN_COST_PER_IMAGE = 0.03;
+// Cost per image: $0.04 for Imagen 4 (best photorealism for food photography)
+// Alternative: imagen-4.0-fast-generate-001 ($0.02/image), imagen-4.0-ultra-generate-001 ($0.06/image)
+export const IMAGEN_COST_PER_IMAGE = 0.04;
 
 /**
- * Available aspect ratios for Imagen 3
+ * Available aspect ratios for Imagen 4
  */
 export type AspectRatio = '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
 
@@ -18,7 +19,7 @@ export type AspectRatio = '1:1' | '3:4' | '4:3' | '9:16' | '16:9';
  */
 export interface ImageGenerationOptions {
   aspectRatio?: AspectRatio;
-  sampleCount?: number; // Number of images to generate (1-4)
+  sampleCount?: number; // Note: Imagen 4 generates 1 image per call (parameter kept for API compatibility)
 }
 
 /**
@@ -35,7 +36,7 @@ export interface ImageGenerationResult {
 /**
  * Builds a detailed, optimized prompt for food photography based on recipe data
  * @param recipe - Recipe object containing title, description, ingredients, etc.
- * @returns Optimized prompt for Imagen 3
+ * @returns Optimized prompt for Imagen 4
  */
 export function buildRecipeImagePrompt(recipe: {
   title: string;
@@ -118,7 +119,7 @@ export function buildRecipeImagePrompt(recipe: {
 }
 
 /**
- * Generates recipe cover photo using Google Imagen 3
+ * Generates recipe cover photo using Imagen 4
  * @param recipe - Recipe data to generate image from
  * @param options - Image generation options
  * @returns ImageGenerationResult with base64 encoded images
@@ -157,11 +158,11 @@ export async function generateRecipeImage(
       sampleCount = 1, // Generate 1 image by default
     } = options;
 
-    console.log('Generating image with Imagen 3...');
+    console.log('Generating image with Imagen 4...');
     console.log('Aspect ratio:', aspectRatio);
     console.log('Sample count:', sampleCount);
 
-    // Prepare request body
+    // Prepare request body for Imagen 4 API (uses different format than Gemini)
     const requestBody = {
       instances: [
         {
@@ -171,12 +172,13 @@ export async function generateRecipeImage(
       parameters: {
         sampleCount: Math.min(sampleCount, 4), // Max 4 images
         aspectRatio: aspectRatio,
+        imageSize: '1K', // Options: '1K' or '2K' (2K only for standard/ultra)
       },
     };
 
-    // Call Imagen 3 API
+    // Call Imagen 4 API
     const response = await axios.post(
-      `${IMAGEN_API_URL}?key=${GEMINI_API_KEY}`,
+      `${IMAGEN_4_API_URL}?key=${GEMINI_API_KEY}`,
       requestBody,
       {
         headers: {
@@ -186,20 +188,30 @@ export async function generateRecipeImage(
       }
     );
 
-    // Extract base64 encoded images from response
+    // Extract base64 encoded images from Imagen 4 response
     const predictions = response.data?.predictions;
     if (!predictions || predictions.length === 0) {
       return {
         success: false,
-        error: 'No images generated from Imagen API',
+        error: 'No images generated from Imagen 4 API',
         prompt,
       };
     }
 
-    // Extract base64 images
-    const images: string[] = predictions.map(
-      (prediction: any) => prediction.bytesBase64Encoded
-    );
+    // Extract base64 images from Imagen 4 response format
+    // Imagen uses predictions[].bytesBase64Encoded or predictions[].image.bytesBase64Encoded
+    const images: string[] = predictions.map((prediction: any) => {
+      // Try different possible response formats
+      return prediction.bytesBase64Encoded || prediction.image?.bytesBase64Encoded;
+    }).filter((img: any) => img); // Remove any undefined values
+
+    if (images.length === 0) {
+      return {
+        success: false,
+        error: 'No images found in Imagen 4 API response',
+        prompt,
+      };
+    }
 
     console.log(`Successfully generated ${images.length} image(s)`);
 

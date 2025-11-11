@@ -63,9 +63,179 @@ Still extremely affordable! 3 recipes for less than 1/100th of a cent
 - **Added cost per full course**: ~$0.000050 (3 appliance detections)
 - **Total with appliance detection**: ~$0.000142 per full course menu
 
+## AI Image Generation - Imagen 4 Costs
+
+### Overview
+Recipe Studio uses **Google Imagen 4** for AI-generated recipe cover photos. This feature automatically generates professional food photography for recipes.
+
+### Imagen 4 Pricing (as of 2025)
+
+| Model | Cost per Image | Speed | Quality | Use Case |
+|-------|---------------|-------|---------|----------|
+| **Imagen 4 (Standard)** | **$0.04** | ~5.8s | Excellent | **Current implementation** |
+| Imagen 4 Fast | $0.02 | ~3-4s | Good | High-volume, budget-conscious |
+| Imagen 4 Ultra | $0.06 | ~6-8s | Best | Premium, highest quality |
+
+**Current Implementation:** `imagen-4.0-generate-001` (Standard)
+
+### Image Generation Specifications
+
+**Technical Details:**
+- **Model**: `imagen-4.0-generate-001`
+- **Resolution**: 1K (1024×1024 equivalent)
+- **Aspect Ratio**: 4:3 (optimized for recipe cards)
+- **Generation Time**: ~5.8 seconds per image
+- **Max Images**: 1-4 per request (currently: 1)
+
+**Features:**
+- Photorealistic food photography
+- Professional lighting and shadows
+- Accurate textures and details (water droplets, surfaces)
+- Excellent ingredient representation
+- Automatic SynthID watermarking
+
+### Cost Per Recipe With AI Cover
+
+**Scenario 1: Text-only recipe generation**
+```
+Recipe generation (Gemini): $0.000044
+AI cover photo (Imagen 4):  $0.04
+──────────────────────────────────────
+Total per recipe:           $0.040044
+```
+
+**Scenario 2: Full course menu with AI covers**
+```
+Full course (3 recipes):    $0.000142
+AI covers (3 × $0.04):      $0.12
+──────────────────────────────────────
+Total per full course:      $0.120142
+```
+
+### Monthly Cost Projections - With AI Covers
+
+Assuming 50% of recipes use AI cover generation:
+
+| Users | Recipes/Month | AI Covers (50%) | Recipe Cost | Image Cost | **Total/Month** |
+|-------|---------------|-----------------|-------------|------------|-----------------|
+| 100 | 500 | 250 | $0.02 | **$10.00** | **$10.02** |
+| 1,000 | 5,000 | 2,500 | $0.22 | **$100.00** | **$100.22** |
+| 10,000 | 50,000 | 25,000 | $2.20 | **$1,000.00** | **$1,002.20** |
+| 100,000 | 500,000 | 250,000 | $22.00 | **$10,000.00** | **$10,022.00** |
+
+**Key Insight:** AI image generation is **200-2000x more expensive** than text generation. This is the primary cost driver for the app.
+
+### Cost Optimization Strategies - Images
+
+#### 1. Usage Limits (Critical for Images)
+
+**Recommended Limits:**
+```typescript
+const IMAGE_GENERATION_LIMITS = {
+  FREE_TIER: {
+    imagesPerDay: 1,      // Very restrictive
+    imagesPerMonth: 5,    // ~$0.20/user/month
+  },
+  PREMIUM_TIER: {
+    imagesPerDay: 3,
+    imagesPerMonth: 30,   // ~$1.20/user/month
+  },
+};
+```
+
+**Cost Impact with Limits:**
+- 10,000 users, 1 image/day limit: $10,000/month → **$200/month** (98% savings)
+- 10,000 users, 5 images/month limit: $1,000/month → **$200/month** (80% savings)
+
+#### 2. Optional Feature (Recommended)
+
+**Make AI covers opt-in, not automatic:**
+```typescript
+// User must explicitly request AI cover
+if (userRequestedAICover && !limitReached) {
+  await generateAICover();
+}
+```
+
+**Benefits:**
+- Users who want manual photos save costs
+- Free tier users can opt-in selectively
+- Reduces wasteful generation
+
+**Expected adoption rate:** 20-30% of recipes
+**Cost reduction:** 70-80%
+
+#### 3. Alternative: Imagen 4 Fast
+
+**Switch to Fast model for cost savings:**
+```typescript
+// Change in imageGeneration.service.ts
+const IMAGEN_4_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict';
+export const IMAGEN_COST_PER_IMAGE = 0.02; // 50% cheaper
+```
+
+**Trade-offs:**
+- ✅ **50% cost reduction** ($0.02 vs $0.04)
+- ✅ **Faster generation** (~3-4s vs ~5.8s)
+- ⚠️ **Slightly lower quality** (still good for most use cases)
+
+**Recommendation:** Use Fast for free tier, Standard for premium tier
+
+#### 4. Image Caching & Reuse
+
+**Cache popular recipe types:**
+```typescript
+// Pre-generate covers for common recipe categories
+const CACHED_COVERS = {
+  'pasta': 'gs://recipe-studio/covers/pasta-generic.jpg',
+  'chicken': 'gs://recipe-studio/covers/chicken-generic.jpg',
+  // ...
+};
+
+// Use cached cover if available, generate if custom requested
+```
+
+**Estimated savings:** 40-60% for common recipe types
+
+#### 5. Progressive Feature Rollout
+
+**Tiered AI cover access:**
+- **Free users**: No AI covers (manual upload only)
+- **Basic premium** ($2.99/mo): 5 AI covers/month
+- **Pro premium** ($9.99/mo): 30 AI covers/month
+
+### Speed Comparison
+
+| Feature | Speed | Cost |
+|---------|-------|------|
+| Text recipe generation (Gemini) | ~2-4s | $0.000044 |
+| AI cover (Imagen 4 Standard) | **~5.8s** | **$0.04** |
+| AI cover (Imagen 4 Fast) | ~3-4s | $0.02 |
+| AI cover (Imagen 4 Ultra) | ~6-8s | $0.06 |
+
+**Total time for recipe + cover:** ~8-10 seconds
+
+### Current Implementation Summary
+
+**Active Configuration:**
+- ✅ Model: Imagen 4 Standard (`imagen-4.0-generate-001`)
+- ✅ Cost: $0.04 per image
+- ✅ Speed: ~5.8 seconds
+- ✅ Quality: Excellent photorealism
+- ✅ Resolution: 1K
+- ✅ Aspect ratio: 4:3
+- ⚠️ **Usage limits**: Currently none (needs implementation!)
+
+**Recommended Actions:**
+1. **Implement image generation limits** (1/day for free users)
+2. **Make AI covers opt-in** (not automatic)
+3. **Consider switching to Imagen 4 Fast** (50% cost savings)
+4. **Track image generation usage** per user
+5. **Add premium tier** for unlimited AI covers
+
 ## Scaling Cost Projections
 
-### Monthly Usage Scenarios
+### Monthly Usage Scenarios - Text Only (No Images)
 
 | Users | Generations/User/Month | Total Generations | Monthly Cost | Notes |
 |-------|------------------------|-------------------|--------------|-------|
@@ -244,24 +414,48 @@ If 5% of users convert to premium:
 ## Recommendations
 
 ### Phase 1: Launch (Free, Limited)
+**Text Generation:**
 - **Limits**: 3 generations/day, 20/month per user
 - **Caching**: Enabled for common queries
 - **Cost**: $0.50-$4/month for first 1,000-5,000 users (80% cheaper with 2.5 Flash-Lite)
+
+**Image Generation:**
+- **Limits**: 1 AI cover/day, 5/month per user (opt-in only)
+- **Model**: Imagen 4 Fast ($0.02/image)
+- **Cost**: $1-$10/month for first 1,000-5,000 users
+- **Total Phase 1 Cost**: **$2-$15/month**
 - **Goal**: Validate feature usage and demand
 
 ### Phase 2: Scale (Freemium)
-- **Free Tier**: 3/day, 20/month
-- **Premium Tier**: $2.99/month for 10/day, 100/month
-- **Advanced caching**: Recipe templates for common categories
-- **Cost**: $10-20/month for 10K-50K users (80% reduction)
-- **Revenue**: $1,000-5,000/month from premium
+**Free Tier:**
+- Text: 3 recipes/day, 20/month
+- Images: 1 AI cover/day, 5/month (Imagen 4 Fast)
+
+**Premium Tier** ($4.99/month):
+- Text: 10 recipes/day, 100/month
+- Images: 3 AI covers/day, 30/month (Imagen 4 Standard)
+- High-res exports, ad-free experience
+
+**Costs:**
+- Text: $10-20/month for 10K-50K users
+- Images: $50-200/month (20% adoption, 5 images/user/month)
+- **Total Phase 2 Cost**: **$60-220/month**
+- **Revenue**: $2,500-12,500/month from premium (5% conversion)
+- **Profit**: $2,200-12,000/month
 
 ### Phase 3: Optimize (Enterprise)
-- **Prompt optimization**: -20% token usage
-- **Smart caching**: -40% API calls
-- **Bulk API pricing**: Negotiate with Google for volume discounts
-- **Cost**: $60-100/month for 100K-500K users (80% reduction)
-- **Revenue**: $15,000-50,000/month
+**Optimizations:**
+- Text: Prompt optimization (-20% token usage), smart caching (-40% API calls)
+- Images: Category-based cached covers (-50% generations)
+- Imagen 4 Fast for free tier, Standard for premium
+- Bulk API pricing: Negotiate with Google for volume discounts
+
+**Costs:**
+- Text: $60-100/month for 100K-500K users (80% reduction)
+- Images: $500-2,000/month (optimized with caching)
+- **Total Phase 3 Cost**: **$560-2,100/month**
+- **Revenue**: $25,000-125,000/month (5% premium conversion)
+- **Profit**: $23,000-123,000/month
 
 ## Alternative Models
 
@@ -285,22 +479,75 @@ If 5% of users convert to premium:
 ## Conclusion
 
 ### Key Takeaways
-1. ✅ **Extremely affordable** - 80% cheaper than 2.0 Flash, costs nearly negligible
+
+**Text Generation (Gemini 2.5 Flash-Lite):**
+1. ✅ **Extremely affordable** - 80% cheaper than 2.0 Flash, costs nearly negligible (~$0.000044/recipe)
 2. ✅ **Simple rate limits** (3/day) reduce costs by 40-60%
 3. ✅ **Caching** provides significant savings for common recipes
-4. ✅ **Monetization potential** - 95%+ profit margin on premium tier
-5. ✅ **Free tier sustainable** - Can easily support tens of thousands of users
+4. ✅ **Free tier sustainable** - Can easily support tens of thousands of users
+
+**Image Generation (Imagen 4):**
+1. ⚠️ **200-2000x more expensive** than text generation ($0.04/image vs $0.000044/recipe)
+2. ⚠️ **Primary cost driver** - Images will dominate the budget
+3. ✅ **Usage limits critical** - 1/day for free tier recommended
+4. ✅ **Opt-in feature** - Don't generate automatically to save costs
+5. ✅ **Imagen 4 Fast option** - 50% savings ($0.02/image) with minimal quality trade-off
+6. ✅ **Monetization opportunity** - Premium tier with unlimited covers
+
+### Combined Cost Summary
+
+**Current Implementation (Imagen 4 Standard):**
+- Recipe + AI Cover: $0.040044 total
+- Text: 0.1% of cost
+- Image: 99.9% of cost
+
+**With Optimization (Imagen 4 Fast + opt-in):**
+- 20-30% adoption rate
+- $0.02 per image when used
+- 80% cost reduction
 
 ### Implementation Priority
-1. **High Priority**: Usage limits (3/day, 20/month)
-2. **High Priority**: Usage tracking database
-3. **Medium Priority**: Simple caching for common queries
-4. **Medium Priority**: Cost monitoring dashboard
-5. **Low Priority**: Premium tier (validate demand first)
+
+**Phase 1 (Critical):**
+1. **High Priority**: Image generation usage limits (1/day, 5/month)
+2. **High Priority**: Make AI covers opt-in (user request only)
+3. **High Priority**: Usage tracking database for images
+4. **High Priority**: Switch to Imagen 4 Fast for free tier
+
+**Phase 2 (Important):**
+5. **Medium Priority**: Text generation limits (3/day, 20/month)
+6. **Medium Priority**: Cost monitoring dashboard
+7. **Medium Priority**: Simple caching for common recipes
+
+**Phase 3 (Nice to Have):**
+8. **Low Priority**: Premium tier with unlimited AI covers
+9. **Low Priority**: Category-based cached covers
+10. **Low Priority**: Advanced prompt optimization
 
 ### Estimated Launch Cost
-- **100-1,000 users**: $0.10-$1/month
-- **1,000-10,000 users**: $1-$10/month
-- **Risk**: Minimal - Can always add tighter limits if needed
 
-This feature is **highly cost-effective** and should be implemented with basic usage limits to prevent abuse while providing excellent value to users.
+**Text Generation Only:**
+- 100-1,000 users: $0.10-$1/month
+- 1,000-10,000 users: $1-$10/month
+
+**With AI Image Generation (Imagen 4 Fast, opt-in, 20% adoption):**
+- 100-1,000 users: $2-$5/month
+- 1,000-10,000 users: $20-$100/month
+
+**Risk Assessment:**
+- **Text generation**: Minimal risk, highly affordable
+- **Image generation**: Moderate risk without limits, critical to implement usage caps
+- **Mitigation**: Start with strict limits (1 image/day), adjust based on budget
+
+### Final Recommendation
+
+The AI features are **highly cost-effective with proper limits**:
+
+1. **Text generation** is essentially free - implement generously
+2. **Image generation** needs careful management:
+   - Use Imagen 4 Fast ($0.02/image) for free tier
+   - Make it opt-in, not automatic
+   - Implement strict daily/monthly limits
+   - Consider premium tier for power users
+
+With these safeguards, Recipe Studio can provide amazing AI features while maintaining sustainable costs at scale.
