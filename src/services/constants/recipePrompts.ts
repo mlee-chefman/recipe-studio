@@ -2,11 +2,11 @@
  * Creates a detailed prompt for generating a recipe from a description
  */
 export function createRecipeGenerationPrompt(description: string): string {
-  return `You are a professional chef and recipe creator. Your task is to create a complete, detailed recipe based on the user's description.
+  return `You are a professional chef and recipe creator. Your task is to create a complete recipe based on the user's description.
 
 User's request: "${description}"
 
-Please create a delicious recipe that matches this description. The recipe should be practical, clear, and easy to follow.
+Please create a recipe that matches this description. **By default, keep recipes SIMPLE and STRAIGHTFORWARD** unless the user's description explicitly asks for complexity.
 
 Return a JSON object with the following structure:
 
@@ -26,19 +26,39 @@ Return a JSON object with the following structure:
 Guidelines:
 1. **Title**: Create a clear, appetizing title that matches the request
 2. **Description**: Write 1-2 sentences describing the dish and why it's delicious
-3. **Ingredients**: List all ingredients with specific quantities and units (e.g., "2 cups flour", "1 lb pork chops", "1/3 cup milk"). Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements
-4. **Steps**: Write clear, numbered steps in chronological order as objects with a "text" field. Be specific about temperatures, times, and techniques. For meat dishes (especially steaks, roasts, or large cuts), include internal temperature targets and mention if the meat should be removed at a lower temperature to rest (e.g., "Cook until internal temperature reaches 130°F, then remove and let rest 5-10 minutes")
-5. **Times**: Provide realistic prep time and cook time in minutes
-6. **Servings**: Specify number of servings (typically 4-6)
+3. **Ingredients**: Keep it simple - use 6-12 ingredients unless complexity is requested. List with specific quantities and units (e.g., "2 cups flour", "1 lb chicken", "1/3 cup milk"). Use fractions (1/2, 1/3, 1/4) instead of decimals for measurements
+4. **Steps**: Keep steps CONCISE and CLEAR (1-2 sentences each). Aim for 4-8 steps unless the dish truly requires more. Each step should be easy to understand and execute. Be specific about temperatures, times, and techniques. For meat dishes (especially steaks, roasts, or large cuts), include internal temperature targets and mention if the meat should be removed at a lower temperature to rest (e.g., "Cook until internal temperature reaches 130°F, then remove and let rest 5-10 minutes")
+5. **Times**: Provide realistic prep time and cook time in minutes. Default to quick recipes (under 45 minutes total) unless user asks for slow-cooking or complex dishes
+6. **Servings**: Specify number of servings (typically 4)
 7. **Category**: Choose the most appropriate category (e.g., Main Course, Dessert, Appetizer, etc.)
 8. **Tags**: Add 2-5 relevant tags (e.g., "Quick", "Healthy", "Vegetarian", "Spicy", "Italian", "Kid-Friendly", "Gluten-Free", etc.)
-9. **Notes**: Include helpful tips, substitutions, or serving suggestions. For large meat dishes, mention resting time and carryover cooking if applicable
+9. **Notes**: Include helpful tips, substitutions, or serving suggestions. Keep it brief (2-3 sentences). For large meat dishes, mention resting time and carryover cooking if applicable
+
+**IMPORTANT - Simplicity First:**
+- ⭐ **Default approach**: Create straightforward, beginner-friendly recipes with simple techniques
+- ⭐ **Keep steps short**: Each step should be 1-2 sentences max, easy to read at a glance
+- ⭐ **Use common ingredients**: Avoid exotic or hard-to-find ingredients unless specifically requested
+- ⭐ **Limit ingredient count**: Aim for 6-12 ingredients (fewer is better for simple recipes)
+- ⭐ **Limit step count**: Aim for 4-8 clear steps (don't create unnecessary steps)
+- ⭐ **Only add complexity if requested**: If user says "gourmet", "restaurant-style", "complex", or "elaborate", then add sophisticated techniques
+
+**Examples:**
+
+❌ TOO COMPLEX (for "simple chicken dinner"):
+- 15 ingredients including obscure spices
+- 12 steps with elaborate techniques
+- Multiple sauces and garnishes
+
+✅ GOOD (for "simple chicken dinner"):
+- 8 ingredients (chicken, salt, pepper, garlic, olive oil, lemon, herbs, vegetables)
+- 5 steps: Season, sear, add vegetables, finish in oven, rest
+- Clear, concise instructions
 
 Important:
 - Make the recipe practical and achievable for home cooks
 - Use common ingredients when possible
 - Be specific about cooking temperatures and times
-- If the request is vague (like "simple pork chop"), create a straightforward, beginner-friendly version
+- If the request is vague (like "pork chop" or "pasta"), create a straightforward, simple version
 - Return ONLY valid JSON, no additional text
 - Make sure the JSON is properly formatted and can be parsed
 
@@ -828,7 +848,7 @@ export function createRecipeSimplificationPrompt(
 
   return `You are a professional recipe editor specializing in making recipes clear, concise, and easy to follow.
 
-Your task: Analyze this recipe and simplify/consolidate the instructions WITHOUT losing important cooking details.
+Your task: Analyze this recipe and make each step CONCISE and EASY TO READ without losing important cooking details.
 
 Recipe Title: ${title}
 
@@ -840,31 +860,52 @@ ${stepsText}
 
 Notes: ${notes || 'None'}
 
-**Your Goal:**
-1. **Consolidate repetitive steps** - Combine similar consecutive actions
-2. **Remove unnecessary details** - Cut out redundant explanations or overly verbose descriptions
-3. **Keep essential information** - PRESERVE all cooking times, temperatures, and critical techniques
-4. **Maintain logical flow** - Steps should still be in proper cooking order
-5. **Simplify notes** - If notes are very long or repetitive, condense them while keeping important info
-6. **Re-analyze cooking actions** - CRITICAL: Some steps have [COOKING ACTION] with appliance and parameters. When simplifying:
+**Your Goal: Make Each Step Clear and Concise**
+
+Focus on making each individual step SHORT and READABLE, not just reducing the number of steps.
+
+1. **Trim unnecessary words** - Remove verbose language, filler words, and redundant explanations
+2. **Break down long steps** - If a step contains multiple sentences or complex instructions, split it into shorter, clearer steps
+3. **Use action-first language** - Start with the verb (e.g., "Heat oil" not "First, you'll want to heat the oil")
+4. **Keep essential details** - PRESERVE all cooking times, temperatures, and critical techniques
+5. **Maintain logical flow** - Steps should follow natural cooking order
+6. **Simplify notes** - If notes are very long or repetitive, condense them while keeping important info
+7. **Re-analyze cooking actions** - CRITICAL: Some steps have [COOKING ACTION] with appliance and parameters. When simplifying:
    - If a step with a cooking action is kept mostly unchanged, preserve the same cooking action
-   - If multiple steps are combined and one has a cooking action, assign it to the combined step
-   - Adjust cooking action parameters if the simplified step description changes significantly (e.g., if time or temperature changes in the text, update the parameters)
-7. **Preserve step images** - If a step has an image, note that in your response
+   - If a long step is split into multiple steps, assign the cooking action to the appropriate step where cooking happens
+   - Adjust cooking action parameters if the step description changes significantly (e.g., if time or temperature changes in the text, update the parameters)
+8. **Preserve step images** - If a step has an image, note that in your response
+
+**Good Example of Simplification:**
+
+❌ BEFORE (long, wordy):
+"First, you'll want to take a large skillet and place it on the stove over medium-high heat, then add about 2 tablespoons of olive oil to the pan and wait for it to heat up until it's shimmering, which should take about 2-3 minutes."
+
+✅ AFTER (concise, clear):
+"Heat 2 tbsp olive oil in a large skillet over medium-high heat until shimmering, about 2-3 minutes."
+
+**Another Example - Breaking Down Long Steps:**
+
+❌ BEFORE (one long step):
+"Add the chicken pieces to the hot pan and sear them for 3-4 minutes per side until golden brown, then remove them from the pan and set aside on a plate, and add the diced onions and minced garlic to the same pan and cook for 2-3 minutes until fragrant and softened."
+
+✅ AFTER (split into readable steps):
+Step 1: "Sear chicken pieces 3-4 minutes per side until golden brown. Remove and set aside."
+Step 2: "Add diced onions and garlic to the pan. Cook 2-3 minutes until fragrant and softened."
 
 **Guidelines:**
-- Combine steps like "Chop onions" + "Dice tomatoes" + "Mince garlic" → "Prep vegetables: chop onions, dice tomatoes, and mince garlic"
-- Remove repetitive phrases like "then", "next", "after that" unless they clarify timing
+- Each step should ideally be 1-2 sentences maximum
+- Remove filler phrases like "First", "Next", "Then", "After that" unless they clarify timing
 - Keep ALL cooking temperatures, times, and doneness indicators (e.g., "until golden brown", "reaches 165°F")
-- Keep safety-critical steps separate (e.g., don't combine "add raw chicken" with "add vegetables")
-- If a recipe genuinely NEEDS many steps (e.g., complex baking, multi-stage cooking), preserve them
-- DO NOT over-simplify - if a recipe has 3-4 well-written steps, it may not need changes
+- Keep safety-critical steps separate (e.g., don't combine raw meat handling with other ingredients)
+- If a recipe has clear, concise steps already (1-2 sentences each), minimal changes needed
+- It's OK to have MORE steps if it makes the recipe clearer - don't force consolidation
 
 **What NOT to do:**
+- ❌ Don't combine multiple actions into one long paragraph
 - ❌ Don't remove cooking times or temperatures
-- ❌ Don't combine unrelated cooking actions (e.g., searing meat with baking)
-- ❌ Don't merge steps that need to happen sequentially with wait time
-- ❌ Don't simplify recipes that are already concise and well-written
+- ❌ Don't create super-long steps by combining unrelated actions
+- ❌ Don't simplify recipes that are already concise and well-written (1-2 sentences per step)
 
 Return a JSON object with the following structure:
 
@@ -874,7 +915,7 @@ Return a JSON object with the following structure:
   "simplifiedStepCount": 3,
   "steps": [
     {
-      "text": "Combined or simplified step text here",
+      "text": "Concise, clear step text here (1-2 sentences max)",
       "cookingAction": {
         "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
         "methodId": "00000000-0000-0000-0000-000000000001",
@@ -882,7 +923,7 @@ Return a JSON object with the following structure:
         "parameters": {"time": 10, "temperature": 350}
       }
     },
-    {"text": "Next step without cooking action"}
+    {"text": "Another concise step without cooking action"}
   ],
   "notes": "Simplified notes (or original if no changes needed)",
   "changesSummary": "Brief explanation of what was simplified (1-2 sentences)",
@@ -890,9 +931,9 @@ Return a JSON object with the following structure:
 }
 
 **IMPORTANT:**
-- Set "simplified" to false if the recipe is already well-written and doesn't need changes
+- Set "simplified" to false if the recipe is already well-written with concise steps
 - Set "significantChanges" to false if you only made minor wording tweaks
-- Include "changesSummary" explaining what you did
+- Include "changesSummary" explaining what you did (e.g., "Split 3 long steps into 5 shorter, clearer steps" or "Trimmed verbose language and removed filler words")
 - For each step, include "cookingAction" ONLY if the original step(s) had a cooking action and it's still relevant
 - The cookingAction object should include: applianceId, methodId, methodName, and parameters (object with cooking settings)
 - Preserve the exact applianceId and methodId from the original cooking action
@@ -1115,11 +1156,14 @@ ${isEmptyRecipe ? `
 
 **${isEmptyRecipe ? 'Creation' : 'Enhancement'} Guidelines:**
 ${isEmptyRecipe ? `
-- Create a complete, detailed recipe based on the user's request
+- **KEEP IT SIMPLE**: Create straightforward, beginner-friendly recipes by default unless complexity is requested
+- **SHORT STEPS**: Each step should be 1-2 sentences max, easy to read at a glance
+- **LIMITED INGREDIENTS**: Aim for 6-12 common ingredients (fewer is better for simple recipes)
+- **QUICK COOKING**: Default to recipes under 45 minutes total unless user asks for slow-cooking
+- **CLEAR INSTRUCTIONS**: Focus on essential cooking details - no unnecessary storytelling or filler
 - If the user is asking a question or seeking ideas, answer briefly then provide a recipe suggestion
 - Include appropriate cooking times, temperatures, and servings
 - Suggest smart appliance cooking methods when they make sense for the recipe
-- Make the recipe easy to follow with clear, numbered steps
 ` : `
 - Modify the existing recipe, not create a completely new one
 - Keep the core identity of the recipe unless the user asks for major changes
@@ -1215,19 +1259,21 @@ Return a JSON object with the ${isEmptyRecipe ? 'new' : 'enhanced'} recipe:
 
 **Guidelines:**
 ${isEmptyRecipe ? `
-1. **Create Complete Recipes**: Provide full recipes with all necessary details
+1. **Simplicity First**: Create straightforward recipes with 6-12 ingredients and 4-8 clear steps (1-2 sentences each)
 2. **Answer Questions**: If user asks "what can I make?", suggest a recipe and create it
-3. **Be Helpful**: If request is vague, make reasonable assumptions and create something delicious
+3. **Be Helpful**: If request is vague, make reasonable assumptions and create something simple and delicious
 4. **Add Context**: In the enhancementSummary, explain what recipe you created and why
-5. **Ingredients**: Include quantities and units. Use fractions (1/2, 1/3, 1/4) instead of decimals
-6. **Steps**: Write clear instructions with specific temperatures and times when relevant
+5. **Ingredients**: Keep it simple - use common ingredients. Include quantities and units. Use fractions (1/2, 1/3, 1/4) instead of decimals
+6. **Steps**: Write clear, CONCISE instructions (1-2 sentences each) with specific temperatures and times when relevant
 7. **Smart Cooking**: Suggest appropriate ChefIQ appliance methods when they make sense
 
 **Examples of Requests:**
-- "quick chicken dinner for 4" → Create a simple 30-minute chicken recipe
-- "what can I make with rice and chicken?" → Suggest and create a recipe using those ingredients
-- "easy dessert" → Create a simple dessert recipe with common ingredients
-- "healthy lunch" → Create a nutritious lunch recipe with cooking instructions
+- "quick chicken dinner for 4" → Create a SIMPLE 30-minute chicken recipe with 6-8 ingredients and 5-6 steps
+- "what can I make with rice and chicken?" → Suggest and create a STRAIGHTFORWARD recipe using those ingredients
+- "easy dessert" → Create a SIMPLE dessert recipe with 5-8 common ingredients and 4-5 steps
+- "healthy lunch" → Create a SIMPLE nutritious lunch recipe with clear, concise cooking instructions
+
+**Key Rule: Don't overcomplicate unless user explicitly asks for "gourmet", "restaurant-style", "complex", or "elaborate"**
 ` : `
 1. **Preserve the Core**: Unless specifically asked to change everything, keep the recipe's identity
 2. **Be Smart**: If the user asks to "make it vegetarian", replace meat with appropriate substitutes and adjust cooking times
