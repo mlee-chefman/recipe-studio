@@ -16,11 +16,12 @@ import {
 import { simplifyIngredientNamesBatch } from './ingredientSimplifier.service';
 
 // Instacart API configuration
-const INSTACART_API_KEY =
-  Constants.expoConfig?.extra?.EXPO_PUBLIC_INSTACART_API_KEY ||
-  process.env.EXPO_PUBLIC_INSTACART_API_KEY;
+const INSTACART_API_KEY = process.env.EXPO_PUBLIC_INSTACART_API_KEY;
 
-const INSTACART_IDP_ENDPOINT = 'https://connect.instacart.com/idp/v1/products/products_link';
+
+// Use development endpoint for sandbox API key
+// For production, you'll need a production API key and switch to connect.instacart.com
+const INSTACART_IDP_ENDPOINT = 'https://connect.dev.instacart.tools/idp/v1/products/products_link';
 
 /**
  * Instacart Service
@@ -257,7 +258,9 @@ class InstacartService {
     // Simplify ingredient names using Gemini batch API
     // e.g., "2 (6-ounce) salmon fillets, skin on" → "salmon"
     const ingredientNames = items.map(item => item.name);
+    console.log('🛒 Simplifying ingredients for Instacart:', ingredientNames);
     const simplifiedNames = await simplifyIngredientNamesBatch(ingredientNames);
+    console.log('✅ Simplified ingredients map:', Array.from(simplifiedNames.entries()));
 
     // Generate title based on number of recipes
     let title: string;
@@ -280,10 +283,20 @@ class InstacartService {
       line_items: items.map(item => {
         const simplifiedName = simplifiedNames.get(item.name) || item.name;
 
+        // Build simplified display text with quantity + unit + simplified name
+        const displayParts: string[] = [];
+        if (item.quantity) {
+          displayParts.push(item.quantity.toString());
+        }
+        if (item.unit) {
+          displayParts.push(item.unit);
+        }
+        displayParts.push(simplifiedName); // Use simplified name instead of original
+
         // ShoppingLineItem format: quantity and unit at top level (not in measurements array)
         const lineItem: any = {
           name: simplifiedName, // Simplified name for product matching
-          display_text: item.display_text || item.name, // Full text for display
+          display_text: displayParts.join(' '), // Simplified display text
         };
 
         // Add quantity and unit at top level (ChefIQ shopping_list format)
@@ -302,6 +315,10 @@ class InstacartService {
         return lineItem;
       }),
     };
+
+    console.log('📦 Final Instacart payload (first 3 items):',
+      JSON.stringify(recipeData.line_items.slice(0, 3), null, 2)
+    );
 
     return JSON.stringify(recipeData, null, 2);
   }
