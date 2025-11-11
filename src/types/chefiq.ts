@@ -432,3 +432,14 @@ export const getApplianceByLegacyId = (legacyId: string): ChefIQAppliance | unde
   const categoryId = mapping[legacyId];
   return categoryId ? getApplianceById(categoryId) : undefined;
 };
+
+// Get ChefIQ product URL for an appliance
+export const getApplianceProductUrl = (categoryId: string): string => {
+  const urlMapping: { [key: string]: string } = {
+    'c8ff3aef-3de6-4a74-bba6-03e943b2762c': 'https://chefiq.com/products/iq-cooker', // iQ Cooker
+    'a542fa25-5053-4946-8b77-e358467baa0f': 'https://chefiq.com/products/iq-sense', // iQ Sense
+    '4a3cd4f1-839b-4f45-80ea-08f594ff74c3': 'https://chefiq.com/products/iq-minioven' // iQ MiniOven
+  };
+
+  return urlMapping[categoryId] || 'https://chefiq.com/products';
+};

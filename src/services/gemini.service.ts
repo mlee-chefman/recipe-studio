@@ -11,6 +11,8 @@ import {
   createRecipeFromIngredientsPrompt,
   createMultipleRecipesFromIngredientsPrompt,
   createRecipeSimplificationPrompt,
+  createFullCourseMenuPrompt,
+  createSingleCourseRegenerationPrompt,
 } from './constants/recipePrompts';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
@@ -1823,6 +1825,473 @@ export async function generateMultipleRecipesFromIngredients(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',
       totalFound: 0,
+    };
+  }
+}
+
+/**
+ * Generates a complete full course menu (appetizer, main, dessert, beverage)
+ * @param ingredients - List of available ingredients
+ * @param dietary - Dietary restriction preference
+ * @param cuisine - Cuisine preference
+ * @param cookingTime - Total cooking time preference
+ * @returns MultiRecipeResult with 4 courses
+ */
+export async function generateFullCourseMenu(
+  ingredients: string[],
+  dietary?: string,
+  cuisine?: string,
+  cookingTime?: string
+): Promise<MultiRecipeResult> {
+  try {
+    if (!GEMINI_API_KEY) {
+      return {
+        recipes: [],
+        success: false,
+        error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
+        totalFound: 0,
+      };
+    }
+
+    if (!ingredients || ingredients.length === 0) {
+      return {
+        recipes: [],
+        success: false,
+        error: 'No ingredients provided.',
+        totalFound: 0,
+      };
+    }
+
+    console.log('Generating full course menu from ingredients:', ingredients);
+    console.log('Preferences:', { dietary, cuisine, cookingTime });
+
+    // Prepare the prompt for Gemini
+    const prompt = createFullCourseMenuPrompt(
+      ingredients,
+      dietary,
+      cuisine,
+      cookingTime
+    );
+
+    // Call Gemini API with retry logic for 503 errors
+    let response;
+    let lastError;
+    const maxRetries = 2;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        response = await axios.post(
+          `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+          {
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.8, // Higher temperature for more creativity
+              maxOutputTokens: 8192, // Enough for 4 complete recipes
+            },
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 60000, // 60 second timeout
+          }
+        );
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error;
+
+        // Only retry on 503 (Service Unavailable)
+        if (axios.isAxiosError(error) && error.response?.status === 503) {
+          if (attempt < maxRetries) {
+            const waitTime = 10000 * (attempt + 1); // 10s, 20s
+            console.log(`Service unavailable (503), waiting ${waitTime/1000}s before retry ${attempt + 1}/${maxRetries}...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+        }
+
+        // For non-503 errors or if we've exhausted retries, throw immediately
+        throw error;
+      }
+    }
+
+    if (!response) {
+      throw lastError;
+    }
+
+    const data: GeminiResponse = response.data;
+
+    // Check for errors in response
+    if (data.error) {
+      return {
+        recipes: [],
+        success: false,
+        error: `Gemini API error: ${data.error.message}`,
+        totalFound: 0,
+      };
+    }
+
+    // Extract text response
+    if (!data.candidates || data.candidates.length === 0) {
+      return {
+        recipes: [],
+        success: false,
+        error: 'No response from Gemini API',
+        totalFound: 0,
+      };
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    console.log('Gemini response received for full course menu');
+
+    // Parse JSON response
+    try {
+      // Extract JSON from markdown code blocks if present
+      let jsonStr = responseText;
+      const jsonMatch = responseText.match(/```(?:json)?\s*(\[[\s\S]*\])\s*```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+      }
+
+      const parsedArray = JSON.parse(jsonStr);
+
+      if (!Array.isArray(parsedArray)) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'Expected array of 4 recipes from Gemini',
+          totalFound: 0,
+        };
+      }
+
+      if (parsedArray.length !== 4) {
+        console.warn(`Expected 4 courses but got ${parsedArray.length}`);
+      }
+
+      // Build ScrapedRecipe array with additional fields
+      const recipes: Array<ScrapedRecipe & {
+        missingIngredients?: string[];
+        substitutions?: Array<{ missing: string; substitutes: string[] }>;
+        matchPercentage?: number;
+        courseType?: string;
+      }> = [];
+
+      // Process each recipe
+      for (let i = 0; i < parsedArray.length; i++) {
+        const parsed = parsedArray[i];
+
+        // Convert steps to Step objects (handle both string format and object format)
+        const steps: Step[] = (parsed.steps || [])
+          .filter((inst: any) => {
+            if (typeof inst === 'string') {
+              return inst && inst.trim();
+            } else if (inst && typeof inst === 'object' && inst.text) {
+              return inst.text.trim();
+            }
+            return false;
+          })
+          .map((inst: any) => {
+            if (typeof inst === 'string') {
+              return { text: inst };
+            } else {
+              return { text: inst.text, image: inst.image, cookingAction: inst.cookingAction };
+            }
+          });
+
+        // Build the recipe
+        const recipe: ScrapedRecipe & {
+          missingIngredients?: string[];
+          substitutions?: Array<{ missing: string; substitutes: string[] }>;
+          matchPercentage?: number;
+          courseType?: string;
+        } = {
+          title: parsed.title || 'Generated Recipe',
+          description: parsed.description || '',
+          ingredients: parsed.ingredients || [],
+          steps,
+          cookTime: parsed.cookTime || 30,
+          prepTime: parsed.prepTime || 15,
+          servings: parsed.servings || 4,
+          category: parsed.category || 'Main Course',
+          tags: parsed.tags || [],
+          missingIngredients: parsed.missingIngredients || [],
+          substitutions: parsed.substitutions || [],
+          matchPercentage: parsed.matchPercentage || 100,
+          courseType: parsed.courseType || '',
+        };
+
+        recipes.push(recipe);
+      }
+
+      console.log(`Successfully generated ${recipes.length} course recipes`);
+
+      return {
+        recipes,
+        success: true,
+        totalFound: recipes.length,
+      };
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', parseError);
+      return {
+        recipes: [],
+        success: false,
+        error: 'Failed to parse full course menu data from Gemini response',
+        totalFound: 0,
+      };
+    }
+  } catch (error) {
+    console.error('Error generating full course menu:', error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'API rate limit exceeded. Please try again in a few moments.',
+          totalFound: 0,
+        };
+      }
+      if (status === 403) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'API key is invalid or expired. Please check your EXPO_PUBLIC_GEMINI_API_KEY.',
+          totalFound: 0,
+        };
+      }
+      if (status === 503) {
+        return {
+          recipes: [],
+          success: false,
+          error: 'AI service is temporarily unavailable. Please try again in a few moments.',
+          totalFound: 0,
+        };
+      }
+    }
+
+    return {
+      recipes: [],
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      totalFound: 0,
+    };
+  }
+}
+
+/**
+ * Regenerates a single course in a full course menu
+ * @param ingredients - List of available ingredients
+ * @param courseType - Type of course to regenerate (appetizer, main, dessert, beverage)
+ * @param dietary - Dietary restriction preference
+ * @param cuisine - Cuisine preference
+ * @returns Single recipe for the specified course
+ */
+export async function regenerateSingleCourse(
+  ingredients: string[],
+  courseType: 'appetizer' | 'main' | 'dessert',
+  dietary?: string,
+  cuisine?: string
+): Promise<{
+  recipe: ScrapedRecipe | null;
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    if (!GEMINI_API_KEY) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'Gemini API key is not configured.',
+      };
+    }
+
+    console.log(`Regenerating ${courseType} course`);
+
+    // Prepare the prompt for Gemini
+    const prompt = createSingleCourseRegenerationPrompt(
+      ingredients,
+      courseType,
+      dietary,
+      cuisine
+    );
+
+    // Call Gemini API with retry logic
+    let response;
+    let lastError;
+    const maxRetries = 2;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        response = await axios.post(
+          `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+          {
+            contents: [
+              {
+                parts: [
+                  {
+                    text: prompt,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 2048,
+            },
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            timeout: 60000,
+          }
+        );
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error;
+
+        if (axios.isAxiosError(error) && error.response?.status === 503) {
+          if (attempt < maxRetries) {
+            const waitTime = 10000 * (attempt + 1);
+            console.log(`Service unavailable (503), waiting ${waitTime/1000}s before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+        }
+
+        throw error;
+      }
+    }
+
+    if (!response) {
+      throw lastError;
+    }
+
+    const data: GeminiResponse = response.data;
+
+    if (data.error) {
+      return {
+        recipe: null,
+        success: false,
+        error: `Gemini API error: ${data.error.message}`,
+      };
+    }
+
+    if (!data.candidates || data.candidates.length === 0) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'No response from Gemini API',
+      };
+    }
+
+    const responseText = data.candidates[0].content.parts[0].text;
+    console.log('Gemini response received for course regeneration');
+
+    // Parse JSON response
+    try {
+      let jsonStr = responseText;
+      const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*\})\s*```/);
+      if (jsonMatch) {
+        jsonStr = jsonMatch[1];
+      }
+
+      const parsed = JSON.parse(jsonStr);
+
+      // Convert steps to Step objects
+      const steps: Step[] = (parsed.steps || [])
+        .filter((inst: any) => {
+          if (typeof inst === 'string') {
+            return inst && inst.trim();
+          } else if (inst && typeof inst === 'object' && inst.text) {
+            return inst.text.trim();
+          }
+          return false;
+        })
+        .map((inst: any) => {
+          if (typeof inst === 'string') {
+            return { text: inst };
+          } else {
+            return { text: inst.text, image: inst.image, cookingAction: inst.cookingAction };
+          }
+        });
+
+      const recipe: ScrapedRecipe & {
+        missingIngredients?: string[];
+        substitutions?: Array<{ missing: string; substitutes: string[] }>;
+        matchPercentage?: number;
+        courseType?: string;
+      } = {
+        title: parsed.title || 'Generated Recipe',
+        description: parsed.description || '',
+        ingredients: parsed.ingredients || [],
+        steps,
+        cookTime: parsed.cookTime || 30,
+        prepTime: parsed.prepTime || 15,
+        servings: parsed.servings || 4,
+        category: parsed.category || 'Main Course',
+        tags: parsed.tags || [],
+        missingIngredients: parsed.missingIngredients || [],
+        substitutions: parsed.substitutions || [],
+        matchPercentage: parsed.matchPercentage || 100,
+        courseType: parsed.courseType || courseType,
+      };
+
+      console.log(`Successfully regenerated ${courseType} course: ${recipe.title}`);
+
+      return {
+        recipe,
+        success: true,
+      };
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', parseError);
+      return {
+        recipe: null,
+        success: false,
+        error: 'Failed to parse recipe data from Gemini response',
+      };
+    }
+  } catch (error) {
+    console.error(`Error regenerating ${courseType} course:`, error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      if (status === 429) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'API rate limit exceeded. Please try again later.',
+        };
+      }
+      if (status === 403) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'API key is invalid or expired.',
+        };
+      }
+      if (status === 503) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'AI service is temporarily unavailable.',
+        };
+      }
+    }
+
+    return {
+      recipe: null,
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
     };
   }
 }

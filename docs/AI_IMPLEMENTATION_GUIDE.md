@@ -298,6 +298,12 @@ const recipe = parseRecipeFromText('', imageUri);
 
 ## My Fridge Feature
 
+### Overview
+
+My Fridge allows users to input available ingredients and generate recipes using two modes:
+- **Quick Recipes**: Generate 2 recipe ideas + find similar recipes from your collection
+- **Full Course Menu**: Generate a complete 3-course meal (Appetizer, Main, Dessert)
+
 ### Implementation
 
 **1. Ingredient Search:**
@@ -306,8 +312,8 @@ Uses Spoonacular API for autocomplete:
 const results = await searchIngredients(query);
 ```
 
-**2. Recipe Generation:**
-Uses Gemini to generate recipes:
+**2. Recipe Generation (Quick Mode):**
+Generates 2 recipes with automatic appliance detection:
 ```typescript
 const recipes = await generateMultipleRecipesFromIngredients({
   ingredients,
@@ -315,9 +321,41 @@ const recipes = await generateMultipleRecipesFromIngredients({
   ...preferences,
   excludeTitles: generatedRecipeTitles,
 });
+
+// Auto-detect appliances for each recipe
+for (const recipe of recipes) {
+  const applianceResult = await analyzeCookingActionsWithGemini(
+    recipe.title,
+    recipe.description,
+    recipe.steps,
+    recipe.cookTime
+  );
+  if (applianceResult) {
+    recipe.chefiqSuggestions = applianceResult;
+    recipe.steps = mapActionsToSteps(recipe.steps, applianceResult.suggestedActions);
+  }
+}
 ```
 
-**3. Ingredient Matching:**
+**3. Full Course Menu Generation:**
+Requires minimum 5 ingredients, generates 3 courses:
+```typescript
+const fullCourse = await generateFullCourseMenu(
+  ingredients,
+  dietary,
+  cuisine,
+  cookingTime
+);
+// Returns: [Appetizer, Main Course, Dessert]
+```
+
+**Features:**
+- Auto-generates cover images for all recipes
+- Detects ChefIQ appliances for each course
+- Allows individual course regeneration
+- Batch save selected courses
+
+**4. Ingredient Matching:**
 Fuzzy matching algorithm:
 ```typescript
 const match = findBestIngredientMatch(
@@ -335,10 +373,11 @@ const match = findBestIngredientMatch(
 ### Recipe Variety
 
 AI generates diverse recipes:
-- Different categories (Main, Side, Dessert)
+- Different categories (Main, Side, Dessert, Appetizer)
 - Different cooking methods
 - Varying difficulty levels
 - Different cuisines
+- Automatic ChefIQ appliance detection
 
 ### Substitution Suggestions
 
@@ -353,6 +392,38 @@ When ingredients missing:
   ]
 }
 ```
+
+### Appliance Detection
+
+All MyFridge recipes automatically detect compatible ChefIQ appliances:
+```typescript
+const analysis = await analyzeCookingActionsWithGemini(
+  recipe.title,
+  recipe.description,
+  recipe.steps,
+  recipe.cookTime
+);
+
+// Returns:
+{
+  suggestedAppliance: "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+  suggestedActions: [
+    {
+      stepIndex: 0,
+      applianceId: "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+      methodId: "1",
+      methodName: "Sear/Sauté",
+      parameters: { cooking_time: 180, temp_level: 2 }
+    }
+  ],
+  confidence: 0.95
+}
+```
+
+This data is used to:
+- Display appliance cards in recipe detail
+- Show cooking actions in each step
+- Enable one-tap cooking with ChefIQ integration
 
 ---
 

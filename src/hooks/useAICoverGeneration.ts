@@ -20,7 +20,7 @@ export interface UseAICoverGenerationResult {
 
 /**
  * Shared hook for AI cover image generation
- * Generates AI cover image using Imagen 3 and uploads to Firebase Storage
+ * Generates AI cover image using Imagen 4 and uploads to Firebase Storage
  * Returns download URL for use in recipe
  */
 export function useAICoverGeneration(): UseAICoverGenerationResult {
@@ -49,7 +49,7 @@ export function useAICoverGeneration(): UseAICoverGenerationResult {
       console.log('Generating AI cover for recipe:', recipe.title);
       setGenerationStep('Generating professional cover photo...');
 
-      // Generate image with Imagen 3
+      // Generate image with Imagen 4
       const imageResult = await generateRecipeImage(
         {
           title: recipe.title,

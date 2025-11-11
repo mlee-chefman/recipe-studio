@@ -164,6 +164,22 @@ export const createStyles = (theme: Theme) =>
       fontWeight: '600',
       color: theme.colors.warning.dark,
     },
+    shopButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.xs,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      backgroundColor: theme.colors.success.main,
+      borderRadius: theme.borderRadius.lg,
+      marginTop: theme.spacing.md,
+    },
+    shopButtonText: {
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: '600',
+      color: '#fff',
+    },
 
     // Missing Ingredients Section
     missingSection: {
@@ -193,6 +209,23 @@ export const createStyles = (theme: Theme) =>
     missingText: {
       fontSize: theme.typography.fontSize.base,
       color: theme.colors.error.main,
+    },
+    addMissingToCartButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.success.main,
+      borderRadius: theme.borderRadius.lg,
+      marginTop: theme.spacing.md,
+      ...theme.shadows.md,
+    },
+    addMissingToCartText: {
+      fontSize: theme.typography.fontSize.base,
+      fontWeight: '600',
+      color: '#fff',
     },
 
     // Substitutions Section
@@ -293,13 +326,93 @@ export const createStyles = (theme: Theme) =>
     },
 
     // Ingredients
+    ingredientsHeader: {
+      marginBottom: theme.spacing.md,
+    },
+    selectionControls: {
+      marginTop: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.sm,
+    },
+    selectionCount: {
+      fontSize: theme.typography.fontSize.sm,
+      color: theme.colors.text.tertiary,
+      marginBottom: theme.spacing.xs,
+    },
+    selectionButtons: {
+      flexDirection: 'row',
+      gap: theme.spacing.sm,
+    },
+    selectionButton: {
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.borderRadius.md,
+      backgroundColor: theme.colors.primary[100],
+    },
+    selectionButtonDisabled: {
+      opacity: 0.5,
+    },
+    selectionButtonText: {
+      fontSize: theme.typography.fontSize.xs,
+      fontWeight: '600',
+      color: theme.colors.primary.main,
+    },
+    selectionButtonTextDisabled: {
+      color: theme.colors.text.tertiary,
+    },
+    ingredientsListContainer: {
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: theme.spacing.md,
+      marginBottom: theme.spacing.md,
+    },
     ingredientItem: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing.md,
       paddingVertical: theme.spacing.sm,
     },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderRadius: 4,
+      borderWidth: 2,
+      borderColor: theme.colors.gray[300],
+      backgroundColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxSelected: {
+      borderColor: theme.colors.primary.main,
+      backgroundColor: theme.colors.primary.main,
+    },
+    ingredientImageContainer: {
+      width: 32,
+      height: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    ingredientImage: {
+      width: 32,
+      height: 32,
+      borderRadius: 6,
+      backgroundColor: theme.colors.gray[100],
+    },
+    ingredientImagePlaceholder: {
+      width: 32,
+      height: 32,
+      borderRadius: 6,
+      backgroundColor: theme.colors.gray[100],
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    ingredientBulletContainer: {
+      width: 32,
+      height: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     ingredientText: {
+      flex: 1,
       fontSize: theme.typography.fontSize.base,
       color: theme.colors.text.primary,
       lineHeight: 22,
@@ -307,6 +420,26 @@ export const createStyles = (theme: Theme) =>
     ingredientTextModified: {
       color: theme.colors.primary.main,
       fontWeight: '600',
+    },
+    addIngredientsToCartButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
+      paddingVertical: theme.spacing.md,
+      paddingHorizontal: theme.spacing.lg,
+      backgroundColor: theme.colors.success.main,
+      borderRadius: theme.borderRadius.lg,
+      ...theme.shadows.md,
+    },
+    addIngredientsToCartButtonDisabled: {
+      backgroundColor: theme.colors.gray[400],
+      opacity: 0.6,
+    },
+    addIngredientsToCartText: {
+      fontSize: theme.typography.fontSize.base,
+      fontWeight: '600',
+      color: '#fff',
     },
 
     // Instructions

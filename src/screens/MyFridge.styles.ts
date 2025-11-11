@@ -269,6 +269,42 @@ export const createStyles = (theme: Theme) =>
       textAlign: 'center',
       marginTop: 6,
     },
+    ctaSpacer: {
+      height: theme.spacing.md,
+    },
+
+    // Mode Toggle Styles
+    modeToggleContainer: {
+      flexDirection: 'row' as const,
+      backgroundColor: theme.colors.background.secondary,
+      borderRadius: theme.borderRadius.lg,
+      padding: 4,
+      marginBottom: theme.spacing.md,
+    },
+    modeToggleButton: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: theme.borderRadius.md,
+      alignItems: 'center' as const,
+    },
+    modeToggleButtonActive: {
+      backgroundColor: theme.colors.primary.main,
+    },
+    modeToggleButtonDisabled: {
+      opacity: 0.5,
+    },
+    modeToggleText: {
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: '600' as const,
+      color: theme.colors.text.secondary,
+    },
+    modeToggleTextActive: {
+      color: '#fff',
+    },
+    modeToggleTextDisabled: {
+      color: theme.colors.text.secondary,
+      opacity: 0.5,
+    },
 
     // Recipe Card Styles
     recipeCardContainer: {

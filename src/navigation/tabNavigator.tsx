@@ -312,8 +312,8 @@ const Tab = createBottomTabNavigator({
     MyFridge: {
       screen: MyFridge,
       options: () => ({
-        title: 'My Fridge',
-        tabBarLabel: 'My Fridge',
+        title: 'My Kitchen',
+        tabBarLabel: 'My Kitchen',
         tabBarIcon: ({ color }) => <TabBarIcon name="cube" color={color} />,
         headerRight: () => <MyFridgeHeaderRightButtons />,
       }),

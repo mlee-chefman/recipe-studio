@@ -27,6 +27,7 @@ import {
   MatchingStrictness,
   RecipeSource,
 } from '~/types/ingredient';
+import { CartItem, GroceryCart } from '~/types/shopping';
 
 export type ViewMode = 'detailed' | 'compact' | 'grid';
 export type SortOption = 'newest' | 'oldest' | 'title-asc' | 'title-desc' | 'cooktime-asc' | 'cooktime-desc';
@@ -116,6 +117,8 @@ export interface FridgeState {
   preferences: FridgePreferences;
   // Track generated recipe titles to avoid duplicates
   generatedRecipeTitles: string[];
+  // Temporary holder for updated recipe from detail screen
+  pendingRecipeUpdate: { recipe: any; index: number } | null;
   // Loading and error states
   isLoading: boolean;
   error: string | null;
@@ -135,6 +138,8 @@ export interface FridgeState {
   // Actions for tracking generated recipes
   addGeneratedRecipeTitle: (title: string) => void;
   clearGeneratedRecipeTitles: () => void;
+  // Actions for pending recipe updates
+  setPendingRecipeUpdate: (update: { recipe: any; index: number } | null) => void;
 }
 
 export const useStore = create<BearState>((set) => ({
@@ -784,6 +789,7 @@ export const useFridgeStore = create<FridgeState>()(
         recipeSource: 'ai',
       },
       generatedRecipeTitles: [],
+      pendingRecipeUpdate: null,
       isLoading: false,
       error: null,
 
@@ -853,10 +859,346 @@ export const useFridgeStore = create<FridgeState>()(
       clearGeneratedRecipeTitles: () => {
         set({ generatedRecipeTitles: [] });
       },
+
+      // Pending recipe update actions
+      setPendingRecipeUpdate: (update: { recipe: any; index: number } | null) => {
+        set({ pendingRecipeUpdate: update });
+      },
     }),
     {
       name: 'fridge-storage',
       storage: createJSONStorage(() => AsyncStorage),
+    }
+  )
+);
+
+/**
+ * Grocery Cart Store
+ * Firebase-backed shopping cart with AsyncStorage cache
+ * Syncs across devices and persists through app reinstalls
+ */
+export interface CartState {
+  items: CartItem[];
+  totalItems: number;
+  recipeIds: string[];
+  isLoading: boolean;
+  error: string | null;
+
+  // Actions
+  fetchCart: (userId: string) => Promise<void>;
+  addItems: (items: CartItem[], userId: string) => Promise<void>;
+  removeItem: (itemId: string, userId: string) => Promise<void>;
+  removeRecipeItems: (recipeId: string, userId: string) => Promise<void>;
+  updateItemQuantity: (itemId: string, quantity: number, userId: string) => Promise<void>;
+  toggleItemSelection: (itemId: string, userId: string) => Promise<void>;
+  updateRecipeServings: (recipeId: string, newServings: number, userId: string) => Promise<void>;
+  clearCart: (userId: string) => Promise<void>;
+  getItemsByRecipe: (recipeId: string) => CartItem[];
+  getRecipeCount: () => number;
+  isRecipeInCart: (recipeId: string) => boolean;
+}
+
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      totalItems: 0,
+      recipeIds: [],
+      isLoading: false,
+      error: null,
+
+      // Fetch cart from Firebase
+      fetchCart: async (userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          const { getCart } = await import('../modules/cart/cartService');
+          const cart = await getCart(userId);
+
+          set({
+            items: cart.items,
+            totalItems: cart.totalItems,
+            recipeIds: cart.recipeIds,
+            isLoading: false,
+          });
+        } catch (error) {
+          console.error('Error fetching cart:', error);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to fetch cart',
+            isLoading: false,
+          });
+        }
+      },
+
+      // Add items to cart (Firebase + local)
+      addItems: async (newItems: CartItem[], userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Optimistic update (update UI immediately)
+          const existingItems = get().items;
+          const updatedItems = [...existingItems, ...newItems];
+          const uniqueRecipeIds = Array.from(
+            new Set(updatedItems.map(item => item.recipeId))
+          );
+
+          set({
+            items: updatedItems,
+            totalItems: updatedItems.length,
+            recipeIds: uniqueRecipeIds,
+          });
+
+          // Sync to Firebase
+          const { addItemsToCart } = await import('../modules/cart/cartService');
+          await addItemsToCart(userId, newItems);
+
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error adding items to cart:', error);
+          // Revert optimistic update on error
+          await get().fetchCart(userId);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to add items',
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      // Remove single item (Firebase + local)
+      removeItem: async (itemId: string, userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Optimistic update
+          const updatedItems = get().items.filter(item => item.id !== itemId);
+          const uniqueRecipeIds = Array.from(
+            new Set(updatedItems.map(item => item.recipeId))
+          );
+
+          set({
+            items: updatedItems,
+            totalItems: updatedItems.length,
+            recipeIds: uniqueRecipeIds,
+          });
+
+          // Sync to Firebase
+          const { removeItemFromCart } = await import('../modules/cart/cartService');
+          await removeItemFromCart(userId, itemId);
+
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error removing item from cart:', error);
+          // Revert optimistic update on error
+          await get().fetchCart(userId);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to remove item',
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      // Remove all items from a recipe (Firebase + local)
+      removeRecipeItems: async (recipeId: string, userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Optimistic update
+          const updatedItems = get().items.filter(item => item.recipeId !== recipeId);
+          const uniqueRecipeIds = Array.from(
+            new Set(updatedItems.map(item => item.recipeId))
+          );
+
+          set({
+            items: updatedItems,
+            totalItems: updatedItems.length,
+            recipeIds: uniqueRecipeIds,
+          });
+
+          // Sync to Firebase
+          const { removeRecipeFromCart } = await import('../modules/cart/cartService');
+          await removeRecipeFromCart(userId, recipeId);
+
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error removing recipe items from cart:', error);
+          // Revert optimistic update on error
+          await get().fetchCart(userId);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to remove recipe items',
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      // Update item quantity (Firebase + local)
+      updateItemQuantity: async (itemId: string, quantity: number, userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Optimistic update
+          const updatedItems = get().items.map(item => {
+            if (item.id === itemId) {
+              return { ...item, quantity };
+            }
+            return item;
+          });
+
+          set({ items: updatedItems });
+
+          // Sync to Firebase
+          const { updateItemQuantity: updateItemQty } = await import('../modules/cart/cartService');
+          await updateItemQty(userId, itemId, quantity);
+
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error updating item quantity:', error);
+          // Revert optimistic update on error
+          await get().fetchCart(userId);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to update quantity',
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      // Toggle item selection (Firebase + local)
+      toggleItemSelection: async (itemId: string, userId: string) => {
+        try {
+          // Optimistic update (no loading spinner for instant feedback)
+          const updatedItems = get().items.map(item =>
+            item.id === itemId ? { ...item, selected: !item.selected } : item
+          );
+
+          set({ items: updatedItems });
+
+          // Sync to Firebase in background
+          const { updateCart } = await import('../modules/cart/cartService');
+          await updateCart(userId, {
+            items: updatedItems,
+            totalItems: updatedItems.length,
+            recipeIds: get().recipeIds,
+          });
+        } catch (error) {
+          console.error('Error toggling item selection:', error);
+          // Revert optimistic update on error
+          await get().fetchCart(userId);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to update selection',
+          });
+          throw error;
+        }
+      },
+
+      // Update recipe servings and scale all ingredients (Firebase + local)
+      updateRecipeServings: async (recipeId: string, newServings: number, userId: string) => {
+        try {
+          // Get all items for this recipe
+          const recipeItems = get().items.filter(item => item.recipeId === recipeId);
+          if (recipeItems.length === 0) {
+            return;
+          }
+
+          // Calculate scale factor
+          const originalServings = recipeItems[0].recipeOriginalServings;
+          const oldServings = recipeItems[0].recipeServings;
+          const scaleFactor = newServings / originalServings;
+
+          // Update all items for this recipe with scaled quantities (optimistic update)
+          const updatedItems = get().items.map(item => {
+            if (item.recipeId !== recipeId) {
+              return item;
+            }
+
+            // Parse the original ingredient to get base quantity
+            const baseQuantity = item.quantity ? item.quantity / (oldServings / originalServings) : undefined;
+
+            // Scale the quantity
+            const newQuantity = baseQuantity ? baseQuantity * scaleFactor : undefined;
+
+            return {
+              ...item,
+              recipeServings: newServings,
+              quantity: newQuantity,
+            };
+          });
+
+          set({ items: updatedItems });
+
+          // Sync to Firebase in background
+          const { updateCart } = await import('../modules/cart/cartService');
+          await updateCart(userId, {
+            items: updatedItems,
+            totalItems: updatedItems.length,
+            recipeIds: get().recipeIds,
+          });
+        } catch (error) {
+          console.error('Error updating recipe servings:', error);
+          // Revert optimistic update on error
+          await get().fetchCart(userId);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to update servings',
+          });
+          throw error;
+        }
+      },
+
+      // Clear entire cart (Firebase + local)
+      clearCart: async (userId: string) => {
+        try {
+          set({ isLoading: true, error: null });
+
+          // Optimistic update
+          set({
+            items: [],
+            totalItems: 0,
+            recipeIds: [],
+          });
+
+          // Sync to Firebase
+          const { clearCart: clearCartService } = await import('../modules/cart/cartService');
+          await clearCartService(userId);
+
+          set({ isLoading: false });
+        } catch (error) {
+          console.error('Error clearing cart:', error);
+          // Revert optimistic update on error
+          await get().fetchCart(userId);
+          set({
+            error: error instanceof Error ? error.message : 'Failed to clear cart',
+            isLoading: false,
+          });
+          throw error;
+        }
+      },
+
+      // Get items by recipe (local only - no Firebase call needed)
+      getItemsByRecipe: (recipeId: string) => {
+        return get().items.filter(item => item.recipeId === recipeId);
+      },
+
+      // Get recipe count (local only - no Firebase call needed)
+      getRecipeCount: () => {
+        return get().recipeIds.length;
+      },
+
+      // Check if recipe is in cart (local only - no Firebase call needed)
+      isRecipeInCart: (recipeId: string) => {
+        return get().recipeIds.includes(recipeId);
+      },
+    }),
+    {
+      name: 'grocery-cart-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      // Only persist items for offline support, not loading/error states
+      partialize: (state) => ({
+        items: state.items,
+        totalItems: state.totalItems,
+        recipeIds: state.recipeIds,
+      }),
     }
   )
 );

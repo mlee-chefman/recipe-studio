@@ -116,3 +116,72 @@ export function getCacheStats(): { size: number; keys: string[] } {
     keys: Array.from(autocompleteCache.keys()),
   };
 }
+
+/**
+ * Get ingredient image URL from Spoonacular
+ * Image URLs are FREE - they're returned from the autocomplete API
+ * @param ingredientName - Name of the ingredient (e.g., "flour")
+ * @returns Image URL or undefined if not found
+ */
+export async function getIngredientImage(
+  ingredientName: string
+): Promise<string | undefined> {
+  try {
+    // Search for ingredient via autocomplete (returns with image URLs)
+    const result = await getIngredientAutocomplete(ingredientName, 1);
+
+    if (!result.success || !result.data || result.data.length === 0) {
+      return undefined;
+    }
+
+    const ingredient = result.data[0];
+
+    // Construct full image URL
+    // Spoonacular image format: https://spoonacular.com/cdn/ingredients_100x100/[image]
+    if (ingredient.image) {
+      return `https://spoonacular.com/cdn/ingredients_100x100/${ingredient.image}`;
+    }
+
+    return undefined;
+  } catch (error) {
+    console.error('Error fetching ingredient image:', error);
+    return undefined;
+  }
+}
+
+/**
+ * Get images for multiple ingredients at once
+ * Uses batching to reduce API calls
+ * @param ingredientNames - Array of ingredient names
+ * @returns Map of ingredient name to image URL
+ */
+export async function getIngredientImages(
+  ingredientNames: string[]
+): Promise<Map<string, string>> {
+  const imageMap = new Map<string, string>();
+
+  // Process in batches to avoid rate limiting
+  const batchSize = 5;
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  for (let i = 0; i < ingredientNames.length; i += batchSize) {
+    const batch = ingredientNames.slice(i, i + batchSize);
+
+    // Fetch all images in parallel within batch
+    const promises = batch.map(async (name) => {
+      const image = await getIngredientImage(name);
+      if (image) {
+        imageMap.set(name, image);
+      }
+    });
+
+    await Promise.all(promises);
+
+    // Add delay between batches to respect rate limits
+    if (i + batchSize < ingredientNames.length) {
+      await delay(1000); // 1 second delay between batches
+    }
+  }
+
+  return imageMap;
+}

@@ -11,9 +11,9 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { signOutUser } from '../modules/user/userAuth';
-import { useAuthStore, useThemeStore } from '../store/store';
+import { useAuthStore, useThemeStore, useCartStore } from '../store/store';
 import { updateUserProfile } from '../modules/user/userService';
-import { AvatarPickerModal } from '@components/modals';
+import { AvatarPickerModal, ConfirmationModal } from '@components/modals';
 import { themeMetadata } from '@theme/variants';
 import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
@@ -23,7 +23,9 @@ export default function SettingsScreen() {
   const navigation = useNavigation();
   const { user, userProfile, setUserProfile, signOut } = useAuthStore();
   const { themeVariant } = useThemeStore();
+  const { totalItems } = useCartStore();
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
   const styles = useStyles(createStyles);
 
   const handleAvatarSelect = async (avatarUrl: string) => {
@@ -50,35 +52,24 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Sign out from Firebase
-              await signOutUser();
+  const handleSignOut = () => {
+    setShowSignOutModal(true);
+  };
 
-              // Clear local auth state
-              // Note: We keep credentials saved in secure storage
-              // so user can easily sign back in
-              signOut();
-            } catch (error) {
-              console.error('Error signing out:', error);
-              Alert.alert('Error', 'Failed to sign out');
-            }
-          },
-        },
-      ]
-    );
+  const confirmSignOut = async () => {
+    setShowSignOutModal(false);
+    try {
+      // Sign out from Firebase
+      await signOutUser();
+
+      // Clear local auth state
+      // Note: We keep credentials saved in secure storage
+      // so user can easily sign back in
+      signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+      Alert.alert('Error', 'Failed to sign out');
+    }
   };
 
   return (
@@ -119,6 +110,37 @@ export default function SettingsScreen() {
               <Text style={styles.value}>{user?.email || 'Not set'}</Text>
             </View>
           </View>
+        </View>
+
+        {/* Shopping Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Shopping</Text>
+          <TouchableOpacity
+            style={styles.settingsOption}
+            onPress={() => {
+              // @ts-ignore - Navigation typing issue
+              navigation.navigate('GroceryCart');
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <View
+                style={[
+                  styles.optionIcon,
+                  { backgroundColor: theme.colors.success.main },
+                ]}
+              >
+                <Feather name="shopping-cart" size={20} color="white" />
+              </View>
+              <View style={styles.optionText}>
+                <Text style={styles.optionTitle}>Grocery Cart</Text>
+                <Text style={styles.optionSubtitle}>
+                  {totalItems === 0 ? 'No items' : `${totalItems} ${totalItems === 1 ? 'item' : 'items'}`}
+                </Text>
+              </View>
+            </View>
+            <Feather name="chevron-right" size={20} color={theme.colors.text.secondary} />
+          </TouchableOpacity>
         </View>
 
         {/* Appearance Section */}
@@ -164,6 +186,18 @@ export default function SettingsScreen() {
         currentAvatar={userProfile?.profilePicture}
         onSelect={handleAvatarSelect}
         onClose={() => setShowAvatarPicker(false)}
+      />
+
+      {/* Sign Out Confirmation Modal */}
+      <ConfirmationModal
+        visible={showSignOutModal}
+        title="Sign Out"
+        message="Are you sure you want to sign out?"
+        confirmText="Sign Out"
+        cancelText="Cancel"
+        confirmStyle="danger"
+        onConfirm={confirmSignOut}
+        onCancel={() => setShowSignOutModal(false)}
       />
     </ScrollView>
   );

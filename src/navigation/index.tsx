@@ -12,6 +12,7 @@ import RecipeTextImport from '@screens/RecipeTextImport';
 import RecipePDFImport from '@screens/RecipePDFImport';
 import RecipeSelection from '@screens/RecipeSelection';
 import ThemeSettings from '@screens/ThemeSettings';
+import GroceryCart from '@screens/GroceryCart';
 import MyFridgeRecipeDetail from '@screens/MyFridgeRecipeDetail';
 import SignUpScreen from '@screens/signup';
 import SignInScreen from '@screens/signin';
@@ -154,7 +155,14 @@ const MainStack = createStackNavigator({
         presentation: 'card',
         title: 'Theme Settings',
       },
-    }
+    },
+    GroceryCart: {
+      screen: GroceryCart,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+      },
+    },
   },
 });
 

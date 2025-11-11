@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
@@ -14,6 +14,7 @@ interface RecipeResultCardProps {
   substitutions?: Array<{ missing: string; substitutes: string[] }>;
   onPress: () => void;
   source: 'ai' | 'existing';
+  isRegenerating?: boolean;
 }
 
 export function RecipeResultCard({
@@ -23,6 +24,7 @@ export function RecipeResultCard({
   substitutions = [],
   onPress,
   source,
+  isRegenerating = false,
 }: RecipeResultCardProps) {
   const styles = useStyles(createStyles);
   const theme = useAppTheme();
@@ -38,11 +40,21 @@ export function RecipeResultCard({
   };
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress}>
-      {/* Recipe Image */}
-      {recipe.image && (
-        <Image source={{ uri: recipe.image }} style={styles.image} resizeMode="cover" />
-      )}
+    <TouchableOpacity style={styles.card} onPress={onPress} disabled={isRegenerating}>
+      {/* Recipe Image with Loading Overlay */}
+      <View style={styles.imageContainer}>
+        {recipe.image && (
+          <Image source={{ uri: recipe.image }} style={styles.image} resizeMode="cover" />
+        )}
+
+        {/* Loading Overlay */}
+        {isRegenerating && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={theme.colors.primary.main} />
+            <Text style={styles.loadingText}>Regenerating...</Text>
+          </View>
+        )}
+      </View>
 
       {/* Header with match percentage */}
       <View style={styles.header}>
@@ -156,10 +168,31 @@ const createStyles = (theme: Theme) =>
       borderColor: theme.colors.border.default,
       overflow: 'hidden',
     },
+    imageContainer: {
+      position: 'relative',
+      width: '100%',
+      height: 200,
+    },
     image: {
       width: '100%',
       height: 200,
       backgroundColor: theme.colors.background.tertiary,
+    },
+    loadingOverlay: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 12,
+    },
+    loadingText: {
+      color: '#fff',
+      fontSize: 14,
+      fontWeight: '600',
     },
     header: {
       flexDirection: 'row',
