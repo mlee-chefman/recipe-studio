@@ -107,7 +107,7 @@ export default function RecipeWebImportScreen() {
             paddingRight: theme.spacing.sm,
           }}
         >
-          <Feather name="x" size={24} color={theme.colors.text.secondary} />
+          <Feather name="chevron-left" size={28} color={theme.colors.text.primary} />
         </TouchableOpacity>
       ),
       headerTitle: () => (

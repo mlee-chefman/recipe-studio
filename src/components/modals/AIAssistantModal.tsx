@@ -19,6 +19,12 @@ interface AIAssistantModalProps {
   onGenerate: () => void;
   isGenerating: boolean;
   remainingGenerations: RemainingGenerations | null;
+  enhanceMode?: boolean; // If true, shows "enhance" UI instead of "generate from scratch"
+  recipeContext?: {
+    title?: string;
+    ingredients?: string[];
+    steps?: string[];
+  };
 }
 
 export function AIAssistantModal({
@@ -29,8 +35,16 @@ export function AIAssistantModal({
   onGenerate,
   isGenerating,
   remainingGenerations,
+  enhanceMode = false,
+  recipeContext,
 }: AIAssistantModalProps) {
   const styles = useStyles(createStyles);
+
+  const hasRecipeContent = recipeContext && (
+    (recipeContext.title && recipeContext.title.trim() !== '') ||
+    (recipeContext.ingredients && recipeContext.ingredients.some(i => i.trim() !== '')) ||
+    (recipeContext.steps && recipeContext.steps.some(s => s.trim() !== ''))
+  );
 
   return (
     <BaseModal
@@ -45,19 +59,23 @@ export function AIAssistantModal({
         {/* Header */}
         <View style={styles.header}>
           <MaterialCommunityIcons
-            name="robot-excited"
+            name={enhanceMode ? "auto-fix" : "robot-excited"}
             size={28}
             color={theme.colors.primary[500]}
             style={styles.headerIcon}
           />
           <Text style={styles.title}>
-            AI Recipe Assistant
+            {enhanceMode ? 'AI Recipe Enhancer' : 'AI Recipe Assistant'}
           </Text>
         </View>
 
         {/* Description */}
         <Text style={styles.description}>
-          Don't know where to start? Describe what you want to cook and let AI generate a complete recipe for you!
+          {enhanceMode
+            ? hasRecipeContent
+              ? 'Tell AI how to improve your recipe. You can ask to simplify, add steps, change cooking methods, make it healthier, and more!'
+              : 'Stuck or don\'t know where to start? Ask AI anything! Draft a recipe, get suggestions, or brainstorm ideas.'
+            : 'Don\'t know where to start? Describe what you want to cook and let AI generate a complete recipe for you!'}
         </Text>
 
         {/* Remaining generations */}
@@ -72,7 +90,11 @@ export function AIAssistantModal({
         {/* Input */}
         <TextInput
           style={styles.input}
-          placeholder='e.g., "simple pork chop" or "easy chicken pasta"'
+          placeholder={enhanceMode
+            ? hasRecipeContent
+              ? 'e.g., "make this vegetarian" or "add grilling to step 3"'
+              : 'e.g., "quick chicken dinner for 4" or "what can I make with rice and chicken?"'
+            : 'e.g., "simple pork chop" or "easy chicken pasta"'}
           placeholderTextColor={theme.colors.gray[400]}
           value={aiDescription}
           onChangeText={onChangeDescription}
@@ -81,7 +103,7 @@ export function AIAssistantModal({
           autoFocus
         />
 
-        {/* Generate Button */}
+        {/* Generate/Enhance Button */}
         <TouchableOpacity
           onPress={onGenerate}
           disabled={isGenerating || !aiDescription.trim()}
@@ -94,12 +116,16 @@ export function AIAssistantModal({
             <View style={styles.generatingContent}>
               <ActivityIndicator color="white" size="small" />
               <Text style={styles.generateButtonText}>
-                Generating Recipe...
+                {enhanceMode
+                  ? hasRecipeContent ? 'Enhancing Recipe...' : 'Generating Draft...'
+                  : 'Generating Recipe...'}
               </Text>
             </View>
           ) : (
             <Text style={styles.generateButtonText}>
-              Generate Recipe
+              {enhanceMode
+                ? hasRecipeContent ? 'Enhance Recipe' : 'Generate Draft'
+                : 'Generate Recipe'}
             </Text>
           )}
         </TouchableOpacity>

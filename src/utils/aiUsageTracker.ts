@@ -3,10 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Usage limits configuration
 export const USAGE_LIMITS = {
   FREE_TIER: {
-    recipeGenerationsPerDay: 10,
-    recipeGenerationsPerMonth: 40,
-    imageGenerationsPerDay: 50, // Increased for full course menu support (4 images per menu)
-    imageGenerationsPerMonth: 150, // Increased accordingly
+    recipeGenerationsPerDay: 100,
+    recipeGenerationsPerMonth: 400,
+    imageGenerationsPerDay: 500, // Increased for full course menu support (4 images per menu)
+    imageGenerationsPerMonth: 1500, // Increased accordingly
   },
 };
 

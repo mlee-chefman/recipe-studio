@@ -1038,3 +1038,237 @@ Return a JSON object (NOT an array) with the following structure:
 
 Return the ${courseType} recipe as a JSON object:`;
 }
+
+/**
+ * Creates a detailed prompt for enhancing an existing recipe with AI
+ */
+export function createRecipeEnhancementPrompt(
+  currentRecipe: {
+    title: string;
+    ingredients: string[];
+    steps: string[];
+    notes?: string;
+    applianceName?: string;
+    cookingMethods?: string[];
+  },
+  enhancementInstruction: string
+): string {
+  const ingredientsText = currentRecipe.ingredients.filter(i => i.trim()).join('\n');
+  const stepsText = currentRecipe.steps.filter(s => s.trim()).map((step, i) => `${i + 1}. ${step}`).join('\n');
+  const cookingMethodsText = currentRecipe.cookingMethods && currentRecipe.cookingMethods.length > 0
+    ? `\n**Smart Cooking Methods:** Using ${currentRecipe.applianceName || 'smart appliance'} with methods: ${currentRecipe.cookingMethods.join(', ')}`
+    : '';
+
+  // Detect if recipe is mostly empty (user is stuck)
+  const hasTitle = currentRecipe.title && currentRecipe.title.trim() !== '';
+  const hasIngredients = ingredientsText.length > 0;
+  const hasSteps = stepsText.length > 0;
+  const isEmptyRecipe = !hasTitle && !hasIngredients && !hasSteps;
+
+  const modeDescription = isEmptyRecipe
+    ? `You are a professional chef and recipe assistant. The user is starting from scratch or needs help brainstorming. Your task is to help them create a recipe based on their request or question.`
+    : `You are a professional chef and recipe enhancer. Your task is to improve and modify ${hasTitle ? 'this recipe' : 'a recipe in progress'} based on the user's specific instructions.`;
+
+  return `${modeDescription}
+
+**Current Recipe:**
+
+**Title:** ${currentRecipe.title || 'Untitled Recipe'}
+
+**Ingredients:**
+${ingredientsText || 'No ingredients yet'}
+
+**Instructions:**
+${stepsText || 'No steps yet'}
+
+${currentRecipe.notes ? `**Notes:** ${currentRecipe.notes}` : ''}${cookingMethodsText}
+
+**User's ${isEmptyRecipe ? 'Request' : 'Enhancement Request'}:** "${enhancementInstruction}"
+
+${isEmptyRecipe ? `
+**Your Role:**
+- Help the user create a complete recipe based on their request
+- If they're asking a question (e.g., "what can I make?"), provide suggestions and then create a recipe
+- Make the recipe detailed and complete with all steps
+- Include smart cooking methods if appropriate for the recipe
+` : ''}
+
+**ChefIQ Smart Appliances & Available Cooking Methods:**
+
+**iQ Cooker** - Multi-purpose pressure cooker with these methods:
+- Pressure Cook: High-pressure cooking for quick meals
+- Sear/Sauté: Browning and sautéing at various heat levels
+- Steam: Gentle steaming for vegetables and fish
+- Slow Cook: Long, slow cooking at various temperatures
+- Sous Vide: Precision temperature water bath cooking
+
+**iQ MiniOven** - Smart countertop oven with these methods:
+- Bake: Traditional baking with convection fan control
+- Air Fry: High-heat circulating air for crispy results
+- Roast: Convection roasting for meats and vegetables
+- Broil: High direct heat from top
+- Toast: Bread toasting with shade control
+- Dehydrate: Low-temperature drying
+
+**iQ Sense** - Temperature monitoring hub (for outdoor grilling/smoking):
+- Monitor Temperature: Tracks internal temperature with probe alerts
+
+**${isEmptyRecipe ? 'Creation' : 'Enhancement'} Guidelines:**
+${isEmptyRecipe ? `
+- Create a complete, detailed recipe based on the user's request
+- If the user is asking a question or seeking ideas, answer briefly then provide a recipe suggestion
+- Include appropriate cooking times, temperatures, and servings
+- Suggest smart appliance cooking methods when they make sense for the recipe
+- Make the recipe easy to follow with clear, numbered steps
+` : `
+- Modify the existing recipe, not create a completely new one
+- Keep the core identity of the recipe unless the user asks for major changes
+- Apply the requested modifications (e.g., make it vegetarian, add grilling, simplify, make it healthier, etc.)
+- **IMPORTANT: If the recipe uses smart cooking methods/appliances, preserve them unless specifically asked to change**
+- Make logical adjustments to related steps when you modify ingredients or cooking methods
+- When adding new cooking methods (like grilling), integrate them with the existing smart cooking methods if applicable
+`}
+- **APPLIANCE SWITCHING**: If user requests a specific appliance (e.g., "make this with mini oven"):
+  - Suggest cooking methods ONLY from that appliance's available methods
+  - Update cooking times and temperatures appropriately for the new method
+  - DO NOT suggest methods that don't exist on the target appliance (e.g., don't suggest "Bake" for iQ Cooker)
+
+Return a JSON object with the ${isEmptyRecipe ? 'new' : 'enhanced'} recipe:
+
+{
+  "title": "${isEmptyRecipe ? 'Recipe title' : 'Enhanced recipe title (modify if requested, otherwise keep original)'}",
+  "description": "${isEmptyRecipe ? 'Brief description of the recipe' : 'Brief description of what was enhanced'}",
+  "ingredients": ["${isEmptyRecipe ? 'ingredient' : 'enhanced ingredient'} 1 with quantity", "${isEmptyRecipe ? 'ingredient' : 'enhanced ingredient'} 2", ...],
+  "steps": [{"text": "${isEmptyRecipe ? 'step' : 'enhanced step'} 1"}, {"text": "${isEmptyRecipe ? 'step' : 'enhanced step'} 2"}, ...],
+  "cookTime": 30,
+  "prepTime": 15,
+  "servings": 4,
+  "category": "category name",
+  "tags": ["tag1", "tag2", "tag3"],
+  "notes": "Any helpful tips${isEmptyRecipe ? '' : ' about the enhancements made'}",
+  "enhancementSummary": "${isEmptyRecipe ? 'A brief summary of the recipe you created' : 'A brief summary of what changes were made to the original recipe'}",
+  "chefiqSuggestions": {
+    "suggestedAppliance": "appliance_category_id",
+    "suggestedActions": [
+      {
+        "stepIndex": 0,
+        "applianceId": "c8ff3aef-3de6-4a74-bba6-03e943b2762c",
+        "methodId": "0",
+        "methodName": "Pressure Cook",
+        "parameters": {
+          "cooking_time": 180,
+          "pres_level": 1,
+          "pres_release": 2,
+          "keep_warm": 1,
+          "delay_time": 0
+        }
+      }
+    ],
+    "useProbe": true/false,
+    "confidence": 0.9,
+    "reasoning": ["Why this appliance and methods were suggested"]
+  }
+}
+
+**ChefIQ Appliance Category IDs and Method IDs:**
+
+**iQ Cooker** (category_id = "c8ff3aef-3de6-4a74-bba6-03e943b2762c"):
+- Pressure Cook: methodId = "0"
+  - Parameters: cooking_time, pres_level (0=Low, 1=High), pres_release (0=Quick, 1=Pulse, 2=Natural), keep_warm (0=Off, 1=On), delay_time
+- Sear/Sauté: methodId = "1"
+  - Parameters: cooking_time, temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm, delay_time
+- Steam: methodId = "2"
+  - Parameters: cooking_time, keep_warm, delay_time
+- Slow Cook: methodId = "3"
+  - Parameters: cooking_time, temp_level (0=Low, 1=Medium-Low, 2=Medium-High, 3=High), keep_warm, delay_time
+- Sous Vide: methodId = "5"
+  - Parameters: cooking_time, cooking_temp (in Fahrenheit), delay_time
+
+**iQ Sense** (category_id = "a542fa25-5053-4946-8b77-e358467baa0f"):
+- Monitor Temperature: methodId = "monitor_temp"
+  - Parameters: target_probe_temp (in Fahrenheit), remove_probe_temp (in Fahrenheit)
+  - For outdoor grilling/smoking
+  - ALWAYS include both target_probe_temp and remove_probe_temp
+
+**iQ MiniOven** (category_id = "4a3cd4f1-839b-4f45-80ea-08f594ff74c3"):
+- Bake: methodId = "METHOD_BAKE"
+  - Parameters: cooking_time, target_cavity_temp (in Fahrenheit), fan_speed (0=Low, 1=Medium, 2=High)
+  - WITH PROBE: target_probe_temp, remove_probe_temp (NO cooking_time parameter)
+- Air Fry: methodId = "METHOD_AIR_FRY"
+  - Parameters: cooking_time, target_cavity_temp, fan_speed (typically 2=High)
+  - WITH PROBE: target_probe_temp, remove_probe_temp (NO cooking_time parameter)
+- Roast: methodId = "METHOD_ROAST"
+  - Parameters: cooking_time, target_cavity_temp, fan_speed (typically 0=Low or 1=Medium)
+  - WITH PROBE: target_probe_temp, remove_probe_temp (NO cooking_time parameter)
+- Broil: methodId = "METHOD_BROIL"
+  - Parameters: cooking_time, temp_level (0=Low, 3=High)
+- Toast: methodId = "METHOD_TOAST"
+  - Parameters: cooking_time, shade_level (0=Light, 1=Medium-Light, 2=Medium, 3=Medium-Dark, 4=Dark)
+- Dehydrate: methodId = "METHOD_DEHYDRATE"
+  - Parameters: cooking_time, target_cavity_temp
+
+**IMPORTANT - Creating Cooking Actions:**
+- **cooking_time**: ALWAYS in SECONDS (convert minutes to seconds: minutes * 60)
+- **stepIndex**: ZERO-INDEXED! "Step 1" = 0, "Step 2" = 1, "Step 3" = 2, etc.
+- Only create actions for actual cooking steps (not prep, mixing, or serving)
+- Match the stepIndex to where the cooking action should be triggered in the recipe
+
+**Guidelines:**
+${isEmptyRecipe ? `
+1. **Create Complete Recipes**: Provide full recipes with all necessary details
+2. **Answer Questions**: If user asks "what can I make?", suggest a recipe and create it
+3. **Be Helpful**: If request is vague, make reasonable assumptions and create something delicious
+4. **Add Context**: In the enhancementSummary, explain what recipe you created and why
+5. **Ingredients**: Include quantities and units. Use fractions (1/2, 1/3, 1/4) instead of decimals
+6. **Steps**: Write clear instructions with specific temperatures and times when relevant
+7. **Smart Cooking**: Suggest appropriate ChefIQ appliance methods when they make sense
+
+**Examples of Requests:**
+- "quick chicken dinner for 4" → Create a simple 30-minute chicken recipe
+- "what can I make with rice and chicken?" → Suggest and create a recipe using those ingredients
+- "easy dessert" → Create a simple dessert recipe with common ingredients
+- "healthy lunch" → Create a nutritious lunch recipe with cooking instructions
+` : `
+1. **Preserve the Core**: Unless specifically asked to change everything, keep the recipe's identity
+2. **Be Smart**: If the user asks to "make it vegetarian", replace meat with appropriate substitutes and adjust cooking times
+3. **Maintain Quality**: Don't remove important steps or ingredients unless the enhancement requires it
+4. **Add Context**: In the enhancementSummary, explain what you changed and why
+5. **Ingredients**: Include quantities and units. Use fractions (1/2, 1/3, 1/4) instead of decimals
+6. **Steps**: Write clear instructions with specific temperatures and times when relevant
+7. **Title**: Update the title if the enhancement significantly changes the dish (e.g., "Grilled" instead of "Baked")
+
+**Examples of Enhancements:**
+- "make it vegetarian" → Replace meat with plant-based protein, adjust cooking times
+- "add grilling to step 3" → Modify step 3 to include grilling instructions with temperature/time
+- "simplify this" → Reduce number of steps, combine where logical, use simpler techniques
+- "make it healthier" → Reduce oil/butter, use whole grains, add vegetables
+`}
+- "add more spice" → Add chili peppers, cayenne, or other spices to relevant steps
+- **"make this with mini oven" (from iQ Cooker recipe)** →
+  - Change cooking methods to MiniOven methods (Bake, Air Fry, Roast, etc.)
+  - Update steps to use oven temperatures and times instead of pressure cooking
+  - Set suggestedAppliance to "4a3cd4f1-839b-4f45-80ea-08f594ff74c3" (iQ MiniOven)
+  - Example: "Pressure cook for 20 minutes" becomes "Bake at 350°F for 35-40 minutes"
+- **"convert to pressure cooker" (from oven recipe)** →
+  - Change to iQ Cooker methods (Pressure Cook, Sear/Sauté, etc.)
+  - Reduce cooking times appropriately for pressure cooking
+  - Set suggestedAppliance to "c8ff3aef-3de6-4a74-bba6-03e943b2762c" (iQ Cooker)
+  - Example: "Bake at 375°F for 45 minutes" becomes "Pressure cook on high for 12 minutes with natural release"
+- **"add grilling to step 3" or "make grilling in step 3"** →
+  - Modify step 3 to include outdoor grilling instructions
+  - Set suggestedAppliance to "a542fa25-5053-4946-8b77-e358467baa0f" (iQ Sense)
+  - Add Monitor Temperature action at stepIndex 2 (step 3 is index 2)
+  - Include both target_probe_temp and remove_probe_temp parameters
+  - Example: Create action with stepIndex 2, methodId "monitor_temp", target_probe_temp 145, remove_probe_temp 140
+
+**Important:**
+- Return ONLY valid JSON, no additional text
+- Make sure the JSON is properly formatted and can be parsed
+- The enhancementSummary should clearly explain what changed
+- **ALWAYS include chefiqSuggestions** in your response:
+  - If the user requests appliance change, set the new suggestedAppliance
+  - If keeping the same appliance, set suggestedAppliance to the current one (or null if no smart cooking)
+  - Include confidence and reasoning about why this appliance fits the enhanced recipe
+
+Return the enhanced recipe as JSON:`;
+}

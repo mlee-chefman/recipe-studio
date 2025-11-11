@@ -8,6 +8,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useStyles } from '@hooks/useStyles';
 import { theme } from '@theme/index';
@@ -49,13 +50,13 @@ export default function RecipeSelectionScreen() {
       headerLeft: () => (
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ paddingLeft: theme.spacing.md, paddingRight: theme.spacing.xs }}
+          style={{
+            paddingLeft: theme.spacing.lg,
+            paddingRight: theme.spacing.md,
+            paddingVertical: theme.spacing.sm,
+          }}
         >
-          <Text style={{
-            color: theme.colors.info.main,
-            fontSize: 24,
-            fontWeight: '300'
-          }}>×</Text>
+          <Feather name="chevron-left" size={28} color={theme.colors.text.primary} />
         </TouchableOpacity>
       ),
     });

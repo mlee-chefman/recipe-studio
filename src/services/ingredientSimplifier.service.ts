@@ -23,11 +23,14 @@ interface CachedSimplification {
 /**
  * Simplify ingredient name using Gemini AI
  * Converts complex ingredient descriptions to simple, searchable names
+ * Intelligently preserves compound ingredients (oils, sauces, etc.)
  *
  * Examples:
+ * - "2 tablespoons olive oil" → "olive oil"
+ * - "1/2 cup chicken broth" → "broth"
+ * - "3 tablespoons soy sauce" → "soy sauce"
  * - "2 (6-ounce) salmon fillets, skin on" → "salmon"
  * - "1 pound thinly sliced beef (e.g., ribeye, sirloin)" → "beef"
- * - "Dipping sauces (e.g., sesame paste, chili oil, soy sauce)" → "sauce"
  */
 export async function simplifyIngredientName(ingredientText: string): Promise<string> {
   try {
@@ -56,15 +59,28 @@ export async function simplifyIngredientName(ingredientText: string): Promise<st
     // Call Gemini API to simplify
     console.log(`🤖 Asking Gemini to simplify: "${ingredientText}"`);
 
-    const prompt = `Extract the main ingredient name from this ingredient description for image search. Return ONLY the single most important ingredient word (singular form), nothing else.
+    const prompt = `Extract the main ingredient name from this ingredient description for image search. Return 1-2 words maximum that best represent the ingredient (singular form). For compound ingredients like oils, broths, or sauces, keep both words if needed for accurate image search.
+
+Rules:
+- Keep compound words when necessary: "olive oil" NOT "olive", "soy sauce" NOT "soy"
+- For broths/stocks: simplify to "broth" or "stock" (e.g., "chicken broth" → "broth")
+- For produce: use single word (e.g., "cherry tomatoes" → "tomato")
+- For meats: use single word (e.g., "chicken breast" → "chicken")
+- Remove quantities, measurements, and preparations
 
 Examples:
+"2 tablespoons olive oil" → olive oil
+"1/2 cup chicken broth" → broth
+"2 cups vegetable stock" → stock
+"3 tablespoons soy sauce" → soy sauce
+"1 tablespoon sesame oil" → sesame oil
 "2 (6-ounce) salmon fillets, skin on" → salmon
 "1 pound thinly sliced beef (e.g., ribeye, sirloin)" → beef
 "2 cups purple rice" → rice
-"Dipping sauces (e.g., sesame paste, chili oil)" → sauce
-"2 cloves garlic, minced" → garlic
+"4 cloves garlic, minced" → garlic
 "Salt to taste" → salt
+"2 tablespoons rice vinegar" → rice vinegar
+"1 cup heavy cream" → cream
 
 Now simplify this:
 "${ingredientText}" →`;
@@ -82,7 +98,7 @@ Now simplify this:
         }],
         generationConfig: {
           temperature: 0.1, // Low temperature for consistent results
-          maxOutputTokens: 10, // We only need one word
+          maxOutputTokens: 15, // Allow 1-2 words for compound ingredients
         }
       }),
     });
@@ -170,16 +186,25 @@ export async function simplifyIngredientNamesBatch(
     // Create batch prompt - single API call for all ingredients
     const numberedList = needsFetch.map((text, i) => `${i + 1}. "${text}"`).join('\n');
 
-    const prompt = `Extract the main ingredient name from each ingredient description for image search. Return ONLY the single most important ingredient word (singular form) for each line, in the same order. One word per line, nothing else.
+    const prompt = `Extract the main ingredient name from each ingredient description for image search. Return 1-2 words maximum per ingredient (singular form). For compound ingredients like oils, broths, or sauces, keep both words if needed for accurate image search.
+
+Rules:
+- Keep compound words when necessary: "olive oil" NOT "olive", "soy sauce" NOT "soy"
+- For broths/stocks: simplify to "broth" or "stock" (e.g., "chicken broth" → "broth")
+- For produce: use single word (e.g., "cherry tomatoes" → "tomato")
+- For meats: use single word (e.g., "chicken breast" → "chicken")
+- Remove quantities, measurements, and preparations
+- Return results in same order, one per line
 
 Examples format:
-1. "2 (6-ounce) salmon fillets, skin on" → salmon
-2. "1 pound thinly sliced beef (e.g., ribeye, sirloin)" → beef
-3. "2 cups purple rice" → rice
-4. "Dipping sauces (e.g., sesame paste, chili oil)" → sauce
+1. "2 tablespoons olive oil" → olive oil
+2. "1/2 cup chicken broth" → broth
+3. "3 tablespoons soy sauce" → soy sauce
+4. "2 (6-ounce) salmon fillets, skin on" → salmon
 5. "2 cloves garlic, minced" → garlic
+6. "1 cup heavy cream" → cream
 
-Now simplify these ingredients (return one word per line):
+Now simplify these ingredients (1-2 words per line, same order):
 ${numberedList}`;
 
     const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
@@ -195,7 +220,7 @@ ${numberedList}`;
         }],
         generationConfig: {
           temperature: 0.1,
-          maxOutputTokens: needsFetch.length * 5, // ~5 tokens per ingredient
+          maxOutputTokens: needsFetch.length * 8, // ~8 tokens per ingredient (for compound words)
         }
       }),
     });

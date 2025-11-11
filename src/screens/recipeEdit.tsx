@@ -1,5 +1,5 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, Switch, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, Switch, StyleSheet, Animated } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import MultilineInstructionInput, { MultilineInstructionInputRef } from '@components/MultilineInstructionInput';
@@ -26,8 +26,9 @@ import {
   SavingModal,
   CoverImageRequiredModal,
   RecipeSimplificationModal,
+  AIAssistantModal,
 } from '~/components/modals';
-import { simplifyRecipeInstructions, SimplificationResult } from '@services/gemini.service';
+import { simplifyRecipeInstructions, SimplificationResult, enhanceRecipeWithAI } from '@services/gemini.service';
 import RecipeCoverImage from '@components/RecipeCoverImage';
 import { haptics } from '@utils/haptics';
 
@@ -51,6 +52,11 @@ export default function RecipeEditScreen() {
   const [simplificationResult, setSimplificationResult] = useState<SimplificationResult | null>(null);
   const [isSimplifying, setIsSimplifying] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showAIHelperModal, setShowAIHelperModal] = useState(false);
+  const [aiEnhanceDescription, setAiEnhanceDescription] = useState('');
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [remainingGenerations, setRemainingGenerations] = useState<{ daily: number; dailyLimit: number } | null>(null);
+  const fabScale = useRef(new Animated.Value(1)).current;
 
   const {
     formData,
@@ -426,6 +432,170 @@ export default function RecipeEditScreen() {
     } finally {
       setIsRegenerating(false);
     }
+  };
+
+  // Handle AI Enhancement
+  const handleEnhanceRecipe = async () => {
+    if (!aiEnhanceDescription.trim()) {
+      Alert.alert('Missing Instructions', 'Please describe how you want to enhance this recipe.');
+      return;
+    }
+
+    // Detect if recipe is empty (user is starting from scratch)
+    const isEmptyRecipe = !formData.title.trim() &&
+                          !formData.ingredients.some(i => i.trim()) &&
+                          !formData.steps.some(s => s.text.trim());
+
+    setIsEnhancing(true);
+    haptics.medium();
+
+    try {
+      console.log('Starting recipe enhancement...');
+      console.log('Enhancement request:', aiEnhanceDescription);
+      console.log('Is empty recipe (draft mode):', isEmptyRecipe);
+
+      const result = await enhanceRecipeWithAI(
+        {
+          title: formData.title,
+          ingredients: formData.ingredients,
+          steps: formData.steps,
+          notes: formData.notes,
+          selectedAppliance: formData.selectedAppliance,
+        },
+        aiEnhanceDescription
+      );
+
+      console.log('Enhancement completed:', result.success);
+
+      if (!result.success || !result.recipe) {
+        console.error('Enhancement failed:', result.error);
+        Alert.alert('Enhancement Failed', result.error || 'Could not enhance recipe. Please try again.');
+        return;
+      }
+
+      const enhancedRecipe = result.recipe;
+
+      // Update form with enhanced data
+      if (enhancedRecipe.cookTime) {
+        setCookTimeFromMinutes(enhancedRecipe.cookTime);
+      }
+
+      updateFormData({
+        title: enhancedRecipe.title,
+        notes: enhancedRecipe.description || formData.notes,
+        ingredients: enhancedRecipe.ingredients.length > 0 ? enhancedRecipe.ingredients : formData.ingredients,
+        steps: enhancedRecipe.steps.length > 0 ? enhancedRecipe.steps : formData.steps,
+        servings: enhancedRecipe.servings || formData.servings,
+        category: enhancedRecipe.category || formData.category,
+      });
+
+      // Handle ChefIQ suggestions if AI changed the appliance/methods
+      const suggestions = enhancedRecipe.chefiqSuggestions;
+      if (suggestions) {
+        // Apply cooking actions to the enhanced steps
+        let updatedSteps = [...enhancedRecipe.steps];
+
+        if (suggestions.suggestedActions && suggestions.suggestedActions.length > 0) {
+          console.log(`Applying ${suggestions.suggestedActions.length} cooking actions to enhanced recipe`);
+
+          // Clear existing cooking actions first
+          updatedSteps = updatedSteps.map(step => {
+            if (typeof step === 'object' && 'cookingAction' in step) {
+              const { cookingAction, ...stepWithoutAction } = step as any;
+              return stepWithoutAction;
+            }
+            return step;
+          });
+
+          // Apply new cooking actions
+          suggestions.suggestedActions.forEach(action => {
+            if (action.stepIndex >= 0 && action.stepIndex < updatedSteps.length) {
+              const currentStep = updatedSteps[action.stepIndex];
+              if (typeof currentStep === 'object') {
+                (updatedSteps[action.stepIndex] as any).cookingAction = action;
+              }
+            }
+          });
+        }
+
+        // Update appliance if changed
+        if (suggestions.suggestedAppliance && suggestions.suggestedAppliance !== formData.selectedAppliance) {
+          console.log(`Switching appliance from ${formData.selectedAppliance} to ${suggestions.suggestedAppliance}`);
+          updateFormData({
+            selectedAppliance: suggestions.suggestedAppliance,
+            useProbe: suggestions.useProbe || false,
+            steps: updatedSteps,
+          });
+        } else if (suggestions.suggestedActions && suggestions.suggestedActions.length > 0) {
+          // Just update steps with new cooking actions (same appliance)
+          updateFormData({
+            steps: updatedSteps,
+          });
+        }
+      }
+
+      // Close modal and clear description
+      setShowAIHelperModal(false);
+      setAiEnhanceDescription('');
+
+      haptics.success();
+
+      // Check if recipe has an image after AI processing
+      const hasImage = formData.imageUrl && formData.imageUrl.trim() !== '';
+
+      // If no image exists, automatically generate one
+      if (!hasImage && enhancedRecipe.title) {
+        console.log('Recipe has no cover image - automatically generating one...');
+
+        // Show success message with image generation notice
+        Alert.alert(
+          isEmptyRecipe ? 'Recipe Created!' : 'Recipe Enhanced!',
+          isEmptyRecipe
+            ? 'Your recipe has been generated! Now generating a cover image...'
+            : 'Your recipe has been enhanced! Now generating a cover image...',
+          [{ text: 'OK' }]
+        );
+
+        // Generate cover image automatically (don't await - let it run in background)
+        setTimeout(async () => {
+          try {
+            await handleGenerateAICover();
+          } catch (error) {
+            console.log('Auto cover generation failed (user can still add manually):', error);
+          }
+        }, 500); // Small delay to let the recipe data settle
+      } else {
+        // Show standard success message (recipe already has image)
+        Alert.alert(
+          isEmptyRecipe ? 'Recipe Created!' : 'Recipe Enhanced!',
+          isEmptyRecipe
+            ? 'Your recipe has been generated! Review and save when ready.'
+            : 'Your recipe has been enhanced based on your instructions. Review the changes and save when ready.'
+        );
+      }
+    } catch (error) {
+      console.error('Enhancement unexpected error:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const handleFabPress = () => {
+    // Animate the FAB
+    Animated.sequence([
+      Animated.timing(fabScale, {
+        toValue: 0.85,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(fabScale, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    setShowAIHelperModal(true);
   };
 
   return (
@@ -836,6 +1006,48 @@ export default function RecipeEditScreen() {
       />
       </KeyboardAwareScrollView>
 
+      {/* Floating Action Button for AI Assistant - Always available to help */}
+      <Animated.View style={styles.fabContainer}>
+        <TouchableOpacity
+          onPress={handleFabPress}
+          style={styles.fabButton}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons name="robot-excited-outline" size={24} color="white" />
+          <Text style={styles.fabText}>
+            AI Assistant
+          </Text>
+        </TouchableOpacity>
+        {/* Badge for remaining generations */}
+        {remainingGenerations && remainingGenerations.daily > 0 && (
+          <View style={styles.fabBadge}>
+            <Text style={styles.fabBadgeText}>
+              {remainingGenerations.daily}
+            </Text>
+          </View>
+        )}
+      </Animated.View>
+
+      {/* AI Assistant Modal */}
+      <AIAssistantModal
+        visible={showAIHelperModal}
+        onClose={() => {
+          setShowAIHelperModal(false);
+          setAiEnhanceDescription('');
+        }}
+        aiDescription={aiEnhanceDescription}
+        onChangeDescription={setAiEnhanceDescription}
+        onGenerate={handleEnhanceRecipe}
+        isGenerating={isEnhancing}
+        remainingGenerations={remainingGenerations}
+        enhanceMode={true}
+        recipeContext={{
+          title: formData.title,
+          ingredients: formData.ingredients,
+          steps: formData.steps.map(s => s.text),
+        }}
+      />
+
       {/* Saving Modal */}
       <SavingModal visible={isSaving} message="Updating recipe..." />
 
@@ -874,6 +1086,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   contentContainer: {
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.lg,
+    paddingBottom: 100, // Extra padding for FAB
   },
   headerButton: {
     paddingHorizontal: theme.spacing.lg,
@@ -960,5 +1173,47 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   deleteButton: {
     backgroundColor: theme.colors.error.light,
     borderColor: theme.colors.error.main,
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    transform: [{ scale: 1 }],
+    ...theme.shadows.lg,
+  },
+  fabButton: {
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: theme.colors.primary[500],
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  fabText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  fabBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: theme.colors.secondary[500],
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: 'white',
+  },
+  fabBadgeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

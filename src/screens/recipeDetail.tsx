@@ -582,7 +582,65 @@ export default function RecipeDetailScreen() {
 
                       {/* Ingredient Text (displays scaled quantity) */}
                       <Text className="text-base flex-1" style={{ color: theme.colors.text.secondary }}>
-                        {ingredient}
+                        {(() => {
+                          // Check for parenthetical content like (1.5 lb) anywhere in the string
+                          const parenMatch = ingredient.match(/(\([^)]+\))/g);
+
+                          if (parenMatch) {
+                            // Split by parentheses and render each part
+                            const parts = ingredient.split(/(\([^)]+\))/);
+                            return (
+                              <>
+                                {parts.map((part, idx) => {
+                                  // Check if this part is a parenthetical (starts with '(')
+                                  if (part.startsWith('(') && part.endsWith(')')) {
+                                    return (
+                                      <Text key={idx} style={{ fontWeight: 'bold', color: theme.colors.primary[500] }}>
+                                        {part}
+                                      </Text>
+                                    );
+                                  }
+
+                                  // Check if this part starts with a number (quantity)
+                                  const quantityMatch = part.match(/^(\d+(?:\s+\d+\/\d+|\.\d+|\/\d+)?)\s*(.*)$/);
+                                  if (quantityMatch) {
+                                    const [, qty, rest] = quantityMatch;
+                                    return (
+                                      <Text key={idx}>
+                                        <Text style={{ fontWeight: 'bold', color: theme.colors.primary[500] }}>
+                                          {qty}
+                                        </Text>
+                                        {rest && ' ' + rest}
+                                      </Text>
+                                    );
+                                  }
+
+                                  return <Text key={idx}>{part}</Text>;
+                                })}
+                              </>
+                            );
+                          }
+
+                          // No parentheses, just handle quantity
+                          const parsed = instacartService.parseIngredient(ingredient);
+                          if (parsed.quantity) {
+                            const formattedQuantity = instacartService.formatQuantity(parsed.quantity);
+                            const parts = [];
+                            if (parsed.unit) parts.push(parsed.unit);
+                            parts.push(parsed.name);
+                            const remainingText = parts.join(' ');
+
+                            return (
+                              <>
+                                <Text style={{ fontWeight: 'bold', color: theme.colors.primary[500] }}>
+                                  {formattedQuantity}
+                                </Text>
+                                {' ' + remainingText}
+                              </>
+                            );
+                          }
+                          return ingredient;
+                        })()}
                       </Text>
                     </View>
                   </TouchableOpacity>

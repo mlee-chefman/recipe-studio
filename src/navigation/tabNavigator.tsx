@@ -9,13 +9,66 @@ import MyFridge from '@screens/MyFridge';
 import MyRecipes from '@screens/MyRecipes';
 import Settings from '@screens/settings';
 import { CreateRecipeOptionsModal } from '@components/modals';
-import { useRecipeStore } from '@store/store';
+import { useRecipeStore, useAuthStore } from '@store/store';
 import { useAppTheme, theme } from '@theme/index';
+import { useAIRecipeGenerator } from '@hooks/useAIRecipeGenerator';
+import * as Crypto from 'expo-crypto';
+
+const uuidv4 = () => Crypto.randomUUID();
 
 // Custom Tab Bar Component with centered + button
 function CustomTabBar({ state, descriptors, navigation }: any) {
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [tempRecipeId] = useState(() => uuidv4());
   const appTheme = useAppTheme();
+  const { user } = useAuthStore();
+
+  const {
+    aiDescription,
+    setAiDescription,
+    isGenerating,
+    remainingGenerations,
+    generateRecipe,
+    loadRemainingGenerations,
+  } = useAIRecipeGenerator({
+    autoLoadGenerations: true,
+    userId: user?.uid,
+    recipeId: tempRecipeId,
+    autoGenerateImage: true,
+    onRecipeGenerated: (generatedRecipe, imageUrl) => {
+      // Estimate difficulty
+      const totalTime = generatedRecipe.cookTime;
+      const numSteps = generatedRecipe.steps.length;
+      let difficulty: 'Easy' | 'Medium' | 'Hard' = 'Medium';
+      if (totalTime < 30 && numSteps < 5) {
+        difficulty = 'Easy';
+      } else if (totalTime > 60 || numSteps > 10) {
+        difficulty = 'Hard';
+      }
+
+      // Close modal
+      setShowCreateModal(false);
+
+      // Navigate to recipe creator with generated data
+      setTimeout(() => {
+        navigation.navigate('RecipeCreator', {
+          aiGenerated: true,
+          generatedData: {
+            title: generatedRecipe.title,
+            notes: generatedRecipe.description,
+            ingredients: generatedRecipe.ingredients.length > 0 ? generatedRecipe.ingredients : [''],
+            steps: generatedRecipe.steps.length > 0 ? generatedRecipe.steps : [{ text: '' }],
+            servings: generatedRecipe.servings,
+            category: generatedRecipe.category || '',
+            imageUrl: imageUrl || '',
+            difficulty,
+            cookTime: generatedRecipe.cookTime,
+            chefiqSuggestions: generatedRecipe.chefiqSuggestions
+          }
+        });
+      }, 100);
+    }
+  });
 
   const styles = useMemo(() => StyleSheet.create({
     tabBarContainer: {
@@ -67,24 +120,15 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
     },
   }), [appTheme]);
 
+
   const handleWebImport = () => {
     setShowCreateModal(false);
     setTimeout(() => navigation.navigate('RecipeWebImport'), 100);
   };
 
-  const handleOCRImport = () => {
+  const handleImportRecipe = () => {
     setShowCreateModal(false);
-    setTimeout(() => navigation.navigate('RecipeOCRImport'), 100);
-  };
-
-  const handleTextImport = () => {
-    setShowCreateModal(false);
-    setTimeout(() => navigation.navigate('RecipeTextImport'), 100);
-  };
-
-  const handlePDFImport = () => {
-    setShowCreateModal(false);
-    setTimeout(() => navigation.navigate('RecipePDFImport'), 100);
+    setTimeout(() => navigation.navigate('RecipeImportOptions'), 100);
   };
 
   const handleStartFromScratch = () => {
@@ -213,12 +257,18 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       {/* Create Recipe Options Modal */}
       <CreateRecipeOptionsModal
         visible={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
+        onClose={() => {
+          setShowCreateModal(false);
+          setAiDescription('');
+        }}
         onSelectWebImport={handleWebImport}
-        onSelectOCRImport={handleOCRImport}
-        onSelectTextImport={handleTextImport}
-        onSelectPDFImport={handlePDFImport}
+        onSelectImportRecipe={handleImportRecipe}
         onSelectStartFromScratch={handleStartFromScratch}
+        aiDescription={aiDescription}
+        onChangeAIDescription={setAiDescription}
+        onGenerateAI={generateRecipe}
+        isGenerating={isGenerating}
+        remainingGenerations={remainingGenerations}
       />
     </>
   );

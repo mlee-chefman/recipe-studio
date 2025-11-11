@@ -75,7 +75,7 @@ export default function RecipeOCRImportScreen() {
             paddingVertical: theme.spacing.sm,
           }}
         >
-          <Feather name="x" size={28} color={theme.colors.text.secondary} />
+          <Feather name="chevron-left" size={28} color={theme.colors.text.primary} />
         </TouchableOpacity>
       ),
     });
