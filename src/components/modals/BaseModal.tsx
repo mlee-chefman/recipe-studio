@@ -1,5 +1,5 @@
 import { useEffect, useRef, ReactNode } from 'react';
-import { View, Modal, StyleSheet, Animated, TouchableOpacity, ViewStyle, Keyboard, Platform } from 'react-native';
+import { View, Modal, StyleSheet, Animated, TouchableOpacity, ViewStyle, Keyboard, Platform, KeyboardAvoidingView } from 'react-native';
 import { useStyles } from '@hooks/useStyles';
 import type { Theme } from '@theme/index';
 
@@ -134,7 +134,7 @@ export default function BaseModal({
     }
   };
 
-  // Android: Use simpler Modal implementation without custom backdrop
+  // Android: Use simpler Modal implementation with KeyboardAvoidingView
   if (Platform.OS === 'android') {
     const getAndroidBackdropStyle = () => {
       switch (variant) {
@@ -146,6 +146,20 @@ export default function BaseModal({
           return styles.androidBackdrop;
       }
     };
+
+    const modalContent = (
+      <View
+        style={[getContentContainerStyle(), contentStyle]}
+        pointerEvents="auto"
+      >
+        {showDragIndicator && variant === 'bottom-sheet' && (
+          <View style={styles.dragIndicatorContainer}>
+            <View style={styles.dragIndicator} />
+          </View>
+        )}
+        {children}
+      </View>
+    );
 
     return (
       <Modal
@@ -160,17 +174,17 @@ export default function BaseModal({
             activeOpacity={1}
             onPress={handleBackdropPress}
           />
-          <View
-            style={[getContentContainerStyle(), contentStyle]}
-            pointerEvents="auto"
-          >
-            {showDragIndicator && variant === 'bottom-sheet' && (
-              <View style={styles.dragIndicatorContainer}>
-                <View style={styles.dragIndicator} />
-              </View>
-            )}
-            {children}
-          </View>
+          {avoidKeyboard ? (
+            <KeyboardAvoidingView
+              behavior="padding"
+              style={{ flex: 0 }}
+              keyboardVerticalOffset={0}
+            >
+              {modalContent}
+            </KeyboardAvoidingView>
+          ) : (
+            modalContent
+          )}
         </View>
       </Modal>
     );

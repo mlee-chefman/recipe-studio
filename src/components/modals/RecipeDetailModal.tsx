@@ -7,6 +7,7 @@ import { getApplianceById, formatCookingAction } from '~/types/chefiq';
 import { theme, useAppTheme } from '@theme/index';
 import { haptics } from '@utils/haptics';
 import { instacartService } from '@services/instacart.service';
+import { formatCookTime } from '@utils/timeFormatter';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
@@ -111,7 +112,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
           <View className="flex-row justify-between mb-6 p-4 rounded-lg" style={{ backgroundColor: appTheme.colors.background.secondary }}>
             <View className="items-center">
               <Text className="text-sm mb-1" style={{ color: appTheme.colors.text.tertiary }}>Cook Time</Text>
-              <Text className="text-lg font-semibold" style={{ color: appTheme.colors.text.primary }}>⏱️ {recipe.cookTime} min</Text>
+              <Text className="text-lg font-semibold" style={{ color: appTheme.colors.text.primary }}>⏱️ {formatCookTime(recipe.cookTime)}</Text>
             </View>
             <View className="items-center">
               <Text className="text-sm mb-1" style={{ color: appTheme.colors.text.tertiary }}>Servings</Text>
@@ -190,65 +191,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
                 <View key={index} className="flex-row items-center mb-2">
                   <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: theme.colors.primary[500] }} />
                   <Text className="text-base flex-1" style={{ color: appTheme.colors.text.secondary }}>
-                    {(() => {
-                      // Check for parenthetical content like (1.5 lb) anywhere in the string
-                      const parenMatch = ingredient.match(/(\([^)]+\))/g);
-
-                      if (parenMatch) {
-                        // Split by parentheses and render each part
-                        const parts = ingredient.split(/(\([^)]+\))/);
-                        return (
-                          <>
-                            {parts.map((part, idx) => {
-                              // Check if this part is a parenthetical (starts with '(')
-                              if (part.startsWith('(') && part.endsWith(')')) {
-                                return (
-                                  <Text key={idx} style={{ fontWeight: 'bold', color: theme.colors.primary[500] }}>
-                                    {part}
-                                  </Text>
-                                );
-                              }
-
-                              // Check if this part starts with a number (quantity)
-                              const quantityMatch = part.match(/^(\d+(?:\s+\d+\/\d+|\.\d+|\/\d+)?)\s*(.*)$/);
-                              if (quantityMatch) {
-                                const [, qty, rest] = quantityMatch;
-                                return (
-                                  <React.Fragment key={idx}>
-                                    <Text style={{ fontWeight: 'bold', color: theme.colors.primary[500] }}>
-                                      {qty}
-                                    </Text>
-                                    {rest && ' ' + rest}
-                                  </React.Fragment>
-                                );
-                              }
-
-                              return <React.Fragment key={idx}>{part}</React.Fragment>;
-                            })}
-                          </>
-                        );
-                      }
-
-                      // No parentheses, just handle quantity
-                      const parsed = instacartService.parseIngredient(ingredient);
-                      if (parsed.quantity) {
-                        const formattedQuantity = instacartService.formatQuantity(parsed.quantity);
-                        const parts = [];
-                        if (parsed.unit) parts.push(parsed.unit);
-                        parts.push(parsed.name);
-                        const remainingText = parts.join(' ');
-
-                        return (
-                          <>
-                            <Text style={{ fontWeight: 'bold', color: theme.colors.primary[500] }}>
-                              {formattedQuantity}
-                            </Text>
-                            {' ' + remainingText}
-                          </>
-                        );
-                      }
-                      return ingredient;
-                    })()}
+                    {ingredient}
                   </Text>
                 </View>
               ))}

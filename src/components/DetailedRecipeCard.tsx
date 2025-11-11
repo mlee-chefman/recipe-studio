@@ -6,6 +6,7 @@ import { getApplianceById } from '~/types/chefiq';
 import { useStyles } from '@hooks/useStyles';
 import { useAppTheme } from '@theme/index';
 import type { Theme } from '@theme/index';
+import { formatCookTime } from '@utils/timeFormatter';
 
 interface DetailedRecipeCardProps {
   recipe: Recipe;
@@ -124,7 +125,7 @@ export const DetailedRecipeCard = ({
           <View className="mb-2 flex-row items-center justify-between">
             <View className="flex-row items-center">
               <Text className="mr-4 text-sm" style={{ color: appTheme.colors.text.tertiary }}>
-                ⏱️ {recipe.cookTime} min
+                ⏱️ {formatCookTime(recipe.cookTime)}
               </Text>
               <Text className="mr-4 text-sm" style={{ color: appTheme.colors.text.tertiary }}>
                 👥 {recipe.servings} servings

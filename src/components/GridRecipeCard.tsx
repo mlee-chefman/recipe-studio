@@ -6,6 +6,7 @@ import { getApplianceById } from '~/types/chefiq';
 import { useStyles } from '@hooks/useStyles';
 import { useAppTheme } from '@theme/index';
 import type { Theme } from '@theme/index';
+import { formatCookTime } from '@utils/timeFormatter';
 
 interface GridRecipeCardProps {
   recipe: Recipe;
@@ -83,7 +84,7 @@ export const GridRecipeCard = ({
 
           {/* Quick Info */}
           <View className="flex-row items-center mb-1">
-            <Text className="text-xs mr-2" style={{ color: appTheme.colors.text.tertiary }}>⏱️ {recipe.cookTime}m</Text>
+            <Text className="text-xs mr-2" style={{ color: appTheme.colors.text.tertiary }}>⏱️ {formatCookTime(recipe.cookTime)}</Text>
             <Text className="text-xs" style={{ color: appTheme.colors.text.tertiary }}>👥 {recipe.servings}</Text>
           </View>
 

@@ -6,6 +6,7 @@ import { Recipe } from "~/types/recipe";
 import { useStyles } from '@hooks/useStyles';
 import { useAppTheme } from '@theme/index';
 import type { Theme } from '@theme/index';
+import { formatCookTime } from '@utils/timeFormatter';
 
 interface PublishedRecipeCardMiniProps {
   recipe: Recipe;
@@ -58,7 +59,7 @@ export const PublishedRecipeCardMini = ({
               {recipe.title}
             </Text>
             <View style={styles.quickInfo}>
-              <Text style={styles.infoText}>⏱️ {recipe.cookTime}m</Text>
+              <Text style={styles.infoText}>⏱️ {formatCookTime(recipe.cookTime)}</Text>
               <View style={styles.infoDivider} />
               <Text style={styles.infoText}>👥 {recipe.servings}</Text>
             </View>

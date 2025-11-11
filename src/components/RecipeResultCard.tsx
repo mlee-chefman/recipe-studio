@@ -6,6 +6,7 @@ import type { Theme } from '@theme/index';
 import { useAppTheme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { Recipe } from '~/types/recipe';
+import { formatCookTime } from '@utils/timeFormatter';
 
 interface RecipeResultCardProps {
   recipe: ScrapedRecipe | Recipe;
@@ -89,7 +90,7 @@ export function RecipeResultCard({
           <View style={styles.infoItem}>
             <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
             <Text style={styles.infoText}>
-              {('prepTime' in recipe ? recipe.prepTime : 0) + recipe.cookTime} min
+              {formatCookTime(('prepTime' in recipe ? recipe.prepTime : 0) + recipe.cookTime)}
             </Text>
           </View>
           <View style={styles.infoItem}>
