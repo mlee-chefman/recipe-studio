@@ -36,7 +36,7 @@ export interface AutoImageGenerationResult {
 
 /**
  * Hook for automatic image generation during recipe creation/import flows
- * Used for: AI Assistant, My Fridge, PDF Import, OCR Import
+ * Used for: AI Assistant, My Kitchen, PDF Import, OCR Import
  */
 export function useAutoImageGeneration() {
   const [isGenerating, setIsGenerating] = useState(false);

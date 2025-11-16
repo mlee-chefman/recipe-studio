@@ -1,8 +1,8 @@
 # Spoonacular API Cost Analysis & Alternatives
 
-## Current Implementation: "My Fridge" Feature
+## Current Implementation: "My Kitchen" Feature
 
-The "My Fridge" feature uses Spoonacular API to:
+The "My Kitchen" feature uses Spoonacular API to:
 1. Search for ingredients by name with autocomplete
 2. Find recipes that match available ingredients
 3. Get detailed recipe information

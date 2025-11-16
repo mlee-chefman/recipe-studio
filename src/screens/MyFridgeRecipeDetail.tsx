@@ -244,7 +244,7 @@ export default function MyFridgeRecipeDetailScreen() {
         return {
           id: `${recipe.title}-missing-${index}`,
           recipeId: 'my-fridge-ai-recipe', // Temporary ID for AI recipes
-          recipeName: recipe.title || 'My Fridge Recipe',
+          recipeName: recipe.title || 'My Kitchen Recipe',
           recipeImage: recipe.image,
           recipeServings: recipe.servings || 1,
           recipeOriginalServings: recipe.servings || 1,
@@ -326,7 +326,7 @@ export default function MyFridgeRecipeDetailScreen() {
         return {
           id: `${recipe.title}-ingredient-${index}`,
           recipeId: 'my-fridge-ai-recipe', // Temporary ID for AI recipes
-          recipeName: recipe.title || 'My Fridge Recipe',
+          recipeName: recipe.title || 'My Kitchen Recipe',
           recipeImage: recipe.image,
           recipeServings: recipe.servings || 1,
           recipeOriginalServings: recipe.servings || 1,
