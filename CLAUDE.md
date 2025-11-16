@@ -961,7 +961,6 @@ export async function generateRecipeVariation(
   - Added comprehensive Theme System & Styling section to Code Standards
   - Added rule #7: Always use theme system (no hardcoded colors/spacing/typography)
   - Updated "Most Important Rules" to include theme system usage
-  - Moved presentation files to `presentation/` folder for cleaner judge review
   - Created comprehensive root README.md with build instructions and documentation index
 
 - **2025-11-07**: Documentation reorganization

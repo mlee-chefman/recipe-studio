@@ -19,7 +19,6 @@ Built for the ChefIQ Studio App Challenge using React Native, Expo, Google Gemin
 - [Testing](#testing)
 - [Troubleshooting](#troubleshooting)
 - [Support](#support)
-- [License](#license)
 
 ---
 
