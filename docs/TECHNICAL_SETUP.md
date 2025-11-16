@@ -43,39 +43,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isSignedIn() {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
       return request.auth != null;
     }
 
+    // Helper function to check if user is the owner
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // User documents
+    // Users collection
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId);
+      // Allow users to read any user profile (needed for displaying recipe authors)
+      allow read: if isAuthenticated();
 
-      // User's recipes (subcollection)
-      match /recipes/{recipeId} {
-        allow read: if isOwner(userId);
-        allow write: if isOwner(userId);
+      // Allow users to create and update only their own profile
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+
+      // Don't allow deletion
+      allow delete: if false;
+
+      // Grocery cart subcollection
+      match /groceryCart/{cartDoc} {
+        // Users can only access their own cart
+        allow read, write: if isOwner(userId);
       }
     }
 
-    // Published recipes (public)
-    match /publishedRecipes/{recipeId} {
-      allow read: if true; // Anyone can read published recipes
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() &&
-        resource.data.userId == request.auth.uid;
-    }
+    // Recipes collection
+    match /recipes/{recipeId} {
+      // Allow anyone authenticated to read published recipes
+      allow read: if isAuthenticated() && (
+        resource.data.published == true ||
+        isOwner(resource.data.userId)
+      );
 
-    // User generation counts
-    match /userGenerations/{userId} {
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId);
+      // Allow users to create recipes with their own userId
+      allow create: if isAuthenticated() &&
+        request.auth.uid == request.resource.data.userId;
+
+      // Allow users to update only their own recipes
+      allow update: if isOwner(resource.data.userId);
+
+      // Allow users to delete only their own recipes
+      allow delete: if isOwner(resource.data.userId);
     }
   }
 }
