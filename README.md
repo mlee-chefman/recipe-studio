@@ -38,13 +38,11 @@ yarn install
 # 3. Set up environment variables
 # Download .env from OneDrive (see Installation section for link)
 
-# 4. Start the development server
-npx expo start
+# 4 Run on iOS (using port 8082 to avoid conflicts with ChefIQ)
+yarn ios --port 8082
+# Run on android
+yarn android --port 8082
 
-# 5. Run on iOS simulator
-npx expo start --ios
-# or Android emulator
-npx expo start --android
 ```
 
 ---
@@ -128,18 +126,18 @@ Save the downloaded file as `.env` in the root directory of the project.
 ### Development Build
 
 ```bash
-# Start the Expo development server
-npx expo start
+# Start the Expo development server (using port 8082 to avoid conflicts with ChefIQ)
+npx expo start --port 8082
 
 # Run on iOS (Mac only)
-npx expo start --ios
+npx expo start --ios --port 8082
 # or use the shortcut
-yarn ios
+yarn ios --port 8082
 
 # Run on Android
-npx expo start --android
+npx expo start --android --port 8082
 # or use the shortcut
-yarn android
+yarn android --port 8082
 ```
 
 ### Production Build
@@ -213,14 +211,11 @@ recipe-studio/
 ### Running the App
 
 ```bash
-# Start development server
-npx expo start
-
-# Start on specific port
+# Start development server (default port 8082 to avoid conflicts)
 npx expo start --port 8082
 
 # Clear cache and restart
-npx expo start -c
+npx expo start -c --port 8082
 ```
 
 ### Code Quality
@@ -264,7 +259,7 @@ See `CLAUDE.md` for comprehensive development rules and patterns.
 
 ```bash
 # Run the app
-npx expo start
+npx expo start --port 8082
 
 # Test on physical device
 # Scan QR code with Expo Go app
