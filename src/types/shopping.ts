@@ -122,7 +122,7 @@ export interface RecipeWithSelectableIngredients {
 }
 
 /**
- * Missing ingredients for My Fridge feature
+ * Missing ingredients for My Kitchen feature
  * Shows which ingredients user needs to buy
  */
 export interface MissingIngredientsInfo {
