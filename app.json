@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "recipe-studio",
-    "slug": "recipe-studio",
+    "name": "RecipeiQ",
+    "slug": "recipeiq",
     "version": "1.0.0",
     "web": {
       "favicon": "./assets/favicon.png"
@@ -9,28 +9,54 @@
     "experiments": {
       "tsconfigPaths": true
     },
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "This app accesses your photo library to select images for your recipes.",
+          "cameraPermission": "This app uses the camera to take photos of your recipes and cooking steps."
+        }
+      ],
+      [
+        "expo-document-picker"
+      ]
+    ],
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#EBE8D4"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.recipestudio"
+      "bundleIdentifier": "com.anonymous.recipeiq",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to take photos of your recipes and cooking steps.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for your recipes."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#EBE8D4"
       },
-      "package": "com.anonymous.recipestudio"
+      "package": "com.anonymous.recipeiq",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ff0c733b-e027-45d5-9c21-8567ecd2b3a6"
+      }
     }
   }
 }
