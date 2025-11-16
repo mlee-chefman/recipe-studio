@@ -7,11 +7,10 @@ Complete setup guide for all external services and configurations used in Recipe
 ## Table of Contents
 1. [Firebase Setup](#firebase-setup)
 2. [Gemini AI Setup](#gemini-ai-setup)
-3. [Google Cloud Vision Setup](#google-cloud-vision-setup)
-4. [Spoonacular API Setup](#spoonacular-api-setup)
-5. [Instacart API Setup](#instacart-api-setup)
-6. [Environment Configuration](#environment-configuration)
-7. [ChefIQ Export Format](#chefiq-export-format)
+3. [Spoonacular API Setup](#spoonacular-api-setup)
+4. [Instacart API Setup](#instacart-api-setup)
+5. [Environment Configuration](#environment-configuration)
+6. [ChefIQ Export Format](#chefiq-export-format)
 
 ---
 
@@ -93,46 +92,75 @@ firebase deploy --only firestore:rules
 
 ### 1. Get API Key
 
-1. Go to [Google AI Studio](https://aistudio.google.com/)
-2. Click **Get API Key**
-3. Create new API key or use existing
-4. Copy the API key
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Click **Get API Key** or **Create API Key**
+3. Copy the API key
+
+**Recommended:** Use a paid account for production use (1000 RPM vs 15 RPM on free tier)
 
 ### 2. Configure in App
 
 Add to `.env` file:
 ```bash
-GEMINI_API_KEY=your_gemini_api_key_here
+EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### 3. Features Using Gemini
+### 3. Current Model
+
+**Gemini 2.5 Flash-Lite** (Production-ready)
+- 90% cheaper than Gemini 2.0 Flash
+- Multimodal vision support (images + text)
+- Optimized for speed and cost
+
+### 4. Features Using Gemini
+
+**Multimodal Vision (Image Recognition):**
+- Extract recipes from images in one step (OCR + parsing combined)
+- Handles handwritten notes and printed recipes
+- Cost: Free (included in Gemini API)
+- No separate Vision API needed
+
+**PDF Recipe Extraction:**
+- Read recipes from PDF cookbooks
+- Batch processing with intelligent chunking
+- Cost: ~$0.001 per page
 
 **Recipe Generation:**
-- Generate recipes from user descriptions
-- Cost: ~$0.001 per recipe (Flash model)
-- Rate limit: 15 requests/minute (free tier)
+- Generate recipes from text descriptions
+- AI-powered recipe creation
+- Cost: ~$0.001 per recipe
 
 **Recipe Parsing:**
-- Extract recipes from images (OCR)
 - Parse recipe text into structured data
+- Smart ingredient parsing and normalization
 - Split long instructions intelligently
 
 **Cooking Action Analysis:**
-- Analyze recipes for ChefIQ compatibility
-- Detect cooking methods (pressure cook, bake, etc.)
+- Analyze recipes for ChefIQ appliance compatibility
+- Detect cooking methods (pressure cook, bake, air fry, etc.)
 - Extract temperatures, times, and parameters
 
-**My Fridge Feature:**
+**My Kitchen Feature:**
 - Generate recipes from available ingredients
 - Suggest substitutions
 - Calculate ingredient match percentage
 
-### 4. Rate Limiting
+**AI Image Generation (Imagen 3):**
+- Generate recipe cover photos automatically
+- Cost: $0.03 per image
+- High-quality food photography
+
+### 5. Rate Limiting
 
 **Free Tier Limits:**
 - 15 requests/minute
-- 1,500 requests/day
-- 1 million tokens/minute
+- 50 requests/day
+- Not recommended for production
+
+**Paid Tier (Recommended):**
+- 1,000 requests/minute
+- Much higher daily quotas
+- Better for production use
 
 **Retry Logic:**
 - Automatic retry on 503 (Service Unavailable)
@@ -141,45 +169,33 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ---
 
-## ~~Google Cloud Vision Setup~~ (DEPRECATED)
-
-**Note:** As of 2025, Recipe Studio now uses **Gemini 2.5 Flash-Lite multimodal vision** instead of Google Cloud Vision API for image recognition. This provides:
-- 85-90% cost savings
-- Better recipe understanding
-- Single API call (no separate OCR + parsing)
-- Handles handwritten notes better
-
-**No additional setup needed** - Gemini multimodal vision uses the same `EXPO_PUBLIC_GEMINI_API_KEY` as other features.
-- Gemini Vision is free in Flash model
-
----
-
 ## Spoonacular API Setup
 
 ### 1. Get API Key
 
-1. Go to [Spoonacular](https://spoonacular.com/food-api)
+1. Go to [Spoonacular Food API](https://spoonacular.com/food-api/console#Dashboard)
 2. Sign up for an account
-3. Navigate to **Dashboard** > **API Keys**
+3. Navigate to **Dashboard** > **My Console**
 4. Copy your API key
 
 ### 2. Configure in App
 
 Add to `.env` file:
 ```bash
-SPOONACULAR_API_KEY=your_spoonacular_api_key_here
+EXPO_PUBLIC_SPOONACULAR_API_KEY=your_spoonacular_api_key_here
 ```
 
 ### 3. Features Using Spoonacular
 
-**My Fridge Feature:**
+**My Kitchen Feature:**
 - Ingredient autocomplete
 - Search recipes by ingredients
-- Get recipe details
+- Recipe suggestions based on what you have
 - Nutrition information
 
 **Usage:**
 - Free tier: 150 requests/day
+- Sufficient for demo and testing
 - See [SPOONACULAR_COST_ANALYSIS.md](./SPOONACULAR_COST_ANALYSIS.md) for detailed pricing
 
 ---
@@ -192,25 +208,27 @@ SPOONACULAR_API_KEY=your_spoonacular_api_key_here
 
 1. Go to [Instacart Developer Platform](https://docs.instacart.com/developer_platform_api/get_started/)
 2. Apply for API access (requires partnership application)
-3. Once approved, get your API key from the dashboard
-4. API key format: `ic_prod_xxxxx` or `ic_test_xxxxx`
+3. Once approved, get your test/sandbox API key from the dashboard
 
 ### 2. Configure in App
 
-**IMPORTANT: This is a DEMO APP configured for SANDBOX/TEST environment only**
+**IMPORTANT: This app is configured for SANDBOX/TEST environment only**
 
 Add to `.env`:
 ```bash
-# Use test/sandbox API key (ic_test_xxxxx or keys.xxxxx)
+# Use sandbox/test API key (ic_test_xxxxx or keys.xxxxx)
 # DO NOT use production keys (ic_prod_xxxxx) in this demo app
-EXPO_PUBLIC_INSTACART_API_KEY=ic_test_your_key_here
+EXPO_PUBLIC_INSTACART_API_KEY=your_instacart_test_api_key_here
 ```
 
+**Supported API Key Formats:**
+- `ic_test_xxxxx` (sandbox/test key)
+- `keys.xxxxx` (development key)
+
 **Configuration Details:**
-- **Endpoint:** `https://connect.dev.instacart.tools/idp/v1/products/products_link` (sandbox/test)
-- **API Key Format:** `ic_test_xxxxx` or `keys.xxxxx` (development keys)
+- **Endpoint:** `https://connect.dev.instacart.tools/idp/v1/products/products_link` (sandbox)
 - **Environment:** Sandbox/test only - works in both debug and release builds
-- **Production:** NOT configured (would use `https://connect.instacart.com`)
+- **Production:** NOT configured (would require `https://connect.instacart.com` endpoint)
 
 ### 3. How It Works
 
@@ -268,53 +286,50 @@ The app uses Instacart's IDP (Ingredient Data Platform) API to create shopping l
 
 ### Complete .env File
 
+**Option 1: Download Pre-configured (Recommended)**
+
+Download the `.env` file from OneDrive:
+[Download .env from OneDrive](https://plusitscheap-my.sharepoint.com/:u:/r/personal/mlee_chefman_com/Documents/RecipeiQ/.env?csf=1&web=1&e=Lzunx4)
+
+Save it to the project root directory.
+
+**Option 2: Create Manually**
+
 Create `.env` in project root:
 
 ```bash
-# Firebase Configuration
-FIREBASE_API_KEY=your_firebase_api_key
-FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-FIREBASE_MESSAGING_SENDER_ID=123456789
-FIREBASE_APP_ID=1:123456789:web:abcdef123456
-
-# Gemini AI
+# Google Gemini API Key (REQUIRED)
+# Get your API key from: https://aistudio.google.com/app/apikey
+# Model: Gemini 2.5 Flash-Lite (production-ready, 90% cheaper than 2.0 Flash)
+# Recommended: Use paid account for production (1000 RPM vs 15 RPM free tier)
 EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
 
-# Google Cloud Vision (Optional - falls back to Gemini)
-GOOGLE_CLOUD_VISION_API_KEY=your_vision_api_key_here
-
-# Spoonacular API (for My Fridge feature)
+# Spoonacular API Key (REQUIRED for My Kitchen feature)
+# Get your API key from: https://spoonacular.com/food-api/console#Dashboard
+# Free tier: 150 requests/day
 EXPO_PUBLIC_SPOONACULAR_API_KEY=your_spoonacular_api_key_here
 
-# Instacart API (for shopping cart integration)
-EXPO_PUBLIC_INSTACART_API_KEY=ic_prod_your_key_here
-
-# Unsplash API (for step images)
-EXPO_PUBLIC_UNSPLASH_ACCESS_KEY=your_unsplash_key_here
+# Instacart API Key (SANDBOX/TEST ONLY - DEMO APP)
+# Get your API key from: https://docs.instacart.com/developer_platform_api/get_started/
+# IMPORTANT: Use sandbox/test keys only (ic_test_xxxxx or keys.xxxxx)
+# DO NOT use production keys (ic_prod_xxxxx) in this demo app
+EXPO_PUBLIC_INSTACART_API_KEY=your_instacart_test_api_key_here
 ```
 
-### Loading Environment Variables
+### Environment Variable Usage
 
-The app uses `react-native-dotenv` to load environment variables.
+Environment variables are loaded using Expo's built-in configuration system.
 
-**babel.config.js:**
-```javascript
-module.exports = {
-  presets: ['babel-preset-expo'],
-  plugins: [
-    ['module:react-native-dotenv', {
-      moduleName: '@env',
-      path: '.env',
-    }],
-  ],
-};
-```
-
-**Usage in code:**
+**Access in code:**
 ```typescript
-import { GEMINI_API_KEY } from '@env';
+import Constants from 'expo-constants';
+
+const geminiApiKey = Constants.expoConfig?.extra?.geminiApiKey;
+```
+
+**Or using process.env (for EXPO_PUBLIC_ prefixed variables):**
+```typescript
+const geminiApiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY;
 ```
 
 ---
@@ -396,36 +411,48 @@ import { GEMINI_API_KEY } from '@env';
 
 ## Development vs Production
 
-### Development
-- Use `.env` file with test credentials
-- Enable Firebase emulators (optional)
-- Use Gemini free tier
-- Use Spoonacular free tier
+### Development/Demo
+- Download `.env` file from OneDrive with pre-configured test credentials
+- Use Gemini free tier (15 RPM, 50 RPD) for testing
+- Use Spoonacular free tier (150 requests/day)
+- Use Instacart sandbox/test environment
+- Firebase: Use development project with security rules deployed
 
-### Production
-- Use environment variables from hosting platform
-- Enable Firebase security rules
-- Monitor API usage and costs
-- Consider upgrading to paid tiers based on usage
+### Production (Not Configured)
+- This is a demo app for ChefIQ Studio App Challenge
+- Not configured for production deployment
+- Would require:
+  - Gemini paid tier (1000 RPM recommended)
+  - Instacart production API keys and endpoint
+  - Production Firebase project
+  - Monitoring and rate limit management
 
 ---
 
 ## Troubleshooting
 
 ### Gemini API Issues
-- **429 Error**: Rate limit exceeded, wait 1 minute
-- **503 Error**: Service unavailable, retry after 5 seconds
-- Check API key is valid and billing is enabled
+- **429 Error**: Rate limit exceeded
+  - Free tier: Wait 1 minute (15 RPM limit)
+  - Paid tier: Check if you've exceeded 1000 RPM
+- **503 Error**: Service unavailable, app will retry automatically after 5 seconds
+- **Invalid API Key**: Verify key at [Google AI Studio](https://aistudio.google.com/app/apikey)
+- **Quota Exceeded**: Free tier has 50 requests/day limit, consider upgrading to paid tier
 
 ### Firebase Issues
-- **Permission Denied**: Check Firestore security rules
-- **Auth Error**: Verify Firebase config in .env
+- **Permission Denied**: Check Firestore security rules are deployed
+- **Auth Error**: Verify Firebase config in app.config.js
 - **Network Error**: Check internet connection
 
-### Vision API Issues
-- **Invalid API Key**: Verify key in Google Cloud Console
-- **Quota Exceeded**: Check usage in Cloud Console
-- **Falls back to Gemini**: Vision API failed, using Gemini instead
+### Spoonacular API Issues
+- **401 Unauthorized**: Invalid API key, verify at Spoonacular dashboard
+- **429 Rate Limit**: Exceeded 150 requests/day (free tier)
+- **No Results**: Ingredient not found, try different search term
+
+### Instacart API Issues
+- **Invalid API Key**: Verify you're using test/sandbox key (ic_test_ or keys. prefix)
+- **403 Forbidden**: Using production key in sandbox environment
+- **Network Error**: Check sandbox endpoint is accessible
 
 ---
 
@@ -436,9 +463,10 @@ See detailed cost analysis in:
 - [SPOONACULAR_COST_ANALYSIS.md](./SPOONACULAR_COST_ANALYSIS.md) - Spoonacular costs
 
 **Quick Summary:**
-- Gemini: Free tier covers most usage (~$0.001/request)
-- Vision: $1.50/1,000 images (first 1,000 free)
-- Spoonacular: 150 requests/day free
-- Firebase: Free tier generous for small apps
+- **Gemini 2.5 Flash-Lite**: ~$0.001/request (text/vision), Free tier: 15 RPM, 50 RPD
+- **Imagen 3**: $0.03/image (AI-generated recipe photos)
+- **Spoonacular**: 150 requests/day free
+- **Firebase**: Free tier generous for small apps
+- **Instacart**: No cost (sandbox/test environment)
 
-**Recommended: Stay on free tiers until 100+ users**
+**Note:** App is optimized for cost efficiency using Gemini 2.5 Flash-Lite (90% cheaper than alternatives)

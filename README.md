@@ -13,11 +13,12 @@ Built for the ChefIQ Studio App Challenge using React Native, Expo, Google Gemin
 - [Tech Stack](#tech-stack)
 - [Installation](#installation)
 - [Building the App](#building-the-app)
-- [Configuration](#configuration)
 - [Project Structure](#project-structure)
 - [Important Documentation](#important-documentation)
 - [Development](#development)
 - [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
 - [License](#license)
 
 ---
@@ -35,8 +36,7 @@ npm install
 yarn install
 
 # 3. Set up environment variables
-cp .env.example .env
-# Edit .env and add your API keys (see Configuration section)
+# Download .env from OneDrive (see Installation section for link)
 
 # 4. Start the development server
 npx expo start
@@ -54,7 +54,7 @@ npx expo start --android
 ### Core Features
 - **AI Recipe Generation**: Create recipes from text descriptions using Google Gemini AI
 - **Multimodal Recipe Import**: Extract recipes from images and PDFs using Gemini Vision
-- **My Fridge**: Generate recipe ideas based on ingredients you have on hand
+- **My Kitchen**: Generate recipe ideas based on ingredients you have on hand
 - **Shopping Cart**: Add recipe ingredients to cart and shop on Instacart
 - **Recipe Management**: Create, edit, delete, and organize recipes
 - **ChefIQ Integration**: Detect appliance compatibility and guided cooking actions
@@ -82,7 +82,7 @@ npx expo start --android
 
 - **Framework**: React Native (Expo SDK 53)
 - **Language**: TypeScript
-- **Styling**: NativeWind (Tailwind CSS for React Native)
+- **Styling**: Custom theme system with design tokens (colors, typography, spacing, shadows)
 - **State Management**: Zustand with persistence
 - **Backend**: Firebase (Auth, Firestore, Storage)
 - **AI/ML**:
@@ -91,7 +91,6 @@ npx expo start --android
 - **APIs**:
   - Spoonacular (ingredient autocomplete, recipe search)
   - Instacart IDP API (shopping cart integration)
-  - Unsplash (food imagery)
 - **Navigation**: React Navigation (Stack + Bottom Tabs)
 - **Other**: Axios, PDF-lib, Expo Image Picker, Expo Haptics
 
@@ -123,13 +122,14 @@ yarn install
 
 ### Step 3: Configure Environment Variables
 
-Copy the example environment file:
+**Option 1: Download from OneDrive (Recommended)**
 
-```bash
-cp .env.example .env
-```
+Download the pre-configured `.env` file from OneDrive:
 
-Edit `.env` and add your API keys (see [Configuration](#configuration) section below).
+[Download .env file from OneDrive](https://plusitscheap-my.sharepoint.com/:u:/r/personal/mlee_chefman_com/Documents/RecipeiQ/.env?csf=1&web=1&e=Lzunx4)
+
+Save the downloaded file as `.env` in the root directory of the project.
+
 
 ### Step 4: Firebase Setup (Optional for Basic Usage)
 
@@ -168,109 +168,20 @@ yarn ios
 npx expo start --android
 # or use the shortcut
 yarn android
-
-# Run on web (experimental)
-npx expo start --web
 ```
 
 ### Production Build
 
-#### iOS (requires Mac + Xcode)
-
 ```bash
-# Create a development build
-npx expo run:ios
+# Build for iOS
+eas build --platform ios
 
-# Create a production build
-eas build --platform ios --profile production
+# Build for Android
+eas build --platform android
+
 ```
 
-#### Android
-
-```bash
-# Create a development build
-npx expo run:android
-
-# Create a production build (APK)
-eas build --platform android --profile production
-
-# Create an AAB for Google Play Store
-eas build --platform android --profile production --output aab
-```
-
-### Using EAS Build (Recommended for Production)
-
-1. Install EAS CLI:
-```bash
-npm install -g eas-cli
-```
-
-2. Configure EAS:
-```bash
-eas login
-eas build:configure
-```
-
-3. Build for both platforms:
-```bash
-eas build --platform all
-```
-
-See [Expo EAS Build Documentation](https://docs.expo.dev/build/introduction/) for more details.
-
----
-
-## Configuration
-
-### Required API Keys
-
-Edit your `.env` file with the following API keys:
-
-#### 1. Google Gemini API Key (REQUIRED)
-
-```env
-EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-- **Get it from**: https://aistudio.google.com/app/apikey
-- **Used for**: Recipe generation, image/PDF import, AI parsing, cooking actions
-- **Model**: Gemini 2.5 Flash-Lite (production-ready, 90% cheaper)
-- **Recommended**: Paid account (1000 RPM) for best performance
-
-#### 2. Spoonacular API Key (Optional)
-
-```env
-EXPO_PUBLIC_SPOONACULAR_API_KEY=your_spoonacular_api_key_here
-```
-
-- **Get it from**: https://spoonacular.com/food-api/console#Dashboard
-- **Used for**: My Fridge feature (ingredient autocomplete, recipe search)
-- **Free tier**: 150 requests/day
-
-#### 3. Unsplash API Key (Optional)
-
-```env
-EXPO_PUBLIC_UNSPLASH_ACCESS_KEY=your_unsplash_access_key_here
-```
-
-- **Get it from**: https://unsplash.com/developers
-- **Used for**: AI-generated recipe step images
-- **Free tier**: 50 requests/hour
-
-#### 4. Instacart API Key (Optional - Sandbox/Test Only)
-
-```env
-EXPO_PUBLIC_INSTACART_API_KEY=your_instacart_test_api_key_here
-```
-
-- **Get it from**: https://docs.instacart.com/developer_platform_api/get_started/
-- **Used for**: Shopping cart integration via IDP API
-- **Important**: Use SANDBOX keys only (ic_test_xxxxx or keys.xxxxx)
-- **DO NOT** use production keys in this demo app
-
-### Cost Analysis
-
-See `docs/AI_FEATURE_COST_ANALYSIS.md` and `docs/SPOONACULAR_COST_ANALYSIS.md` for detailed cost breakdowns and optimization strategies.
+**Note**: Production builds require an Expo Application Services (EAS) account. See [Expo EAS Build documentation](https://docs.expo.dev/build/introduction/) for setup instructions.
 
 ---
 
@@ -295,18 +206,13 @@ recipe-studio/
 │   ├── types/              # TypeScript type definitions
 │   └── utils/              # Utility functions and constants
 ├── docs/                   # Documentation
-│   ├── README.md                       # Quick start guide
 │   ├── PROJECT_OVERVIEW.md             # Competition context
-│   ├── FEATURES_PROGRESS.md            # Feature status
 │   ├── AI_IMPLEMENTATION_GUIDE.md      # AI features guide
 │   ├── AI_FEATURE_COST_ANALYSIS.md     # AI cost analysis
 │   ├── SPOONACULAR_COST_ANALYSIS.md    # API cost analysis
 │   ├── TECHNICAL_SETUP.md              # Service setup guide
 │   ├── CONFIGURATION_GUIDE.md          # Configuration reference
-│   └── MIGRATION_SUMMARY.md            # Recent changes
 ├── CLAUDE.md               # AI assistant development guidelines
-├── .env.example            # Environment variables template
-├── firestore.rules         # Firestore security rules
 ├── app.config.js           # Expo configuration
 ├── package.json            # Dependencies
 └── tsconfig.json           # TypeScript configuration
@@ -416,7 +322,7 @@ npx expo start
 - [ ] Test AI recipe generation
 - [ ] Test image import (camera and library)
 - [ ] Test PDF import
-- [ ] Test My Fridge feature
+- [ ] Test My Kitchen feature
 - [ ] Test shopping cart integration
 - [ ] Test Firebase sync (requires deployment)
 - [ ] Test offline mode
@@ -446,10 +352,6 @@ See `RESUME_HERE.md` for detailed testing instructions.
 - Cause: Gemini API key missing or invalid
 - Solution: Check `.env` file and verify API key at https://aistudio.google.com/app/apikey
 
-**Issue: "Failed to add items to cart"**
-- Cause: Firestore rules not deployed
-- Solution: Run `firebase deploy --only firestore:rules`
-
 **Issue: Build errors after fresh install**
 - Cause: Cache or dependency issues
 - Solution:
@@ -467,36 +369,6 @@ See individual documentation files for more troubleshooting tips.
 
 ---
 
-## Competition Entry
-
-This app is submitted for the **ChefIQ Studio App Challenge**.
-
-**Status**: Feature-complete with AI-powered recipe creation, management, and ChefIQ integration
-
-**Key Features for Judges**:
-- AI recipe generation from text, images, and PDFs
-- Smart ingredient management with My Fridge
-- Shopping cart integration with Instacart
-- ChefIQ appliance compatibility detection
-- Firebase cloud sync and authentication
-- Clean, minimal design with excellent UX
-
----
-
-## Contributing
-
-This is a competition entry project. For development guidelines, see `CLAUDE.md`.
-
----
-
-## License
-
-Copyright © 2025 Recipe Studio Team. All rights reserved.
-
-Built for the ChefIQ Studio App Challenge.
-
----
-
 ## Support
 
 - **Documentation**: See `docs/` folder for comprehensive guides
@@ -506,3 +378,11 @@ Built for the ChefIQ Studio App Challenge.
 - **Configuration**: See `docs/CONFIGURATION_GUIDE.md`
 
 **For questions about specific features, refer to the documentation files listed in the [Important Documentation](#important-documentation) section above.**
+
+**Key Features**:
+- AI recipe generation from text, images, and PDFs
+- Smart ingredient management with My Kitchen
+- Shopping cart integration with Instacart
+- ChefIQ appliance compatibility detection
+- Firebase cloud sync and authentication
+- Clean, minimal design with excellent UX
