@@ -1,5 +1,5 @@
 import { useState, useRef, useLayoutEffect, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, StyleSheet, Platform, Keyboard, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Keyboard, Animated } from 'react-native';
 import { CTAButton } from '@components/CTAButton';
 import { WebView } from 'react-native-webview';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -27,8 +27,6 @@ export default function RecipeWebImportScreen() {
   const [urlInput, setUrlInput] = useState(route.params?.initialUrl || 'https://duckduckgo.com');
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [loadProgress, setLoadProgress] = useState(0);
   const progressAnim = useRef(new Animated.Value(0)).current;
 
@@ -46,15 +44,6 @@ export default function RecipeWebImportScreen() {
     },
   });
 
-  // // Debug log
-  // useEffect(() => {
-  //   console.log('RecipeWebImport mounted with URL:', currentUrl);
-  // }, []);
-
-  // useEffect(() => {
-  //   console.log('currentUrl changed to:', currentUrl);
-  // }, [currentUrl]);
-
   // Animate progress bar
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -70,12 +59,10 @@ export default function RecipeWebImportScreen() {
   };
 
   const handleLoadStart = () => {
-    console.log('WebView started loading:', currentUrl);
     setLoadProgress(0.1); // Start with a small progress
   };
 
   const handleLoadEnd = () => {
-    console.log('WebView finished loading:', currentUrl);
     setLoadProgress(1); // Complete the progress
     // Hide progress bar after a short delay
     setTimeout(() => {
@@ -118,11 +105,9 @@ export default function RecipeWebImportScreen() {
               value={urlInput}
               onChangeText={setUrlInput}
               onFocus={() => {
-                setIsEditingUrl(true);
                 isEditingUrlRef.current = true;
               }}
               onBlur={() => {
-                setIsEditingUrl(false);
                 isEditingUrlRef.current = false;
               }}
               onSubmitEditing={handleUrlSubmit}
@@ -155,7 +140,6 @@ export default function RecipeWebImportScreen() {
   }, [navigation, canGoBack, canGoForward, urlInput]);
 
   const handleNavigationStateChange = (navState: any) => {
-    console.log('Navigation state changed:', navState.url, 'loading:', navState.loading);
 
     // Block Google's redirect loop (detected by no_sw_cr parameter)
     if (navState.url && navState.url.includes('no_sw_cr=1')) {
@@ -177,7 +161,6 @@ export default function RecipeWebImportScreen() {
 
     setCanGoBack(navState.canGoBack);
     setCanGoForward(navState.canGoForward);
-    setIsLoading(navState.loading);
 
     // Reset importable state when navigating to a new page or on excluded URLs
     // JavaScript detection will set it to true if a recipe is found
@@ -192,7 +175,6 @@ export default function RecipeWebImportScreen() {
     if (validatedUrl) {
       console.log('Setting URL to:', validatedUrl);
       setCurrentUrl(validatedUrl);
-      setIsEditingUrl(false);
       isEditingUrlRef.current = false;
       Keyboard.dismiss();
     } else {
@@ -213,7 +195,6 @@ export default function RecipeWebImportScreen() {
         onShouldStartLoadWithRequest={(request) => {
           // Block Google's redirect loop
           if (request.url.includes('no_sw_cr=1')) {
-            console.log('Blocking redirect to:', request.url);
             return false;
           }
           return true;
@@ -229,7 +210,6 @@ export default function RecipeWebImportScreen() {
         }}
         injectedJavaScriptBeforeContentLoaded={DEBUG_LOGGING_SCRIPT}
         injectedJavaScript={RECIPE_DETECTION_SCRIPT}
-        style={styles.webview}
         startInLoadingState={false}
         javaScriptEnabled={true}
         domStorageEnabled={true}

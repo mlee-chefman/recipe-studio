@@ -16,6 +16,7 @@ interface BaseModalProps {
   enableBackdropClose?: boolean;
   contentStyle?: ViewStyle;
   avoidKeyboard?: boolean;
+  hasPaddingBottom?: boolean;
 }
 
 export default function BaseModal({
@@ -29,6 +30,7 @@ export default function BaseModal({
   enableBackdropClose = true,
   contentStyle,
   avoidKeyboard = false,
+  hasPaddingBottom = true,
 }: BaseModalProps) {
   const slideAnim = useRef(new Animated.Value(500)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -117,7 +119,7 @@ export default function BaseModal({
 
   const getContentContainerStyle = (): ViewStyle => {
     const baseStyle: ViewStyle = variant === 'bottom-sheet'
-      ? styles.bottomSheetContainer
+      ? { ...styles.bottomSheetContainer, paddingBottom: hasPaddingBottom ? 50 : 0 }
       : variant === 'centered'
       ? styles.centeredContainer
       : styles.fullScreenContainer;
@@ -256,9 +258,8 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.background.primary,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'android' ? 60 : 40,
     maxHeight: Platform.OS === 'android' ? '90%' : '85%',
-    overflow: Platform.OS === 'android' ? 'visible' : 'hidden',
+    overflow: 'hidden',
   },
   centeredContainer: {
     backgroundColor: theme.colors.background.primary,
@@ -275,7 +276,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   dragIndicatorContainer: {
     alignItems: 'center',
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: theme.spacing.md,
   },
   dragIndicator: {
     width: 40,
