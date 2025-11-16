@@ -64,7 +64,7 @@ yarn android --port 8082
 - PDF cookbook import (batch processing)
 - Smart ingredient parsing and normalization
 - Automatic cooking action detection for ChefIQ appliances
-- AI-generated recipe cover images with Imagen 3
+- AI-generated recipe cover images with Imagen 4
 
 ---
 
@@ -77,7 +77,7 @@ yarn android --port 8082
 - **Backend**: Firebase (Auth, Firestore, Storage)
 - **AI/ML**:
   - Google Gemini 2.5 Flash-Lite (recipe generation, vision, parsing)
-  - Imagen 3 (AI image generation)
+  - Imagen 4 (AI image generation)
 - **APIs**:
   - Spoonacular (ingredient autocomplete, recipe search)
   - Instacart IDP API (shopping cart integration)
