@@ -10,7 +10,7 @@ Complete guide to all AI features and their implementation in Recipe Studio.
 3. [Recipe Parsing & Generation](#recipe-parsing--generation)
 4. [Cooking Action Analysis](#cooking-action-analysis)
 5. [Image Recognition (OCR)](#image-recognition-ocr)
-6. [My Fridge Feature](#my-fridge-feature)
+6. [My Kitchen Feature](#my-kitchen-feature)
 7. [Prompt Engineering](#prompt-engineering)
 8. [Error Handling & Retry Logic](#error-handling--retry-logic)
 
@@ -120,7 +120,7 @@ const recipe = await scrapeRecipeFromURL(url);
 
 ---
 
-### 5. My Fridge Recipe Generation
+### 5. My Kitchen Recipe Generation
 **Feature**: Generate recipes from available ingredients
 
 **User Input:**
@@ -296,11 +296,11 @@ const recipe = parseRecipeFromText('', imageUri);
 
 ---
 
-## My Fridge Feature
+## My Kitchen Feature
 
 ### Overview
 
-My Fridge allows users to input available ingredients and generate recipes using two modes:
+My Kitchen allows users to input available ingredients and generate recipes using two modes:
 - **Quick Recipes**: Generate 2 recipe ideas + find similar recipes from your collection
 - **Full Course Menu**: Generate a complete 3-course meal (Appetizer, Main, Dessert)
 
@@ -572,7 +572,7 @@ const cacheKey = `cooking_action_${recipeTitle}`;
 // Cache for 1 hour
 ```
 
-**My Fridge:**
+**My Kitchen:**
 ```typescript
 // Cache ingredient autocomplete
 const cacheKey = `ingredient_${query}`;
