@@ -47,7 +47,7 @@ export default function MyFridgeScreen() {
   const { user } = useAuthStore();
   const { allRecipes, userRecipes } = useRecipeStore();
 
-  // Fridge store
+  // Kitchen store
   const {
     ingredients,
     addIngredient,

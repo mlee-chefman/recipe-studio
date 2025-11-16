@@ -774,7 +774,7 @@ export const useThemeStore = create<ThemeState>()(
   )
 );
 
-// Fridge store with persistence
+// Kitchen store with persistence
 export const useFridgeStore = create<FridgeState>()(
   persist(
     (set, get) => ({

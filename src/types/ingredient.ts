@@ -1,4 +1,4 @@
-// Ingredient and Fridge-related type definitions
+// Ingredient and Kitchen-related type definitions
 
 /**
  * Ingredient from Spoonacular autocomplete

@@ -41,7 +41,6 @@
 
 1. ❌ **Do NOT change Gemini model versions** without explicit approval
    - Current: `gemini-2.5-flash-lite` (production-ready, 80% cheaper)
-   - See: `docs/MIGRATION_SUMMARY.md` for why we use this version
 
 2. ❌ **Do NOT add new API dependencies** without approval
    - Every API has cost implications
@@ -83,15 +82,10 @@
 **For AI features:**
 - `docs/AI_IMPLEMENTATION_GUIDE.md` - How AI features work
 - `docs/AI_FEATURE_COST_ANALYSIS.md` - Cost implications
-- `docs/MIGRATION_SUMMARY.md` - Recent changes
 
 **For configuration:**
 - `docs/CONFIGURATION_GUIDE.md` - All configurable parameters
 - `docs/TECHNICAL_SETUP.md` - Service setup
-
-**For features:**
-- `docs/FEATURES_PROGRESS.md` - What's implemented
-- `docs/PROJECT_OVERVIEW.md` - Project context
 
 ### 3. Search the Codebase
 
@@ -117,19 +111,17 @@
 
 ### Essential Docs (Read These First)
 
-1. **`docs/PROJECT_OVERVIEW.md`** - Understand project context and goals
-2. **`docs/TECHNICAL_SETUP.md`** - Service configurations and setup
-3. **`docs/AI_IMPLEMENTATION_GUIDE.md`** - How AI features work
-4. **`docs/FEATURES_PROGRESS.md`** - What's implemented and what's pending
-5. **`docs/README.md`** - Quick start and installation guide
+1. **`docs/TECHNICAL_SETUP.md`** - Service configurations and setup
+2. **`docs/AI_IMPLEMENTATION_GUIDE.md`** - How AI features work
+3. **`docs/FEATURES_PROGRESS.md`** - What's implemented and what's pending
+4. **`README.md`** - Quick start and installation guide
 
 ### Feature-Specific Docs
 
 **Before working on:**
 - **Recipe generation:** Read `docs/AI_IMPLEMENTATION_GUIDE.md` sections on prompts
-- **Image/PDF import:** Read `docs/MIGRATION_SUMMARY.md` (multimodal vision)
 - **ChefIQ integration:** Read `docs/TECHNICAL_SETUP.md` ChefIQ section
-- **My Fridge feature:** Read `docs/AI_IMPLEMENTATION_GUIDE.md` My Fridge section
+- **My Kitchen feature:** Read `docs/AI_IMPLEMENTATION_GUIDE.md` My Kitchen section
 - **Configuration changes:** Read `docs/CONFIGURATION_GUIDE.md` (REQUIRED)
 
 ### Cost & Performance Docs
@@ -144,16 +136,13 @@
 **Core Documentation (10 files):**
 ```
 ├── CLAUDE.md                               # This file - AI assistant guidelines (root)
+├── README.md                           # Quick start and setup
 └── docs/
-    ├── README.md                           # Quick start and setup
-    ├── PROJECT_OVERVIEW.md                 # Project context and competition info
-    ├── FEATURES_PROGRESS.md                # Feature implementation status
     ├── AI_IMPLEMENTATION_GUIDE.md          # AI features deep dive
     ├── AI_FEATURE_COST_ANALYSIS.md         # Gemini AI cost analysis
     ├── SPOONACULAR_COST_ANALYSIS.md        # Spoonacular API costs
     ├── TECHNICAL_SETUP.md                  # All service setup guides
     ├── CONFIGURATION_GUIDE.md              # Configuration parameters
-    └── MIGRATION_SUMMARY.md                # Gemini 2.5 Flash-Lite migration
 ```
 
 **Note:**
@@ -172,7 +161,7 @@ React Native + Expo
 ├── TypeScript
 ├── Firebase (Auth, Firestore, Storage)
 ├── Google Gemini AI (2.5 Flash-Lite)
-├── Spoonacular API (My Fridge feature)
+├── Spoonacular API (My Kitchen feature)
 └── React Navigation
 ```
 
@@ -609,7 +598,7 @@ const text = await googleVision.detectText(imageUri);
 
 **File:** `src/services/spoonacular.service.ts`
 
-**Used For:** My Fridge feature only
+**Used For:** My Kitchen feature only
 - Ingredient autocomplete
 - Recipe search by ingredients
 
@@ -913,15 +902,13 @@ export async function generateRecipeVariation(
 | File | Purpose | When to Read |
 |------|---------|--------------|
 | `CLAUDE.md` | AI assistant guidelines | **Always read first** |
-| `docs/README.md` | Quick start guide | Initial setup |
-| `docs/PROJECT_OVERVIEW.md` | Project context | Understanding goals |
+| `README.md` | Quick start guide | Initial setup |
 | `docs/FEATURES_PROGRESS.md` | Feature status | Before adding features |
 | `docs/AI_IMPLEMENTATION_GUIDE.md` | AI features deep dive | Working with AI |
 | `docs/AI_FEATURE_COST_ANALYSIS.md` | Gemini costs | Adding AI features |
-| `docs/SPOONACULAR_COST_ANALYSIS.md` | API costs | My Fridge feature |
+| `docs/SPOONACULAR_COST_ANALYSIS.md` | API costs | My Kitchen feature |
 | `docs/TECHNICAL_SETUP.md` | Service setup | Initial configuration |
 | `docs/CONFIGURATION_GUIDE.md` | Config parameters | Changing configs |
-| `docs/MIGRATION_SUMMARY.md` | Recent changes | Understanding current state |
 
 ### Most Important Rules
 

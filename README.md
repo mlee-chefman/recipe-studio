@@ -53,7 +53,7 @@ npx expo start --android
 
 ### Core Features
 - **AI Recipe Generation**: Create recipes from text descriptions using Google Gemini AI
-- **Multimodal Recipe Import**: Extract recipes from images and PDFs using Gemini Vision
+- **Multimodal Recipe Import**: Extract recipes from images and PDFs using Gemini multimodal
 - **My Kitchen**: Generate recipe ideas based on ingredients you have on hand
 - **Shopping Cart**: Add recipe ingredients to cart and shop on Instacart
 - **Recipe Management**: Create, edit, delete, and organize recipes
@@ -67,14 +67,6 @@ npx expo start --android
 - Smart ingredient parsing and normalization
 - Automatic cooking action detection for ChefIQ appliances
 - AI-generated recipe cover images with Imagen 3
-
-### User Experience
-- Clean, minimal design inspired by ReciMe
-- Real-time recipe search and filtering
-- Photo support (camera or library)
-- Offline support with AsyncStorage caching
-- Haptic feedback for better UX
-- Theme support (Fresh, Warm, Cool color variants)
 
 ---
 
@@ -225,32 +217,14 @@ recipe-studio/
 ### For Developers
 
 - **[CLAUDE.md](CLAUDE.md)** - AI assistant development guidelines and rules
-- **[docs/README.md](docs/README.md)** - Quick start and installation guide
 - **[docs/TECHNICAL_SETUP.md](docs/TECHNICAL_SETUP.md)** - Service configuration and setup
 - **[docs/CONFIGURATION_GUIDE.md](docs/CONFIGURATION_GUIDE.md)** - All configurable parameters
-
-### For Understanding the Project
-
-- **[docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md)** - Competition context and goals
-- **[docs/FEATURES_PROGRESS.md](docs/FEATURES_PROGRESS.md)** - Feature implementation status
 
 ### For AI Features
 
 - **[docs/AI_IMPLEMENTATION_GUIDE.md](docs/AI_IMPLEMENTATION_GUIDE.md)** - How AI features work
 - **[docs/AI_FEATURE_COST_ANALYSIS.md](docs/AI_FEATURE_COST_ANALYSIS.md)** - Gemini AI cost analysis
 - **[docs/SPOONACULAR_COST_ANALYSIS.md](docs/SPOONACULAR_COST_ANALYSIS.md)** - Spoonacular API costs
-- **[docs/MIGRATION_SUMMARY.md](docs/MIGRATION_SUMMARY.md)** - Gemini 2.5 Flash-Lite migration
-
-### Documentation Summary
-
-This project has **10 core documentation files** covering:
-- Setup and installation
-- AI implementation and costs
-- Configuration and services
-- Development guidelines
-- Feature progress tracking
-
-All documentation is well-organized and regularly updated. Start with `docs/README.md` for an overview.
 
 ---
 
@@ -324,25 +298,8 @@ npx expo start
 - [ ] Test PDF import
 - [ ] Test My Kitchen feature
 - [ ] Test shopping cart integration
-- [ ] Test Firebase sync (requires deployment)
-- [ ] Test offline mode
+- [ ] Test Firebase sync
 - [ ] Test on both iOS and Android
-
-### Firebase Testing
-
-1. Deploy Firestore rules:
-```bash
-firebase deploy --only firestore:rules
-```
-
-2. Check Firebase Console:
-   - Go to https://console.firebase.google.com
-   - Navigate to Firestore Database
-   - Verify data structure under `users/{userId}/`
-
-See `RESUME_HERE.md` for detailed testing instructions.
-
----
 
 ## Troubleshooting
 
