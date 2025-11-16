@@ -197,10 +197,20 @@ SPOONACULAR_API_KEY=your_spoonacular_api_key_here
 
 ### 2. Configure in App
 
+**IMPORTANT: This is a DEMO APP configured for SANDBOX/TEST environment only**
+
 Add to `.env`:
 ```bash
-EXPO_PUBLIC_INSTACART_API_KEY=ic_prod_your_key_here
+# Use test/sandbox API key (ic_test_xxxxx or keys.xxxxx)
+# DO NOT use production keys (ic_prod_xxxxx) in this demo app
+EXPO_PUBLIC_INSTACART_API_KEY=ic_test_your_key_here
 ```
+
+**Configuration Details:**
+- **Endpoint:** `https://connect.dev.instacart.tools/idp/v1/products/products_link` (sandbox/test)
+- **API Key Format:** `ic_test_xxxxx` or `keys.xxxxx` (development keys)
+- **Environment:** Sandbox/test only - works in both debug and release builds
+- **Production:** NOT configured (would use `https://connect.instacart.com`)
 
 ### 3. How It Works
 
@@ -211,9 +221,11 @@ The app uses Instacart's IDP (Ingredient Data Platform) API to create shopping l
 1. **User selects ingredients** in Recipe Detail or Grocery Cart
 2. **Ingredient names simplified** using Gemini AI for better product matching
    - Example: "2 (6-ounce) salmon fillets, skin on" → "salmon"
-3. **JSON posted to IDP API** at `https://connect.instacart.com/idp/v1/products/products_link`
-4. **Instacart returns direct link** like `https://customers.instacart.com/store/shopping_lists/8502939`
-5. **User clicks to open** shopping list on Instacart app/website
+3. **JSON posted to IDP API** at `https://connect.dev.instacart.tools/idp/v1/products/products_link` (sandbox endpoint)
+4. **Instacart returns direct link** like `https://customers.dev.instacart.tools/store/shopping_lists/8502939`
+5. **User clicks to open** shopping list on Instacart app/website (sandbox environment)
+
+**Note:** This demo app uses the sandbox/test environment in both debug and release builds. No production Instacart credentials are needed or used.
 
 **JSON Format:**
 ```json
