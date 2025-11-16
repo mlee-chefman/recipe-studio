@@ -2,7 +2,7 @@
 
 **Purpose:** Guidelines and rules for AI assistants (Claude, GPT, etc.) when working on Recipe Studio development.
 
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-11-16
 
 ---
 
@@ -60,6 +60,11 @@
 
 6. ❌ **Do NOT remove error handling** or retry logic
    - See: `docs/AI_IMPLEMENTATION_GUIDE.md` for retry strategies
+
+7. ❌ **Do NOT hardcode colors, spacing, or typography**
+   - Always use the theme system from `src/theme/`
+   - Use `useStyles` hook for theme-aware components
+   - See: [Theme System & Styling](#theme-system--styling) section
 
 ---
 
@@ -339,6 +344,163 @@ const styles = StyleSheet.create({
   container: { marginTop: 10, padding: 20 }
 });
 ```
+
+### Theme System & Styling
+
+**CRITICAL: Always use the theme system when styling components**
+
+This project has a comprehensive design system in `src/theme/` that provides:
+- Color palette (with theme variants: Fresh, Warm, Cool)
+- Typography styles (font sizes, weights, line heights)
+- Spacing constants
+- Border radius values
+- Shadow styles
+- Component presets (buttons, inputs, cards)
+- Dimensions (button/input heights, header/tab bar heights)
+
+**DO:**
+```typescript
+// 1. Use the useStyles hook for theme-aware styling
+import { useStyles } from '@hooks/useStyles';
+import { Theme } from '@theme/index';
+import { StyleSheet } from 'react-native';
+
+const MyComponent = () => {
+  const styles = useStyles(createStyles);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Hello</Text>
+    </View>
+  );
+};
+
+const createStyles = (theme: Theme) => StyleSheet.create({
+  container: {
+    backgroundColor: theme.colors.background.primary,
+    padding: theme.spacing.lg,
+    borderRadius: theme.borderRadius.lg,
+    ...theme.shadows.md,
+  },
+  title: {
+    ...theme.typography.styles.h2,
+    color: theme.colors.text.primary,
+  },
+});
+
+// 2. Use direct theme access for simple cases
+import { useAppTheme } from '@theme/index';
+
+const SimpleComponent = () => {
+  const theme = useAppTheme();
+
+  return (
+    <View style={{ padding: theme.spacing.md }}>
+      <Text style={theme.typography.styles.body}>Content</Text>
+    </View>
+  );
+};
+
+// 3. Use theme constants for consistency
+import { theme } from '@theme/index';
+
+const styles = StyleSheet.create({
+  button: {
+    paddingHorizontal: theme.spacing.lg,  // 16px
+    paddingVertical: theme.spacing.md,     // 12px
+    borderRadius: theme.borderRadius.md,   // 6px
+  },
+});
+```
+
+**DON'T:**
+```typescript
+// ❌ Don't hardcode colors
+<View style={{ backgroundColor: '#02533a' }} />
+
+// ✅ Use theme colors
+<View style={{ backgroundColor: theme.colors.brand.primary }} />
+
+// ❌ Don't hardcode spacing
+<View style={{ padding: 16, margin: 8 }} />
+
+// ✅ Use theme spacing
+<View style={{ padding: theme.spacing.lg, margin: theme.spacing.sm }} />
+
+// ❌ Don't hardcode typography
+<Text style={{ fontSize: 24, fontWeight: '600' }}>Title</Text>
+
+// ✅ Use theme typography
+<Text style={theme.typography.styles.h2}>Title</Text>
+
+// ❌ Don't hardcode shadows
+<View style={{
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.1,
+  shadowRadius: 6,
+  elevation: 3,
+}} />
+
+// ✅ Use theme shadows
+<View style={theme.shadows.md} />
+```
+
+**Available Theme Properties:**
+
+```typescript
+// Colors (responds to theme variant)
+theme.colors.brand.primary       // #02533a (Fresh theme)
+theme.colors.brand.secondary     // #ff8c42
+theme.colors.background.primary  // #ffffff
+theme.colors.text.primary        // #111827
+theme.colors.success.DEFAULT     // #10b981
+theme.colors.error.DEFAULT       // #ef4444
+
+// Spacing (4px base unit)
+theme.spacing.xs     // 4px
+theme.spacing.sm     // 8px
+theme.spacing.md     // 12px
+theme.spacing.lg     // 16px
+theme.spacing.xl     // 20px
+theme.spacing['2xl'] // 24px
+
+// Typography
+theme.typography.styles.h1       // Large heading
+theme.typography.styles.h2       // Medium heading
+theme.typography.styles.body     // Body text
+theme.typography.styles.button   // Button text
+
+// Border Radius
+theme.borderRadius.sm   // 4px
+theme.borderRadius.md   // 6px
+theme.borderRadius.lg   // 8px
+theme.borderRadius.xl   // 12px
+
+// Shadows
+theme.shadows.sm   // Small shadow
+theme.shadows.md   // Medium shadow
+theme.shadows.lg   // Large shadow
+
+// Component Presets
+theme.components.button.primary     // Primary button styles
+theme.components.input.default      // Input field styles
+theme.components.card.elevated      // Elevated card styles
+```
+
+**Why This Matters:**
+
+1. **Consistency**: All components use the same design tokens
+2. **Maintainability**: Change once in theme, applies everywhere
+3. **Theme Support**: Users can switch between color themes
+4. **Accessibility**: Ensures consistent contrast and sizing
+5. **Performance**: Memoized theme calculations with `useStyles` hook
+
+**Theme File Locations:**
+
+- `src/theme/index.ts` - Main theme export and hook
+- `src/theme/variants.ts` - Color variants (Fresh, Warm, Cool)
+- `src/hooks/useStyles.ts` - Theme-aware styling hook
 
 ### Error Handling
 
@@ -765,10 +927,11 @@ export async function generateRecipeVariation(
 
 1. ✅ **Always read docs first**
 2. ✅ **Search for existing functionality**
-3. ✅ **Consider cost implications**
-4. ✅ **Add proper error handling**
-5. ✅ **Test thoroughly before claiming done**
-6. ✅ **Update documentation**
+3. ✅ **Use the theme system for all styling**
+4. ✅ **Consider cost implications**
+5. ✅ **Add proper error handling**
+6. ✅ **Test thoroughly before claiming done**
+7. ✅ **Update documentation**
 
 ### Contact for Questions
 
@@ -806,6 +969,13 @@ export async function generateRecipeVariation(
 ---
 
 ## Version History
+
+- **2025-11-16**: Theme system documentation and presentation cleanup
+  - Added comprehensive Theme System & Styling section to Code Standards
+  - Added rule #7: Always use theme system (no hardcoded colors/spacing/typography)
+  - Updated "Most Important Rules" to include theme system usage
+  - Moved presentation files to `presentation/` folder for cleaner judge review
+  - Created comprehensive root README.md with build instructions and documentation index
 
 - **2025-11-07**: Documentation reorganization
   - Moved all documentation to `docs/` folder (except CLAUDE.md in root)
