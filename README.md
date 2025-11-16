@@ -123,26 +123,6 @@ Download the pre-configured `.env` file from OneDrive:
 Save the downloaded file as `.env` in the root directory of the project.
 
 
-### Step 4: Firebase Setup (Optional for Basic Usage)
-
-If you want to use cloud features (auth, sync, storage):
-
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Authentication (Email/Password)
-3. Enable Firestore Database
-4. Enable Storage
-5. Download `google-services.json` (Android) and `GoogleService-Info.plist` (iOS)
-6. Place config files in the appropriate directories
-7. Deploy Firestore rules:
-
-```bash
-firebase deploy --only firestore:rules
-```
-
-See `docs/TECHNICAL_SETUP.md` for detailed Firebase setup instructions.
-
----
-
 ## Building the App
 
 ### Development Build
