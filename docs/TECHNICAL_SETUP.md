@@ -158,9 +158,9 @@ EXPO_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
 - Suggest substitutions
 - Calculate ingredient match percentage
 
-**AI Image Generation (Imagen 3):**
+**AI Image Generation (Imagen 4):**
 - Generate recipe cover photos automatically
-- Cost: $0.03 per image
+- Cost: $0.02 - 0.04 per image
 - High-quality food photography
 
 ### 5. Rate Limiting
@@ -477,7 +477,7 @@ See detailed cost analysis in:
 
 **Quick Summary:**
 - **Gemini 2.5 Flash-Lite**: ~$0.001/request (text/vision), Free tier: 15 RPM, 50 RPD
-- **Imagen 3**: $0.03/image (AI-generated recipe photos)
+- **Imagen 4**: $0.02 - 0.04/image (AI-generated recipe photos)
 - **Spoonacular**: 150 requests/day free
 - **Firebase**: Free tier generous for small apps
 - **Instacart**: No cost (sandbox/test environment)
