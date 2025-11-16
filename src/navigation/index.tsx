@@ -6,6 +6,7 @@ import RecipeDetail from '@screens/recipeDetail';
 import RecipeCreator from '@screens/recipeCreator';
 import RecipeInfo from '@screens/RecipeInfo';
 import RecipeEdit from '@screens/recipeEdit';
+import RecipeImportOptions from '@screens/RecipeImportOptions';
 import RecipeWebImport from '@screens/RecipeWebImport';
 import RecipeOCRImport from '@screens/RecipeOCRImport';
 import RecipeTextImport from '@screens/RecipeTextImport';
@@ -97,6 +98,14 @@ const MainStack = createStackNavigator({
       options: {
         headerShown: true,
         presentation: 'modal',
+      },
+    },
+    RecipeImportOptions: {
+      screen: RecipeImportOptions,
+      options: {
+        headerShown: true,
+        presentation: 'card',
+        title: 'Import Recipe',
       },
     },
     RecipeInfo: {

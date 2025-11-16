@@ -18,9 +18,15 @@ import { simplifyIngredientNamesBatch } from './ingredientSimplifier.service';
 // Instacart API configuration
 const INSTACART_API_KEY = process.env.EXPO_PUBLIC_INSTACART_API_KEY;
 
-
-// Use development endpoint for sandbox API key
-// For production, you'll need a production API key and switch to connect.instacart.com
+// DEMO APP CONFIGURATION - ALWAYS USE SANDBOX/TEST ENDPOINT
+// This app is configured for demo/testing purposes only
+// Both debug and release builds use the sandbox environment
+//
+// Sandbox endpoint: connect.dev.instacart.tools (test environment)
+// Production endpoint: connect.instacart.com (DO NOT USE for demo)
+//
+// Expected API key format: ic_test_xxxxx (for sandbox) or keys.xxxxx (development keys)
+// DO NOT use ic_prod_xxxxx keys in this demo app
 const INSTACART_IDP_ENDPOINT = 'https://connect.dev.instacart.tools/idp/v1/products/products_link';
 
 /**
@@ -34,44 +40,56 @@ class InstacartService {
    *   "2 cups flour" -> {quantity: 2, unit: "cups", name: "flour"}
    *   "1/2 teaspoon salt" -> {quantity: 0.5, unit: "teaspoon", name: "salt"}
    *   "3 large eggs" -> {quantity: 3, unit: "large", name: "eggs"}
+   *   "2 (6-ounce) cans tomatoes" -> {quantity: 2, unit: "cans", name: "(6-ounce) tomatoes"}
    */
   parseIngredient(ingredientText: string): ParsedIngredient {
     const original = ingredientText.trim();
 
-    // Regular expression to match quantity, unit, and name
-    // Matches: "2 1/2 cups flour" or "1/2 cup sugar" or "2 tablespoons butter"
-    const regex = /^(\d+(?:\s+\d+\/\d+|\.\d+|\/\d+)?)?(?:\s+)?([\w\s]+?)(?:\s+)(.+)$/;
-    const match = original.match(regex);
+    // Extract quantity from the beginning (handles fractions like "1/2" or "2 1/2")
+    const quantityRegex = /^(\d+(?:\s+\d+\/\d+|\.\d+|\/\d+)?)\s*/;
+    const quantityMatch = original.match(quantityRegex);
 
-    if (!match) {
-      // If no match, treat entire string as ingredient name
+    let quantity: number | undefined;
+    let remainingText = original;
+
+    if (quantityMatch) {
+      const quantityStr = quantityMatch[1];
+      quantity = this.parseQuantity(quantityStr.trim());
+      remainingText = original.slice(quantityMatch[0].length);
+    }
+
+    // If no quantity found, return entire string as name
+    if (!quantity) {
       return {
         original,
         name: original,
       };
     }
 
-    const [, quantityStr, potentialUnit, nameAndRest] = match;
+    // Try to find a valid unit in the remaining text
+    // Check each valid unit to see if it appears at the start of remainingText
+    let unit: string | undefined;
+    let name: string = remainingText;
 
-    // Parse quantity (handles fractions like "1/2" or "2 1/2")
-    let quantity: number | undefined;
-    if (quantityStr) {
-      quantity = this.parseQuantity(quantityStr.trim());
+    // Sort units by length (longest first) to match more specific units first
+    // e.g., "tablespoons" before "tablespoon", "fluid ounces" before "ounces"
+    const sortedUnits = [...INSTACART_INGREDIENT_UNITS].sort((a, b) => b.length - a.length);
+
+    for (const possibleUnit of sortedUnits) {
+      // Check if remaining text starts with this unit (case-insensitive)
+      const unitRegex = new RegExp(`^${possibleUnit}(?:\\s+|$)`, 'i');
+      const unitMatch = remainingText.match(unitRegex);
+
+      if (unitMatch) {
+        unit = possibleUnit;
+        name = remainingText.slice(unitMatch[0].length).trim();
+        break;
+      }
     }
 
-    // Check if potentialUnit is a valid Instacart unit
-    const unitLower = potentialUnit?.trim().toLowerCase();
-    const isValidUnit = unitLower && INSTACART_INGREDIENT_UNITS.includes(unitLower as any);
-
-    let unit: string | undefined;
-    let name: string;
-
-    if (isValidUnit) {
-      unit = potentialUnit.trim();
-      name = nameAndRest.trim();
-    } else {
-      // Not a valid unit, include it in the name
-      name = `${potentialUnit} ${nameAndRest}`.trim();
+    // If no name found after unit, use remaining text as name
+    if (!name && remainingText) {
+      name = remainingText;
     }
 
     return {
@@ -391,27 +409,41 @@ class InstacartService {
   async openInstacartCart(shoppingList: ShoppingList): Promise<boolean> {
     try {
       const url = await this.generateInstacartUrl(shoppingList);
+      console.log('🛒 Attempting to open Instacart URL:', url);
 
-      // Check if URL can be opened
+      // Check if URL can be opened (works in both debug and release builds)
       const canOpen = await Linking.canOpenURL(url);
+      console.log('🔗 Can open URL:', canOpen);
 
       if (!canOpen) {
+        // More detailed error for debugging
+        const errorMessage = __DEV__
+          ? `Cannot open URL: ${url}\n\nMake sure you have the Instacart app installed or a browser available.`
+          : 'Please make sure you have the Instacart app installed or try opening in your browser.\n\nNote: This is a demo app using Instacart sandbox environment.';
+
         Alert.alert(
-          'Cannot Open Instacart',
-          'Please make sure you have the Instacart app installed or try opening in your browser.',
+          'Cannot Open Instacart Link',
+          errorMessage,
           [{ text: 'OK' }]
         );
         return false;
       }
 
-      // Open URL
+      // Open URL (should work in both debug and release builds)
       await Linking.openURL(url);
+      console.log('✅ Successfully opened Instacart URL');
       return true;
     } catch (error) {
-      console.error('Error opening Instacart:', error);
+      console.error('❌ Error opening Instacart:', error);
+
+      // More helpful error message
+      const errorMessage = __DEV__
+        ? `Failed to open Instacart.\n\nError: ${error}\n\nEndpoint: ${INSTACART_IDP_ENDPOINT}`
+        : 'Failed to open Instacart shopping list. Please try again.\n\nNote: This demo app uses Instacart sandbox/test environment.';
+
       Alert.alert(
-        'Error',
-        'Failed to open Instacart. Please try again.',
+        'Error Opening Instacart',
+        errorMessage,
         [{ text: 'OK' }]
       );
       return false;

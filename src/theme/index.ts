@@ -54,9 +54,9 @@ const staticTheme = {
 
     // Line Heights
     lineHeight: {
-      tight: 1.2,
-      normal: 1.4,
-      relaxed: 1.6,
+      tight: 20,
+      normal: 22,
+      relaxed: 24,
     },
 
     // Text Styles (ready-to-use combinations)

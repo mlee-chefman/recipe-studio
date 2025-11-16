@@ -34,7 +34,80 @@ export interface ImageGenerationResult {
 }
 
 /**
+ * Visual style variations for diverse image generation
+ */
+const CAMERA_ANGLES = [
+  'overhead view',
+  '45-degree angle view',
+  'side view',
+  'close-up shot',
+  'three-quarter view',
+  'eye-level perspective',
+  'slightly elevated angle',
+];
+
+const LIGHTING_STYLES = [
+  'natural lighting',
+  'warm golden hour lighting',
+  'bright daylight',
+  'soft diffused lighting',
+  'dramatic side lighting',
+  'backlighting with rim light',
+  'warm ambient lighting',
+  'morning sunlight',
+];
+
+const DEPTH_STYLES = [
+  'shallow depth of field',
+  'soft bokeh background',
+  'sharp focus with blurred background',
+  'cinematic depth',
+  'macro photography detail',
+  'selective focus',
+];
+
+const PLATING_STYLES = [
+  'restaurant quality plating',
+  'rustic homestyle presentation',
+  'modern minimalist plating',
+  'elegant fine dining presentation',
+  'casual family-style serving',
+  'artisanal plating',
+  'contemporary styled presentation',
+];
+
+const BACKGROUND_SETTINGS = [
+  'on a wooden table',
+  'on a marble countertop',
+  'on a rustic serving board',
+  'on a clean white surface',
+  'on a dark slate plate',
+  'with kitchen ambiance in background',
+  'on a colorful ceramic plate',
+  'on a vintage table setting',
+];
+
+const COLOR_MOODS = [
+  'vibrant colors',
+  'rich saturated colors',
+  'warm color palette',
+  'fresh bright colors',
+  'natural earthy tones',
+  'bold vibrant hues',
+  'soft pastel tones',
+  'deep rich colors',
+];
+
+/**
+ * Randomly selects an item from an array
+ */
+function randomChoice<T>(array: T[]): T {
+  return array[Math.floor(Math.random() * array.length)];
+}
+
+/**
  * Builds a detailed, optimized prompt for food photography based on recipe data
+ * Uses randomized visual styles to create diverse, non-uniform images
  * @param recipe - Recipe object containing title, description, ingredients, etc.
  * @returns Optimized prompt for Imagen 4
  */
@@ -97,8 +170,15 @@ export function buildRecipeImagePrompt(recipe: {
   // Add presentation details
   prompt += `, ${presentationStyle}`;
 
-  // Add professional photography characteristics
-  prompt += ', overhead view, natural lighting, shallow depth of field, restaurant quality plating, vibrant colors, appetizing presentation, high resolution, professional food styling';
+  // Add randomized professional photography characteristics for variety
+  const cameraAngle = randomChoice(CAMERA_ANGLES);
+  const lightingStyle = randomChoice(LIGHTING_STYLES);
+  const depthStyle = randomChoice(DEPTH_STYLES);
+  const platingStyle = randomChoice(PLATING_STYLES);
+  const backgroundSetting = randomChoice(BACKGROUND_SETTINGS);
+  const colorMood = randomChoice(COLOR_MOODS);
+
+  prompt += `, ${cameraAngle}, ${lightingStyle}, ${depthStyle}, ${platingStyle}, ${backgroundSetting}, ${colorMood}, appetizing presentation, high resolution, professional food styling`;
 
   // Add context from description if available
   if (description && description.length > 0) {

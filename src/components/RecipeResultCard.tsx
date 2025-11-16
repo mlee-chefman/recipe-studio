@@ -6,12 +6,13 @@ import type { Theme } from '@theme/index';
 import { useAppTheme } from '@theme/index';
 import { ScrapedRecipe } from '@utils/recipeScraper';
 import { Recipe } from '~/types/recipe';
+import { formatCookTime } from '@utils/timeFormatter';
 
 interface RecipeResultCardProps {
   recipe: ScrapedRecipe | Recipe;
   matchPercentage?: number;
   missingIngredients?: string[];
-  substitutions?: Array<{ missing: string; substitutes: string[] }>;
+  substitutions?: { missing: string; substitutes: string[] }[];
   onPress: () => void;
   source: 'ai' | 'existing';
   isRegenerating?: boolean;
@@ -89,7 +90,7 @@ export function RecipeResultCard({
           <View style={styles.infoItem}>
             <Ionicons name="time-outline" size={16} color={theme.colors.text.secondary} />
             <Text style={styles.infoText}>
-              {('prepTime' in recipe ? recipe.prepTime : 0) + recipe.cookTime} min
+              {formatCookTime(('prepTime' in recipe ? recipe.prepTime : 0) + recipe.cookTime)}
             </Text>
           </View>
           <View style={styles.infoItem}>
@@ -162,8 +163,8 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     card: {
       backgroundColor: theme.colors.background.secondary,
-      borderRadius: 12,
-      marginBottom: 12,
+      borderRadius: theme.borderRadius.xl,
+      marginBottom: theme.spacing.md,
       borderWidth: 1,
       borderColor: theme.colors.border.default,
       overflow: 'hidden',
@@ -187,111 +188,111 @@ const createStyles = (theme: Theme) =>
       backgroundColor: 'rgba(0, 0, 0, 0.6)',
       justifyContent: 'center',
       alignItems: 'center',
-      gap: 12,
+      gap: theme.spacing.md,
     },
     loadingText: {
       color: '#fff',
-      fontSize: 14,
-      fontWeight: '600',
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: theme.typography.fontWeight.semibold as any,
     },
     header: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: 8,
-      paddingHorizontal: 16,
-      paddingTop: 16,
+      marginBottom: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+      paddingTop: theme.spacing.lg,
     },
     contentContainer: {
-      paddingHorizontal: 16,
-      paddingBottom: 16,
+      paddingHorizontal: theme.spacing.lg,
+      paddingBottom: theme.spacing.lg,
     },
     titleContainer: {
       flex: 1,
-      marginRight: 12,
+      marginRight: theme.spacing.md,
     },
     title: {
-      fontSize: 18,
-      fontWeight: '600',
+      fontSize: theme.typography.fontSize.lg,
+      fontWeight: theme.typography.fontWeight.semibold as any,
       color: theme.colors.text.primary,
-      marginBottom: 4,
+      marginBottom: theme.spacing.xs,
     },
     aiBadge: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: theme.colors.primary.light,
-      paddingHorizontal: 8,
+      paddingHorizontal: theme.spacing.sm,
       paddingVertical: 2,
-      borderRadius: 12,
+      borderRadius: theme.borderRadius.md,
       alignSelf: 'flex-start',
-      marginTop: 4,
-      gap: 4,
+      marginTop: theme.spacing.xs,
+      gap: theme.spacing.xs,
     },
     aiBadgeText: {
-      fontSize: 11,
+      fontSize: theme.typography.fontSize.xs,
       color: theme.colors.primary.main,
-      fontWeight: '600',
+      fontWeight: theme.typography.fontWeight.semibold as any,
     },
     matchBadge: {
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 16,
+      paddingHorizontal: theme.spacing.md,
+      paddingVertical: theme.spacing.sm,
+      borderRadius: theme.borderRadius['2xl'],
     },
     matchText: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontSize: theme.typography.fontSize.sm,
+      fontWeight: theme.typography.fontWeight.bold as any,
       color: '#fff',
     },
     description: {
-      fontSize: 14,
+      fontSize: theme.typography.fontSize.sm,
       color: theme.colors.text.secondary,
-      marginBottom: 12,
-      lineHeight: 20,
+      marginBottom: theme.spacing.md,
+      lineHeight: theme.typography.lineHeight.tight,
     },
     infoRow: {
       flexDirection: 'row',
-      gap: 16,
-      marginBottom: 12,
+      gap: theme.spacing.lg,
+      marginBottom: theme.spacing.md,
     },
     infoItem: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 4,
+      gap: theme.spacing.xs,
     },
     infoText: {
-      fontSize: 13,
+      fontSize: theme.typography.fontSize.xs,
       color: theme.colors.text.secondary,
     },
     missingSection: {
       backgroundColor: theme.colors.error.light,
-      padding: 8,
-      borderRadius: 6,
-      marginBottom: 8,
+      padding: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+      marginBottom: theme.spacing.sm,
     },
     missingSectionTitle: {
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: theme.typography.fontSize.xs,
+      fontWeight: theme.typography.fontWeight.semibold as any,
       color: theme.colors.error.main,
-      marginBottom: 4,
+      marginBottom: theme.spacing.xs,
     },
     missingText: {
-      fontSize: 12,
+      fontSize: theme.typography.fontSize.xs,
       color: theme.colors.error.main,
     },
     substitutionsSection: {
       backgroundColor: theme.colors.primary.light,
-      padding: 8,
-      borderRadius: 6,
-      marginBottom: 8,
+      padding: theme.spacing.sm,
+      borderRadius: theme.borderRadius.md,
+      marginBottom: theme.spacing.sm,
     },
     substitutionsSectionTitle: {
-      fontSize: 12,
-      fontWeight: '600',
+      fontSize: theme.typography.fontSize.xs,
+      fontWeight: theme.typography.fontWeight.semibold as any,
       color: theme.colors.primary.main,
-      marginBottom: 4,
+      marginBottom: theme.spacing.xs,
     },
     substitutionText: {
-      fontSize: 11,
+      fontSize: theme.typography.fontSize.xs,
       color: theme.colors.primary.main,
       marginTop: 2,
     },
@@ -304,14 +305,14 @@ const createStyles = (theme: Theme) =>
     tagsContainer: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: 6,
-      marginBottom: 8,
+      gap: theme.spacing.sm,
+      marginBottom: theme.spacing.md,
     },
     tag: {
       backgroundColor: theme.colors.background.primary,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 12,
+      paddingHorizontal: theme.spacing.sm,
+      paddingVertical: theme.spacing.xs,
+      borderRadius: theme.borderRadius.md,
       borderWidth: 1,
       borderColor: theme.colors.border.default,
     },
@@ -329,13 +330,13 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginTop: 4,
-      paddingTop: 12,
+      marginTop: theme.spacing.xs,
+      paddingTop: theme.spacing.md,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border.default,
     },
     footerText: {
-      fontSize: 12,
+      fontSize: theme.typography.fontSize.xs,
       color: theme.colors.text.secondary,
       fontStyle: 'italic',
     },

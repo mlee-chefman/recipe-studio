@@ -6,6 +6,8 @@ import { Recipe } from '~/types/recipe';
 import { getApplianceById, formatCookingAction } from '~/types/chefiq';
 import { theme, useAppTheme } from '@theme/index';
 import { haptics } from '@utils/haptics';
+import { instacartService } from '@services/instacart.service';
+import { formatCookTime } from '@utils/timeFormatter';
 
 interface RecipeDetailModalProps {
   recipe: Recipe | null;
@@ -110,7 +112,7 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
           <View className="flex-row justify-between mb-6 p-4 rounded-lg" style={{ backgroundColor: appTheme.colors.background.secondary }}>
             <View className="items-center">
               <Text className="text-sm mb-1" style={{ color: appTheme.colors.text.tertiary }}>Cook Time</Text>
-              <Text className="text-lg font-semibold" style={{ color: appTheme.colors.text.primary }}>⏱️ {recipe.cookTime} min</Text>
+              <Text className="text-lg font-semibold" style={{ color: appTheme.colors.text.primary }}>⏱️ {formatCookTime(recipe.cookTime)}</Text>
             </View>
             <View className="items-center">
               <Text className="text-sm mb-1" style={{ color: appTheme.colors.text.tertiary }}>Servings</Text>
@@ -188,7 +190,9 @@ export const RecipeDetailModal = ({ recipe, visible, onClose, onEdit }: RecipeDe
               {recipe.ingredients.map((ingredient, index) => (
                 <View key={index} className="flex-row items-center mb-2">
                   <View className="w-2 h-2 rounded-full mr-3" style={{ backgroundColor: theme.colors.primary[500] }} />
-                  <Text className="text-base flex-1" style={{ color: appTheme.colors.text.secondary }}>{ingredient}</Text>
+                  <Text className="text-base flex-1" style={{ color: appTheme.colors.text.secondary }}>
+                    {ingredient}
+                  </Text>
                 </View>
               ))}
             </View>

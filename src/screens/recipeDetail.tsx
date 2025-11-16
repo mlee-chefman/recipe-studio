@@ -19,6 +19,7 @@ import { useIngredientImages } from '@hooks/useIngredientImages';
 import { instacartService } from '@services/instacart.service';
 import { haptics } from '@utils/haptics';
 import type { SelectableIngredient } from '~/types/shopping';
+import { formatCookTime } from '@utils/timeFormatter';
 
 type RootStackParamList = {
   RecipeDetail: { recipe: Recipe };
@@ -319,7 +320,7 @@ export default function RecipeDetailScreen() {
                     <Text style={styles.statIcon}>⏱️</Text>
                   </View>
                   <View>
-                    <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{recipe.cookTime}m</Text>
+                    <Text style={[styles.statValue, { color: theme.colors.text.primary }]}>{formatCookTime(recipe.cookTime)}</Text>
                     <Text style={[styles.statLabel, { color: theme.colors.text.tertiary }]}>Cook Time</Text>
                   </View>
                 </View>

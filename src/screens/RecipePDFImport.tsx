@@ -53,7 +53,7 @@ export default function RecipePDFImportScreen() {
             opacity: isProcessing ? 0.3 : 1,
           }}
         >
-          <Feather name="x" size={28} color={theme.colors.text.secondary} />
+          <Feather name="chevron-left" size={28} color={theme.colors.text.primary} />
         </TouchableOpacity>
       ),
     });

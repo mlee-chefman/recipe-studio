@@ -13,6 +13,7 @@ import {
   createRecipeSimplificationPrompt,
   createFullCourseMenuPrompt,
   createSingleCourseRegenerationPrompt,
+  createRecipeEnhancementPrompt,
 } from './constants/recipePrompts';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
@@ -165,6 +166,177 @@ export async function generateRecipeFromDescription(
           recipe: null,
           success: false,
           error: 'API key is invalid or restricted. Please check your Gemini API key configuration.',
+        };
+      }
+
+      return {
+        recipe: null,
+        success: false,
+        error: `API error: ${message}`,
+      };
+    }
+
+    return {
+      recipe: null,
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
+}
+
+/**
+ * Enhances an existing recipe based on user instructions using Gemini AI
+ * @param currentRecipe - The current recipe to enhance
+ * @param enhancementInstruction - User's instructions for enhancement
+ * @returns ParsedRecipeResult with enhanced recipe data
+ */
+export async function enhanceRecipeWithAI(
+  currentRecipe: {
+    title: string;
+    ingredients: string[];
+    steps: { text: string; cookingAction?: any }[] | string[];
+    notes?: string;
+    selectedAppliance?: string;
+  },
+  enhancementInstruction: string
+): Promise<ParsedRecipeResult> {
+  try {
+    if (!GEMINI_API_KEY) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
+      };
+    }
+
+    if (!enhancementInstruction || enhancementInstruction.trim().length === 0) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'No enhancement instructions provided.',
+      };
+    }
+
+    // Convert steps to string array if they're objects
+    const stepsAsStrings = currentRecipe.steps.map(step =>
+      typeof step === 'string' ? step : step.text
+    );
+
+    // Extract cooking methods from steps
+    const cookingMethods: string[] = [];
+    let applianceName: string | undefined;
+    if (currentRecipe.selectedAppliance) {
+      const { getApplianceById } = require('~/types/chefiq');
+      const appliance = getApplianceById(currentRecipe.selectedAppliance);
+      applianceName = appliance?.name;
+
+      // Get unique cooking methods from steps
+      currentRecipe.steps.forEach(step => {
+        if (typeof step !== 'string' && step.cookingAction) {
+          const methodName = step.cookingAction.methodName;
+          if (methodName && !cookingMethods.includes(methodName)) {
+            cookingMethods.push(methodName);
+          }
+        }
+      });
+    }
+
+    // Prepare the enhancement prompt
+    const prompt = createRecipeEnhancementPrompt(
+      {
+        title: currentRecipe.title,
+        ingredients: currentRecipe.ingredients,
+        steps: stepsAsStrings,
+        notes: currentRecipe.notes,
+        applianceName,
+        cookingMethods: cookingMethods.length > 0 ? cookingMethods : undefined,
+      },
+      enhancementInstruction
+    );
+
+    // Call Gemini API
+    const response = await axios.post(
+      `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7, // Higher temperature for creative enhancements
+          maxOutputTokens: 2048,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        timeout: 30000,
+      }
+    );
+
+    const data: GeminiResponse = response.data;
+
+    // Check for API errors
+    if (data.error) {
+      return {
+        recipe: null,
+        success: false,
+        error: `Gemini API error: ${data.error.message}`,
+      };
+    }
+
+    // Extract the generated text
+    const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!generatedText) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'No response from Gemini API',
+      };
+    }
+
+    // Parse the JSON response from Gemini
+    const recipe = await parseGeminiResponse(generatedText);
+
+    if (!recipe) {
+      return {
+        recipe: null,
+        success: false,
+        error: 'Failed to parse enhanced recipe from Gemini response',
+      };
+    }
+
+    return {
+      recipe,
+      success: true,
+    };
+  } catch (error) {
+    console.error('Recipe enhancement error:', error);
+
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const message = error.response?.data?.error?.message || error.message;
+
+      if (status === 429) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'API rate limit exceeded. Please try again in a moment.',
+        };
+      }
+
+      if (status === 503) {
+        return {
+          recipe: null,
+          success: false,
+          error: 'Service temporarily unavailable. Please try again.',
         };
       }
 
