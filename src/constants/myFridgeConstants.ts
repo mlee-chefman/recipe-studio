@@ -9,6 +9,9 @@ import {
 // Maximum number of ingredients allowed
 export const MAX_INGREDIENTS = 12;
 
+// Minimum number of ingredients required for full course menu
+export const MIN_INGREDIENTS_FOR_FULL_COURSE = 3;
+
 // Number of recipes to generate at a time
 export const RECIPES_PER_GENERATION = 2;
 

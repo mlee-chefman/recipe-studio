@@ -4,7 +4,7 @@ import { MatchedRecipe, getTopMatchedRecipes } from '~/utils/ingredientMatcher';
 import { generateMultipleRecipesFromIngredients, generateFullCourseMenu, analyzeCookingActionsWithGemini } from '~/services/gemini.service';
 import { FridgeIngredient } from '~/types/ingredient';
 import { Recipe } from '~/types/recipe';
-import { RECIPES_PER_GENERATION } from '@constants/myFridgeConstants';
+import { RECIPES_PER_GENERATION, MIN_INGREDIENTS_FOR_FULL_COURSE } from '@constants/myFridgeConstants';
 import { useAutoImageGeneration } from './useAutoImageGeneration';
 import * as Crypto from 'expo-crypto';
 
@@ -156,8 +156,8 @@ export const useRecipeGeneration = (
 
   const generateFullCourse = useCallback(
     async (ingredients: FridgeIngredient[], options: RecipeGenerationOptions) => {
-      if (ingredients.length < 5) {
-        setGenerationError('At least 5 ingredients required for full course menu');
+      if (ingredients.length < MIN_INGREDIENTS_FOR_FULL_COURSE) {
+        setGenerationError(`At least ${MIN_INGREDIENTS_FOR_FULL_COURSE} ingredients required for full course menu`);
         return;
       }
 

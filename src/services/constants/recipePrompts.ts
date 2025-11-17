@@ -830,7 +830,7 @@ Return the recipes as a JSON array:`;
 export function createRecipeSimplificationPrompt(
   title: string,
   ingredients: string[],
-  steps: Array<{ text: string; cookingAction?: any }>,
+  steps: { text: string; cookingAction?: any }[],
   notes: string
 ): string {
   const stepsText = steps.map((step, index) => {
@@ -969,14 +969,46 @@ Please create a complete 3-course menu that includes:
 2. **Main Course** - The centerpiece of the meal
 3. **Dessert** - A sweet ending to the meal
 
+**🚨 CRITICAL GUIDELINES FOR INGREDIENT USAGE:**
+⚠️ **DO NOT force unsuitable ingredients into courses where they don't belong**
+
+**For APPETIZERS & MAIN COURSES:**
+- Use savory ingredients appropriately (vegetables, proteins, grains, etc.)
+
+**For DESSERTS - EXTREMELY IMPORTANT:**
+
+**NEVER USE THESE IN DESSERTS (ABSOLUTELY FORBIDDEN):**
+- ❌ NO chicken, beef, pork, lamb, fish, seafood, or any savory meat
+- ❌ NO onions, garlic, bell peppers, scallions, or any savory vegetables
+- ❌ NO egg noodles, pasta, ramen, or savory noodles (these are NOT dessert ingredients!)
+- ❌ NO soy sauce, fish sauce, hot sauce, or savory condiments
+- ❌ DO NOT create: "chicken pudding", "beef cake", "onion cookies", "sweet noodle pudding with onion"
+
+**USE THESE FROM AVAILABLE INGREDIENTS IF PRESENT (be creative!):**
+- ✅ Any sweet ingredients: sugar, honey, maple syrup, chocolate, cocoa powder, vanilla, brown sugar
+- ✅ Any dairy: butter, cream, milk, cream cheese, mascarpone, yogurt, sour cream
+- ✅ Any baking basics: flour, eggs, baking powder, baking soda, cornstarch
+- ✅ Any sweet fruits: berries, apples, bananas, citrus, stone fruits, dried fruits
+- ✅ Any nuts or sweet spices: almonds, walnuts, pecans, cinnamon, nutmeg, cardamom
+- ✅ Be creative with dessert-appropriate ingredients the user has!
+
+**IMPORTANT FOR DESSERT:**
+- First, check if user has ANY dessert-appropriate ingredients (sweet items, fruits, dairy, flour, etc.)
+- If YES: Use those creatively to make a delicious dessert
+- If NO (all ingredients are savory like chicken, onion, egg noodles): Suggest common dessert staples like flour, sugar, butter, eggs to make simple cookies or brownies
+- NEVER force savory ingredients into dessert just to use them
+
 **Guidelines:**
-- Make good use of the available ingredients across all courses
+- Use available ingredients ONLY when they are appropriate for that specific course
+- For desserts: First use any dessert-appropriate ingredients from the list, then suggest additional ones if needed. NEVER use savory meats, vegetables, or noodles
+- If certain ingredients don't suit a course (e.g., chicken doesn't belong in dessert), skip those ingredients for that course
 - Create a cohesive menu where courses complement each other
 - ${dietaryFilter ? `All recipes must follow ${dietaryFilter} dietary restrictions` : 'No dietary restrictions'}
 - ${cuisineFilter ? `All recipes should be inspired by ${cuisineFilter} cuisine` : 'Recipes can be from any cuisine, but should work well together'}
 - ${timeFilter ? `Total preparation time for all courses combined should be approximately ${timeFilter}` : 'Use reasonable cooking times'}
-- You may suggest a few additional ingredients for each course to make the menu complete
+- You may suggest additional common ingredients for each course to make proper, delicious recipes
 - Each course should be practical and achievable for home cooks
+- Prioritize creating APPROPRIATE recipes over using all available ingredients
 
 Return a JSON array of exactly 3 recipe objects in this order: [Appetizer, Main Course, Dessert]
 
@@ -1043,13 +1075,41 @@ ${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
 
 Please create ${courseEmojis[courseType]} **${courseType.toUpperCase()}**: ${courseDescriptions[courseType]}
 
+**🚨 CRITICAL GUIDELINES FOR INGREDIENT USAGE:**
+${courseType === 'dessert' ? `
+⚠️ **DESSERT RULES - READ CAREFULLY:**
+
+**NEVER USE THESE IN DESSERTS (ABSOLUTELY FORBIDDEN):**
+- ❌ NO chicken, beef, pork, lamb, fish, seafood, or any savory meat
+- ❌ NO onions, garlic, bell peppers, scallions, or any savory vegetables
+- ❌ NO egg noodles, pasta, ramen, or savory noodles (these are NOT dessert ingredients!)
+- ❌ NO soy sauce, fish sauce, hot sauce, or savory condiments
+- ❌ DO NOT create: "chicken pudding", "beef cake", "onion cookies", "sweet noodle pudding with onion"
+
+**USE THESE IF AVAILABLE (be creative!):**
+- ✅ Any sweet ingredients from the list: sugar, honey, maple syrup, chocolate, cocoa powder, vanilla, brown sugar
+- ✅ Any dairy from the list: butter, cream, milk, cream cheese, mascarpone, yogurt, sour cream
+- ✅ Any baking basics from the list: flour, eggs, baking powder, baking soda, cornstarch
+- ✅ Any sweet fruits from the list: berries, apples, bananas, citrus, stone fruits, dried fruits
+- ✅ Any nuts or sweet spices from the list: almonds, walnuts, pecans, cinnamon, nutmeg, cardamom
+- ✅ Be creative with dessert-appropriate ingredients the user has!
+
+**IMPORTANT:**
+- First, check if user has ANY dessert-appropriate ingredients (sweet items, fruits, dairy, flour, etc.)
+- If YES: Use those creatively to make a delicious dessert
+- If NO (all ingredients are savory like chicken, onion, egg noodles): Suggest common dessert staples like flour, sugar, butter, eggs to make simple cookies or brownies
+- NEVER force savory ingredients into dessert just to use them
+` : `⚠️ **Use ONLY ingredients appropriate for ${courseType}**`}
+
 **Guidelines:**
-- Make good use of the available ingredients
+- ${courseType === 'dessert' ? 'First use any dessert-appropriate ingredients from the available list, then suggest additional ones if needed. NEVER use savory meats, vegetables, or noodles in dessert' : `Use available ingredients ONLY if they are appropriate for this ${courseType}`}
+- If ingredients don't suit ${courseType}, DON'T use them - suggest appropriate alternatives instead
 - ${dietaryFilter ? `Must follow ${dietaryFilter} dietary restrictions` : 'No dietary restrictions'}
 - ${cuisineFilter ? `Should be inspired by ${cuisineFilter} cuisine` : 'Can be from any cuisine'}
-- You may suggest a few additional ingredients to make the recipe complete
+- You may suggest additional common ingredients to make a proper, delicious ${courseType}
 - The recipe should be practical and achievable for home cooks
 - The recipe should work well as a ${courseType} in a multi-course meal
+- Prioritize creating an APPROPRIATE ${courseType} over forcing unsuitable ingredients
 
 Return a JSON object (NOT an array) with the following structure:
 
