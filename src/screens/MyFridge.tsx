@@ -20,6 +20,7 @@ import { SavingModal } from '@components/modals/SavingModal';
 import { CTAButton } from '@components/CTAButton';
 import {
   MAX_INGREDIENTS,
+  MIN_INGREDIENTS_FOR_FULL_COURSE,
   DIETARY_OPTIONS,
   CUISINE_OPTIONS,
   COOKING_TIME_OPTIONS,
@@ -203,7 +204,7 @@ export default function MyFridgeScreen() {
 
   // Handle full course menu generation
   const handleGenerateFullCourse = async () => {
-    if (ingredients.length < 5) {
+    if (ingredients.length < MIN_INGREDIENTS_FOR_FULL_COURSE) {
       return; // Button should be disabled anyway
     }
 
@@ -636,7 +637,7 @@ export default function MyFridgeScreen() {
               }
             }}
             disabled={
-              ingredients.length === 0 || (recipeMode === 'fullCourse' && ingredients.length < 5)
+              ingredients.length === 0 || (recipeMode === 'fullCourse' && ingredients.length < MIN_INGREDIENTS_FOR_FULL_COURSE)
             }
             loading={isGenerating}
             icon={recipeMode === 'quick' ? 'restaurant' : 'nutrition'}
@@ -647,8 +648,8 @@ export default function MyFridgeScreen() {
                   ? aiGeneratedRecipes && aiGeneratedRecipes.length > 0 && !isFullCourseResults
                     ? 'View Recipe Ideas'
                     : 'Find Recipes'
-                  : ingredients.length < 5
-                    ? `Add ${5 - ingredients.length} More for Full Course`
+                  : ingredients.length < MIN_INGREDIENTS_FOR_FULL_COURSE
+                    ? `Add ${MIN_INGREDIENTS_FOR_FULL_COURSE - ingredients.length} More for Full Course`
                     : isFullCourseResults
                       ? 'View Full Course Menu'
                       : 'Create Full Course Menu'
@@ -663,8 +664,8 @@ export default function MyFridgeScreen() {
                 ? aiGeneratedRecipes && aiGeneratedRecipes.length > 0 && !isFullCourseResults
                   ? 'View 2 recipe ideas from your ingredients'
                   : 'Get 2 recipe ideas + similar recipes from your collection'
-                : ingredients.length < 5
-                  ? 'Full course menu requires at least 5 ingredients'
+                : ingredients.length < MIN_INGREDIENTS_FOR_FULL_COURSE
+                  ? `Full course menu requires at least ${MIN_INGREDIENTS_FOR_FULL_COURSE} ingredients`
                   : isFullCourseResults
                     ? 'View your 3-course meal from ingredients'
                     : 'Get a complete 3-course meal: Appetizer, Main & Dessert'}
