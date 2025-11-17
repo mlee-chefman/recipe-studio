@@ -83,7 +83,7 @@ export function useAutoImageGeneration() {
       console.log(`Auto-generating image for recipe: ${recipeData.title}`);
       setProgress(`Generating cover photo for "${recipeData.title}"...`);
 
-      // Generate and upload image
+      // Generate and upload image (with automatic fallback)
       const result = await generateAndUploadRecipeImage(
         recipeData,
         userId,
@@ -93,7 +93,12 @@ export function useAutoImageGeneration() {
 
       if (result.success && result.downloadURLs && result.downloadURLs.length > 0) {
         const imageUrl = result.downloadURLs[0];
-        console.log(`Auto-image generation successful: ${imageUrl}`);
+        console.log(`✅ Auto-image generation successful: ${imageUrl}`);
+
+        // Log which model was successfully used
+        if (result.modelUsed) {
+          console.log(`✅ Generated using ${result.modelUsed}`);
+        }
 
         // Record usage
         await recordImageGeneration();

@@ -49,7 +49,7 @@ export function useAICoverGeneration(): UseAICoverGenerationResult {
       console.log('Generating AI cover for recipe:', recipe.title);
       setGenerationStep('Generating professional cover photo...');
 
-      // Generate image with Imagen 4
+      // Generate image with Imagen (with automatic fallback)
       const imageResult = await generateRecipeImage(
         {
           title: recipe.title,
@@ -69,6 +69,11 @@ export function useAICoverGeneration(): UseAICoverGenerationResult {
         setIsGenerating(false);
         setGenerationStep('');
         return null;
+      }
+
+      // Log which model was successfully used
+      if (imageResult.modelUsed) {
+        console.log(`✅ Generated cover using ${imageResult.modelUsed}`);
       }
 
       // Upload to Firebase Storage to avoid Firestore size limits
