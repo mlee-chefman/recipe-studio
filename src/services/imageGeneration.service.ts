@@ -3,10 +3,29 @@ import { Recipe, Step } from '../types/recipe';
 import { uploadBase64ImageToStorage } from '../utils/imageUpload';
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
-const IMAGEN_4_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict';
 
-// Cost per image: $0.04 for Imagen 4 (best photorealism for food photography)
-// Alternative: imagen-4.0-fast-generate-001 ($0.02/image), imagen-4.0-ultra-generate-001 ($0.06/image)
+// Imagen model configurations with fallback support
+// Standard: 70/day quota, Fast: 70/day quota, Ultra: 30/day quota = 170 images/day total for tier 1 users
+const IMAGEN_MODELS = [
+  {
+    name: 'imagen-4.0-generate-001',
+    url: 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict',
+    cost: 0.04,
+    label: 'Imagen 4.0 Standard',
+  },
+  {
+    name: 'imagen-4.0-fast-generate-001',
+    url: 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict',
+    cost: 0.02,
+    label: 'Imagen 4.0 Fast',
+  },
+  {
+    name: 'imagen-4.0-ultra-generate-001',
+    url: 'https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-ultra-generate-001:predict',
+    cost: 0.06,
+    label: 'Imagen 4.0 Ultra',
+  },
+];
 export const IMAGEN_COST_PER_IMAGE = 0.04;
 
 /**
@@ -31,6 +50,7 @@ export interface ImageGenerationResult {
   downloadURLs?: string[]; // Firebase Storage URLs (if uploaded)
   error?: string;
   prompt?: string; // The prompt used for generation
+  modelUsed?: string; // Which Imagen model was successfully used (Standard, Fast, or Ultra)
 }
 
 /**
@@ -199,7 +219,9 @@ export function buildRecipeImagePrompt(recipe: {
 }
 
 /**
- * Generates recipe cover photo using Imagen 4
+ * Generates recipe cover photo using Imagen with automatic fallback
+ * Tries models in order: 4.0 Standard (70/day) → 4.0 Fast (70/day) → 4.0 Ultra (30/day)
+ * Total capacity: 170 images per day across all models
  * @param recipe - Recipe data to generate image from
  * @param options - Image generation options
  * @returns ImageGenerationResult with base64 encoded images
@@ -214,131 +236,146 @@ export async function generateRecipeImage(
   },
   options: ImageGenerationOptions = {}
 ): Promise<ImageGenerationResult> {
-  try {
-    if (!GEMINI_API_KEY) {
-      return {
-        success: false,
-        error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
-      };
-    }
-
-    if (!recipe.title || recipe.title.trim().length === 0) {
-      return {
-        success: false,
-        error: 'Recipe title is required for image generation.',
-      };
-    }
-
-    // Build optimized prompt
-    const prompt = buildRecipeImagePrompt(recipe);
-
-    // Set default options
-    const {
-      aspectRatio = '4:3', // Good for recipe photos
-      sampleCount = 1, // Generate 1 image by default
-    } = options;
-
-    console.log('Generating image with Imagen 4...');
-    console.log('Aspect ratio:', aspectRatio);
-    console.log('Sample count:', sampleCount);
-
-    // Prepare request body for Imagen 4 API (uses different format than Gemini)
-    const requestBody = {
-      instances: [
-        {
-          prompt: prompt,
-        },
-      ],
-      parameters: {
-        sampleCount: Math.min(sampleCount, 4), // Max 4 images
-        aspectRatio: aspectRatio,
-        imageSize: '1K', // Options: '1K' or '2K' (2K only for standard/ultra)
-      },
-    };
-
-    // Call Imagen 4 API
-    const response = await axios.post(
-      `${IMAGEN_4_API_URL}?key=${GEMINI_API_KEY}`,
-      requestBody,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: 60000, // 60 second timeout (image generation can take time)
-      }
-    );
-
-    // Extract base64 encoded images from Imagen 4 response
-    const predictions = response.data?.predictions;
-    if (!predictions || predictions.length === 0) {
-      return {
-        success: false,
-        error: 'No images generated from Imagen 4 API',
-        prompt,
-      };
-    }
-
-    // Extract base64 images from Imagen 4 response format
-    // Imagen uses predictions[].bytesBase64Encoded or predictions[].image.bytesBase64Encoded
-    const images: string[] = predictions.map((prediction: any) => {
-      // Try different possible response formats
-      return prediction.bytesBase64Encoded || prediction.image?.bytesBase64Encoded;
-    }).filter((img: any) => img); // Remove any undefined values
-
-    if (images.length === 0) {
-      return {
-        success: false,
-        error: 'No images found in Imagen 4 API response',
-        prompt,
-      };
-    }
-
-    console.log(`Successfully generated ${images.length} image(s)`);
-
-    return {
-      success: true,
-      images,
-      prompt,
-    };
-  } catch (error) {
-    console.error('Image generation error:', error);
-
-    if (axios.isAxiosError(error)) {
-      const status = error.response?.status;
-      const message = error.response?.data?.error?.message || error.message;
-
-      if (status === 429) {
-        return {
-          success: false,
-          error: 'API rate limit exceeded. Please try again in a moment.',
-        };
-      }
-
-      if (status === 403) {
-        return {
-          success: false,
-          error: 'API key is invalid or Imagen API is not enabled. Please check your configuration.',
-        };
-      }
-
-      if (status === 400) {
-        return {
-          success: false,
-          error: `Invalid request: ${message}. The prompt may need adjustment.`,
-        };
-      }
-
-      return {
-        success: false,
-        error: `API error: ${message}`,
-      };
-    }
-
+  if (!GEMINI_API_KEY) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
+      error: 'Gemini API key is not configured. Please set EXPO_PUBLIC_GEMINI_API_KEY in your .env file.',
     };
   }
+
+  if (!recipe.title || recipe.title.trim().length === 0) {
+    return {
+      success: false,
+      error: 'Recipe title is required for image generation.',
+    };
+  }
+
+  // Build optimized prompt
+  const prompt = buildRecipeImagePrompt(recipe);
+
+  // Set default options
+  const {
+    aspectRatio = '4:3', // Good for recipe photos
+    sampleCount = 1, // Generate 1 image by default
+  } = options;
+
+  console.log('Starting image generation with automatic fallback...');
+  console.log('Aspect ratio:', aspectRatio);
+  console.log('Sample count:', sampleCount);
+
+  // Try each model in sequence until one succeeds
+  let lastError: string | undefined;
+
+  for (let i = 0; i < IMAGEN_MODELS.length; i++) {
+    const model = IMAGEN_MODELS[i];
+
+    try {
+      console.log(`Trying model ${i + 1}/${IMAGEN_MODELS.length}: ${model.label}...`);
+
+      // Prepare request body for Imagen API
+      const requestBody = {
+        instances: [
+          {
+            prompt: prompt,
+          },
+        ],
+        parameters: {
+          sampleCount: Math.min(sampleCount, 4), // Max 4 images
+          aspectRatio: aspectRatio,
+          imageSize: '1K', // Options: '1K' or '2K' (2K only for standard/ultra)
+        },
+      };
+
+      // Call Imagen API with current model
+      const response = await axios.post(
+        `${model.url}?key=${GEMINI_API_KEY}`,
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          timeout: 60000, // 60 second timeout (image generation can take time)
+        }
+      );
+
+      // Extract base64 encoded images from Imagen response
+      const predictions = response.data?.predictions;
+      if (!predictions || predictions.length === 0) {
+        lastError = `No images generated from ${model.label}`;
+        console.log(`${model.label} returned no predictions, trying next model...`);
+        continue;
+      }
+
+      // Extract base64 images from Imagen response format
+      // Imagen uses predictions[].bytesBase64Encoded or predictions[].image.bytesBase64Encoded
+      const images: string[] = predictions.map((prediction: any) => {
+        // Try different possible response formats
+        return prediction.bytesBase64Encoded || prediction.image?.bytesBase64Encoded;
+      }).filter((img: any) => img); // Remove any undefined values
+
+      if (images.length === 0) {
+        lastError = `No images found in ${model.label} response`;
+        console.log(`${model.label} returned empty images, trying next model...`);
+        continue;
+      }
+
+      console.log(`✅ Successfully generated ${images.length} image(s) using ${model.label}`);
+
+      return {
+        success: true,
+        images,
+        prompt,
+        modelUsed: model.label,
+      };
+
+    } catch (error) {
+      console.error(`${model.label} error:`, error);
+
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        const message = error.response?.data?.error?.message || error.message;
+
+        // Check if it's a quota/rate limit error - try next model
+        if (status === 429 || (status === 400 && message?.toLowerCase().includes('quota'))) {
+          console.log(`${model.label} quota exceeded (${status}), trying next model...`);
+          lastError = `${model.label}: Quota exceeded`;
+          continue;
+        }
+
+        // For non-quota errors on first model, still try fallbacks
+        // (could be temporary issues)
+        if (i < IMAGEN_MODELS.length - 1) {
+          console.log(`${model.label} failed (${status}), trying next model...`);
+          lastError = `${model.label}: ${message}`;
+          continue;
+        }
+
+        // On last model, return specific error
+        if (status === 403) {
+          return {
+            success: false,
+            error: 'API key is invalid or Imagen API is not enabled. Please check your configuration.',
+          };
+        }
+
+        lastError = `API error: ${message}`;
+      } else {
+        lastError = error instanceof Error ? error.message : 'Unknown error occurred';
+      }
+
+      // Try next model if available
+      if (i < IMAGEN_MODELS.length - 1) {
+        continue;
+      }
+    }
+  }
+
+  // All models failed
+  return {
+    success: false,
+    error: lastError || 'All image generation models failed. Please try again later.',
+    prompt,
+  };
 }
 
 /**
@@ -386,6 +423,7 @@ export async function generateAndUploadRecipeImage(
       images: generationResult.images,
       downloadURLs,
       prompt: generationResult.prompt,
+      modelUsed: generationResult.modelUsed,
     };
   } catch (error) {
     console.error('Error generating and uploading image:', error);
