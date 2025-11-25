@@ -24,19 +24,40 @@ export default function RecipeOCRImportScreen() {
   const styles = useStyles(createStyles);
 
   const navigation = useNavigation();
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
   // OCR import hook
   const {
     imageUri,
+    imageUris,
     parsedRecipe,
     isProcessing,
     processingStep,
     processImage,
   } = useOCRImport();
 
-  // Handle image selection with auto-navigation
+  // Handle single image selection with auto-navigation (for camera)
   const handleImageSelected = async (uri: string) => {
+    setSelectedImages([uri]);
     const recipe = await processImage(uri, { generateAICover: true });
+
+    // Auto-navigate to RecipeCreator if recipe was successfully parsed
+    if (recipe) {
+      haptics.success();
+      navigation.goBack(); // Remove RecipeOCRImport from stack
+      setTimeout(() => {
+        (navigation as any).navigate('RecipeCreator', {
+          importedRecipe: recipe,
+          fromWebImport: true
+        });
+      }, 100);
+    }
+  };
+
+  // Handle multiple images selection (for library)
+  const handleImagesSelected = async (uris: string[]) => {
+    setSelectedImages(uris);
+    const recipe = await processImage(uris, { generateAICover: true });
 
     // Auto-navigate to RecipeCreator if recipe was successfully parsed
     if (recipe) {
@@ -54,7 +75,9 @@ export default function RecipeOCRImportScreen() {
   // Image picker hook
   const { takePhoto, pickFromLibrary } = useImagePicker({
     onImageSelected: handleImageSelected,
-    allowsEditing: true,
+    onImagesSelected: handleImagesSelected,
+    allowsEditing: false, // Disable editing to allow multiple selection
+    allowsMultipleSelection: true,
     quality: 1,
   });
 
@@ -138,7 +161,7 @@ export default function RecipeOCRImportScreen() {
               <View style={styles.instructionItem}>
                 <Text style={styles.instructionNumber}>1</Text>
                 <Text style={styles.instructionText}>
-                  Take a photo or select an image of your recipe
+                  Take a photo or select one or more images of your recipe
                 </Text>
               </View>
               <View style={styles.instructionItem}>
@@ -163,19 +186,50 @@ export default function RecipeOCRImportScreen() {
           </View>
         )}
 
-        {/* Image Preview */}
-        {imageUri && (
+        {/* Image Preview(s) */}
+        {selectedImages.length > 0 && (
           <View style={styles.imageContainer}>
-            <Image
-              source={{ uri: imageUri }}
-              style={styles.image}
-              contentFit="contain"
-            />
+            {selectedImages.length === 1 ? (
+              // Single image - show large preview
+              <Image
+                source={{ uri: selectedImages[0] }}
+                style={styles.image}
+                contentFit="contain"
+              />
+            ) : (
+              // Multiple images - show horizontal scroll with thumbnails
+              <View>
+                <Text style={styles.multipleImagesText}>
+                  {selectedImages.length} images selected
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.imageScrollView}
+                  contentContainerStyle={styles.imageScrollContent}
+                >
+                  {selectedImages.map((uri, index) => (
+                    <View key={index} style={styles.thumbnailContainer}>
+                      <Image
+                        source={{ uri }}
+                        style={styles.thumbnail}
+                        contentFit="cover"
+                      />
+                      <View style={styles.imageNumberBadge}>
+                        <Text style={styles.imageNumberText}>{index + 1}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
             <TouchableOpacity
               style={styles.changeImageButton}
               onPress={showImageOptions}
             >
-              <Text style={styles.changeImageText}>Change Image</Text>
+              <Text style={styles.changeImageText}>
+                {selectedImages.length > 1 ? 'Change Images' : 'Change Image'}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -202,7 +256,7 @@ export default function RecipeOCRImportScreen() {
             onPress={showImageOptions}
           >
             <Text style={styles.primaryButtonText}>
-              {imageUri ? 'Scan Another Recipe' : 'Scan Recipe'}
+              {selectedImages.length > 0 ? 'Scan Another Recipe' : 'Scan Recipe'}
             </Text>
           </TouchableOpacity>
         )}
@@ -265,6 +319,46 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     height: 300,
     borderRadius: theme.borderRadius.lg,
     backgroundColor: theme.colors.gray[100],
+  },
+  multipleImagesText: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.medium as any,
+    color: theme.colors.text.secondary,
+    marginBottom: theme.spacing.md,
+    textAlign: 'center',
+  },
+  imageScrollView: {
+    marginBottom: theme.spacing.md,
+  },
+  imageScrollContent: {
+    paddingHorizontal: theme.spacing.xs,
+    gap: theme.spacing.md,
+  },
+  thumbnailContainer: {
+    position: 'relative',
+    marginHorizontal: theme.spacing.xs,
+  },
+  thumbnail: {
+    width: 120,
+    height: 160,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: theme.colors.gray[100],
+  },
+  imageNumberBadge: {
+    position: 'absolute',
+    top: theme.spacing.sm,
+    right: theme.spacing.sm,
+    backgroundColor: theme.colors.primary[600],
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imageNumberText: {
+    color: 'white',
+    fontSize: theme.typography.fontSize.sm,
+    fontWeight: theme.typography.fontWeight.bold as any,
   },
   changeImageButton: {
     marginTop: theme.spacing.md,
