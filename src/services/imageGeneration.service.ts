@@ -5,7 +5,7 @@ import { uploadBase64ImageToStorage } from '../utils/imageUpload';
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || '';
 
 // Imagen model configurations with fallback support
-// Standard: 70/day quota, Fast: 70/day quota, Ultra: 30/day quota = 170 images/day total for tier 1 users
+// Imagen 4.0 Standard: 70/day quota, Fast: 70/day quota, Ultra: 30/day quota = 170 images/day
 const IMAGEN_MODELS = [
   {
     name: 'imagen-4.0-generate-001',
@@ -26,6 +26,7 @@ const IMAGEN_MODELS = [
     label: 'Imagen 4.0 Ultra',
   },
 ];
+
 export const IMAGEN_COST_PER_IMAGE = 0.04;
 
 /**
@@ -55,35 +56,48 @@ export interface ImageGenerationResult {
 
 /**
  * Visual style variations for diverse image generation
+ * Optimized for Imagen 4.0 following Google's best practices
+ * Reference: https://ai.google.dev/gemini-api/docs/imagen
  */
 const CAMERA_ANGLES = [
-  'overhead view',
-  '45-degree angle view',
-  'side view',
-  'close-up shot',
-  'three-quarter view',
-  'eye-level perspective',
+  'overhead shot',
+  '45-degree angle',
+  'side angle view',
+  'close-up',
+  'three-quarter angle',
+  'eye-level',
   'slightly elevated angle',
+  'aerial view from above',
 ];
 
 const LIGHTING_STYLES = [
-  'natural lighting',
+  'natural window light',
   'warm golden hour lighting',
-  'bright daylight',
-  'soft diffused lighting',
+  'bright soft daylight',
+  'soft diffused studio lighting',
   'dramatic side lighting',
-  'backlighting with rim light',
+  'backlit with rim light',
   'warm ambient lighting',
-  'morning sunlight',
+  'morning sunlight streaming',
+];
+
+// Lens types - recommended by Google for photography prompts
+const LENS_TYPES = [
+  '50mm lens',
+  '35mm lens',
+  'macro lens',
+  '85mm portrait lens',
+  'standard lens',
 ];
 
 const DEPTH_STYLES = [
   'shallow depth of field',
   'soft bokeh background',
   'sharp focus with blurred background',
-  'cinematic depth',
-  'macro photography detail',
+  'cinematic depth of field',
+  'macro detail',
   'selective focus',
+  'professional depth',
 ];
 
 const PLATING_STYLES = [
@@ -97,24 +111,24 @@ const PLATING_STYLES = [
 ];
 
 const BACKGROUND_SETTINGS = [
-  'on a wooden table',
-  'on a marble countertop',
-  'on a rustic serving board',
-  'on a clean white surface',
-  'on a dark slate plate',
-  'with kitchen ambiance in background',
-  'on a colorful ceramic plate',
-  'on a vintage table setting',
+  'wooden table surface',
+  'marble countertop',
+  'rustic serving board',
+  'clean white surface',
+  'dark slate plate',
+  'kitchen setting',
+  'colorful ceramic plate',
+  'vintage table setting',
 ];
 
 const COLOR_MOODS = [
-  'vibrant colors',
-  'rich saturated colors',
+  'vibrant saturated colors',
+  'rich warm tones',
   'warm color palette',
   'fresh bright colors',
   'natural earthy tones',
   'bold vibrant hues',
-  'soft pastel tones',
+  'soft muted tones',
   'deep rich colors',
 ];
 
@@ -128,8 +142,9 @@ function randomChoice<T>(array: T[]): T {
 /**
  * Builds a detailed, optimized prompt for food photography based on recipe data
  * Uses randomized visual styles to create diverse, non-uniform images
+ * Follows Google's Imagen 4.0 best practices for photography prompts
  * @param recipe - Recipe object containing title, description, ingredients, etc.
- * @returns Optimized prompt for Imagen 4
+ * @returns Optimized prompt for Imagen 4.0 (Standard, Fast, or Ultra)
  */
 export function buildRecipeImagePrompt(recipe: {
   title: string;
@@ -175,6 +190,7 @@ export function buildRecipeImagePrompt(recipe: {
   }
 
   // Build the prompt with professional food photography style
+  // Following Google's recommendation: subject + context + style
   let prompt = `Professional food photography of ${title}`;
 
   // Add key ingredients if available
@@ -193,12 +209,18 @@ export function buildRecipeImagePrompt(recipe: {
   // Add randomized professional photography characteristics for variety
   const cameraAngle = randomChoice(CAMERA_ANGLES);
   const lightingStyle = randomChoice(LIGHTING_STYLES);
+  const lensType = randomChoice(LENS_TYPES);
   const depthStyle = randomChoice(DEPTH_STYLES);
   const platingStyle = randomChoice(PLATING_STYLES);
   const backgroundSetting = randomChoice(BACKGROUND_SETTINGS);
   const colorMood = randomChoice(COLOR_MOODS);
 
-  prompt += `, ${cameraAngle}, ${lightingStyle}, ${depthStyle}, ${platingStyle}, ${backgroundSetting}, ${colorMood}, appetizing presentation, high resolution, professional food styling`;
+  // Construct photography details with lens type (recommended by Google)
+  prompt += `, shot with ${lensType}, ${cameraAngle}, ${lightingStyle}, ${depthStyle}`;
+  prompt += `, ${platingStyle}, ${backgroundSetting}, ${colorMood}`;
+
+  // Add quality modifiers recommended by Google for Imagen 4.0
+  prompt += ', appetizing presentation, professional food styling, studio photo, 4K, HDR';
 
   // Add context from description if available
   if (description && description.length > 0) {
@@ -221,10 +243,10 @@ export function buildRecipeImagePrompt(recipe: {
 /**
  * Generates recipe cover photo using Imagen with automatic fallback
  * Tries models in order: 4.0 Standard (70/day) → 4.0 Fast (70/day) → 4.0 Ultra (30/day)
- * Total capacity: 170 images per day across all models
+ * Total capacity: 170 images per day. Uses optimized prompts following Google's best practices.
  * @param recipe - Recipe data to generate image from
  * @param options - Image generation options
- * @returns ImageGenerationResult with base64 encoded images
+ * @returns ImageGenerationResult with base64 encoded images and which model was used
  */
 export async function generateRecipeImage(
   recipe: {

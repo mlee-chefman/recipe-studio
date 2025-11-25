@@ -1,10 +1,114 @@
 /**
+ * Helper function to generate appliance restriction rules for AI prompts
+ * This ensures consistency across all AI features that create/modify recipes
+ */
+function getApplianceRestrictions(applianceName?: string, cookingMethods?: string[]): string {
+  // If no specific appliance is selected, provide general consistency rules
+  if (!applianceName) {
+    return `
+🚨 **CRITICAL: APPLIANCE CONSISTENCY RULES** 🚨
+
+**YOU MUST FOLLOW THESE RULES WHEN SUGGESTING COOKING METHODS:**
+
+1. **STICK TO ONE APPLIANCE PER RECIPE** 🚨 CRITICAL:
+   - Choose ONE appliance for the recipe and use ONLY methods from that appliance
+   - DO NOT mix methods from different appliances
+   - If the selected appliance can do both prep and main cooking, that's fine
+   - Examples:
+     - ✅ CORRECT: iQ Cooker → Sauté onions (step 1) + Pressure Cook (step 4)
+     - ✅ CORRECT: iQ MiniOven → Bake only (meat browning done manually on stovetop)
+     - ❌ WRONG: Sauté (iQ Cooker) + Bake (iQ MiniOven) - mixing two appliances!
+
+2. **HOW TO CHOOSE WHICH APPLIANCE:**
+   - **Oven-based recipes** (lasagna, casseroles, roasts, baked dishes): Use iQ MiniOven
+     - Any searing/sautéing = manual stovetop (iQ MiniOven can't sauté)
+     - Only suggest oven methods: Bake, Roast, Air Fry, Broil
+   - **Pressure cooker recipes** (stews, chili, beans, rice): Use iQ Cooker
+     - CAN suggest Sauté first, then Pressure Cook (same appliance!)
+     - Example: Sauté onions, then pressure cook the stew
+   - **Slow cooker recipes** (pot roast, pulled pork): Use iQ Cooker
+     - CAN suggest Sauté first, then Slow Cook (same appliance!)
+   - **Stir-fry/sauté only** (no oven/pressure): Use iQ Cooker
+
+3. **THE KEY RULE:**
+   - Once you pick an appliance, use ONLY its methods
+   - DON'T suggest methods from other appliances
+   - If the recipe needs a method the appliance doesn't have, do it manually
+
+4. **APPLIANCE METHOD REFERENCE:**
+   - **iQ Cooker ONLY**: Pressure Cook, Sauté, Steam, Slow Cook, Sous Vide
+   - **iQ MiniOven ONLY**: Bake, Air Fry, Roast, Broil, Toast, Dehydrate
+   - **iQ Sense ONLY**: Monitor Temperature (for outdoor grilling/smoking)
+
+4. **WHEN IN DOUBT**: Choose the appliance that best fits the recipe type:
+   - Oven-based recipes (baking, roasting, crisping) → iQ MiniOven
+   - Pressure cooking, stews, rice, sautéing → iQ Cooker
+   - Grilling/smoking monitoring → iQ Sense
+`;
+  }
+
+  const applianceMethodsMap: Record<string, string[]> = {
+    'iQ Cooker': ['Pressure Cook', 'Sear/Sauté', 'Steam', 'Slow Cook', 'Sous Vide'],
+    'iQ MiniOven': ['Bake', 'Air Fry', 'Roast', 'Broil', 'Toast', 'Dehydrate'],
+    'iQ Sense': ['Monitor Temperature'],
+  };
+
+  const forbiddenMethods: Record<string, string[]> = {
+    'iQ MiniOven': ['Sauté', 'Pressure Cook', 'Slow Cook', 'Steam', 'Sous Vide'],
+    'iQ Cooker': ['Bake', 'Air Fry', 'Roast', 'Broil', 'Toast', 'Dehydrate'],
+    'iQ Sense': ['Sauté', 'Pressure Cook', 'Slow Cook', 'Steam', 'Sous Vide', 'Bake', 'Air Fry', 'Roast', 'Broil', 'Toast', 'Dehydrate'],
+  };
+
+  const categoryIds: Record<string, string> = {
+    'iQ Cooker': 'c8ff3aef-3de6-4a74-bba6-03e943b2762c',
+    'iQ MiniOven': '4a3cd4f1-839b-4f45-80ea-08f594ff74c3',
+    'iQ Sense': 'a542fa25-5053-4946-8b77-e358467baa0f',
+  };
+
+  const allowedMethods = applianceMethodsMap[applianceName] || [];
+  const forbidden = forbiddenMethods[applianceName] || [];
+  const categoryId = categoryIds[applianceName];
+
+  return `
+🚨 **CRITICAL APPLIANCE RESTRICTION** 🚨
+This recipe uses: **${applianceName}**
+
+**YOU MUST FOLLOW THESE RULES:**
+
+1. **THIS RECIPE USES: ${applianceName}** 🚨 CRITICAL:
+   - ONLY use methods from ${applianceName}: ${allowedMethods.join(', ')}
+   - DO NOT suggest methods from other appliances: ${forbidden.join(', ')}
+   ${cookingMethods && cookingMethods.length > 0 ? `- Current methods: ${cookingMethods.join(', ')} - keep unless user asks to change` : ''}
+
+2. **MULTIPLE ACTIONS FROM SAME APPLIANCE = OK** ✅:
+   ${applianceName === 'iQ Cooker' ? `- You CAN suggest multiple iQ Cooker methods in the same recipe
+   - Example: Sauté onions (step 1) → Pressure Cook stew (step 4) ✅ Both are iQ Cooker methods!
+   - Example: Sauté vegetables (step 2) → Slow Cook (step 5) ✅ Both are iQ Cooker methods!
+   - DON'T suggest Bake or Roast - those are iQ MiniOven only ❌` : ''}
+   ${applianceName === 'iQ MiniOven' ? `- For oven recipes, usually just ONE oven method is needed (Bake, Roast, Air Fry, etc.)
+   - Any searing/sautéing must be done MANUALLY on stovetop (iQ MiniOven can't sauté)
+   - Example: "Brown meat in skillet (manual), assemble lasagna, BAKE 45 min" → Only suggest Bake
+   - DON'T suggest Sauté or Pressure Cook - those are iQ Cooker only ❌` : ''}
+
+3. **When creating chefiqSuggestions:**
+   - suggestedAppliance MUST be: "${categoryId}"
+   - Each action's applianceId MUST be: "${categoryId}"
+   - Each action's methodId MUST be from: ${allowedMethods.join(', ')}
+   - You can have multiple suggestedActions IF they're all from ${applianceName}
+`;
+
+}
+
+/**
  * Creates a detailed prompt for generating a recipe from a description
  */
-export function createRecipeGenerationPrompt(description: string): string {
+export function createRecipeGenerationPrompt(description: string, applianceName?: string): string {
+  const applianceRestrictions = getApplianceRestrictions(applianceName);
+
   return `You are a professional chef and recipe creator. Your task is to create a complete recipe based on the user's description.
 
 User's request: "${description}"
+${applianceRestrictions}
 
 Please create a recipe that matches this description. **By default, keep recipes SIMPLE and STRAIGHTFORWARD** unless the user's description explicitly asks for complexity.
 
@@ -542,11 +646,13 @@ export function createRecipeFromIngredientsPrompt(
   dietary?: string,
   cuisine?: string,
   cookingTime?: string,
-  matchingStrictness?: 'exact' | 'substitutions' | 'creative'
+  matchingStrictness?: 'exact' | 'substitutions' | 'creative',
+  applianceName?: string
 ): string {
   const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
   const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
   const timeFilter = cookingTime && cookingTime !== 'Any' ? cookingTime : null;
+  const applianceRestrictions = getApplianceRestrictions(applianceName);
 
   let strictnessInstruction = '';
   switch (matchingStrictness) {
@@ -570,6 +676,7 @@ export function createRecipeFromIngredientsPrompt(
 ${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
 ${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
 ${timeFilter ? `**Cooking Time Preference**: ${timeFilter}` : ''}
+${applianceRestrictions}
 
 **Matching Mode**: ${strictnessInstruction}
 
@@ -633,12 +740,14 @@ export function createMultipleRecipesFromIngredientsPrompt(
   cookingTime?: string,
   category?: string,
   matchingStrictness?: 'exact' | 'substitutions' | 'creative',
-  excludeTitles: string[] = []
+  excludeTitles: string[] = [],
+  applianceName?: string
 ): string {
   const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
   const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
   const timeFilter = cookingTime && cookingTime !== 'Any' ? cookingTime : null;
   const categoryFilter = category && category !== 'Any' ? category : null;
+  const applianceRestrictions = getApplianceRestrictions(applianceName);
 
   let strictnessInstruction = '';
   switch (matchingStrictness) {
@@ -667,6 +776,7 @@ ${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
 ${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
 ${timeFilter ? `**Cooking Time Preference**: ${timeFilter}` : ''}
 ${categoryFilter ? `**Recipe Category**: ${categoryFilter}` : ''}
+${applianceRestrictions}
 
 **Matching Mode**: ${strictnessInstruction}${excludeInstruction}
 
@@ -874,6 +984,9 @@ Focus on making each individual step SHORT and READABLE, not just reducing the n
    - If a step with a cooking action is kept mostly unchanged, preserve the same cooking action
    - If a long step is split into multiple steps, assign the cooking action to the appropriate step where cooking happens
    - Adjust cooking action parameters if the step description changes significantly (e.g., if time or temperature changes in the text, update the parameters)
+   - **⚠️ APPLIANCE CONSISTENCY**: When re-analyzing cooking actions, keep them on the SAME appliance
+   - DO NOT change methods to a different appliance (e.g., don't change "Bake" to "Pressure Cook" - they're different appliances)
+   - Only suggest methods that exist on the current appliance being used
 8. **Preserve step images** - If a step has an image, note that in your response
 
 **Good Example of Simplification:**
@@ -936,7 +1049,11 @@ Return a JSON object with the following structure:
 - Include "changesSummary" explaining what you did (e.g., "Split 3 long steps into 5 shorter, clearer steps" or "Trimmed verbose language and removed filler words")
 - For each step, include "cookingAction" ONLY if the original step(s) had a cooking action and it's still relevant
 - The cookingAction object should include: applianceId, methodId, methodName, and parameters (object with cooking settings)
-- Preserve the exact applianceId and methodId from the original cooking action
+- **⚠️ CRITICAL - APPLIANCE CONSISTENCY**:
+  - Preserve the exact applianceId and methodId from the original cooking action
+  - DO NOT change the appliance (e.g., don't change from iQ MiniOven to iQ Cooker)
+  - DO NOT suggest methods from a different appliance (e.g., if original uses "Bake", don't suggest "Sauté")
+  - Only suggest methods that exist on the SAME appliance as the original
 - Update the parameters object if the step description changed (e.g., different time/temp mentioned)
 - Return ONLY valid JSON, no additional text
 
@@ -950,11 +1067,13 @@ export function createFullCourseMenuPrompt(
   ingredients: string[],
   dietary?: string,
   cuisine?: string,
-  cookingTime?: string
+  cookingTime?: string,
+  applianceName?: string
 ): string {
   const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
   const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
   const timeFilter = cookingTime && cookingTime !== 'Any' ? cookingTime : null;
+  const applianceRestrictions = getApplianceRestrictions(applianceName);
 
   return `You are a professional chef and menu planner. Your task is to create a complete, cohesive full course menu using the ingredients the user has available.
 
@@ -963,6 +1082,7 @@ export function createFullCourseMenuPrompt(
 ${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
 ${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
 ${timeFilter ? `**Total Meal Preparation Time**: ${timeFilter}` : ''}
+${applianceRestrictions}
 
 Please create a complete 3-course menu that includes:
 1. **Appetizer** - A light starter to begin the meal
@@ -1049,10 +1169,12 @@ export function createSingleCourseRegenerationPrompt(
   ingredients: string[],
   courseType: 'appetizer' | 'main' | 'dessert',
   dietary?: string,
-  cuisine?: string
+  cuisine?: string,
+  applianceName?: string
 ): string {
   const dietaryFilter = dietary && dietary !== 'None' ? dietary : null;
   const cuisineFilter = cuisine && cuisine !== 'Any' ? cuisine : null;
+  const applianceRestrictions = getApplianceRestrictions(applianceName);
 
   const courseDescriptions = {
     appetizer: 'A light starter to begin the meal',
@@ -1072,6 +1194,7 @@ export function createSingleCourseRegenerationPrompt(
 
 ${dietaryFilter ? `**Dietary Restriction**: ${dietaryFilter}` : ''}
 ${cuisineFilter ? `**Preferred Cuisine**: ${cuisineFilter}` : ''}
+${applianceRestrictions}
 
 Please create ${courseEmojis[courseType]} **${courseType.toUpperCase()}**: ${courseDescriptions[courseType]}
 
@@ -1159,6 +1282,7 @@ export function createRecipeEnhancementPrompt(
   const cookingMethodsText = currentRecipe.cookingMethods && currentRecipe.cookingMethods.length > 0
     ? `\n**Smart Cooking Methods:** Using ${currentRecipe.applianceName || 'smart appliance'} with methods: ${currentRecipe.cookingMethods.join(', ')}`
     : '';
+  const applianceRestrictions = getApplianceRestrictions(currentRecipe.applianceName, currentRecipe.cookingMethods);
 
   // Detect if recipe is mostly empty (user is stuck)
   const hasTitle = currentRecipe.title && currentRecipe.title.trim() !== '';
@@ -1213,6 +1337,7 @@ ${isEmptyRecipe ? `
 
 **iQ Sense** - Temperature monitoring hub (for outdoor grilling/smoking):
 - Monitor Temperature: Tracks internal temperature with probe alerts
+${applianceRestrictions}
 
 **${isEmptyRecipe ? 'Creation' : 'Enhancement'} Guidelines:**
 ${isEmptyRecipe ? `
@@ -1270,8 +1395,16 @@ Return a JSON object with the ${isEmptyRecipe ? 'new' : 'enhanced'} recipe:
     ],
     "useProbe": true/false,
     "confidence": 0.9,
-    "reasoning": ["Why this appliance and methods were suggested"]
+    "reasoning": ["Why this ONE main cooking method was suggested"]
   }
+
+🚨 **CRITICAL - APPLIANCE CONSISTENCY**:
+- All actions in suggestedActions array MUST be from the SAME appliance
+- ✅ CORRECT: iQ Cooker → [Sauté onions (step 1), Pressure Cook (step 4)] - same appliance!
+- ✅ CORRECT: iQ MiniOven → [Bake (step 3)] - oven recipes usually have one oven action
+- ❌ WRONG: [Sauté (iQ Cooker), Bake (iQ MiniOven)] - mixing two appliances!
+- For lasagna: Only Bake (meat browning is manual stovetop, not ChefIQ)
+- For beef stew: Can have Sauté then Pressure Cook (both iQ Cooker)
 }
 
 **ChefIQ Appliance Category IDs and Method IDs:**

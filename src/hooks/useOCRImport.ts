@@ -12,10 +12,11 @@ export interface UseOCRImportOptions {
 
 export interface UseOCRImportResult {
   imageUri: string | null;
+  imageUris: string[];
   parsedRecipe: ScrapedRecipe | null;
   isProcessing: boolean;
   processingStep: string;
-  processImage: (uri: string, options?: UseOCRImportOptions) => Promise<ScrapedRecipe | null>;
+  processImage: (uri: string | string[], options?: UseOCRImportOptions) => Promise<ScrapedRecipe | null>;
   reset: () => void;
 }
 
@@ -25,6 +26,7 @@ export interface UseOCRImportResult {
  */
 export function useOCRImport(): UseOCRImportResult {
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageUris, setImageUris] = useState<string[]>([]);
   const [parsedRecipe, setParsedRecipe] = useState<ScrapedRecipe | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState<string>('');
@@ -32,21 +34,23 @@ export function useOCRImport(): UseOCRImportResult {
   const { generateAndUploadCover } = useAICoverGeneration();
 
   /**
-   * Process an image: extract recipe directly with Gemini multimodal vision
+   * Process one or more images: extract recipe directly with Gemini multimodal vision
    * Optionally generates AI cover image instead of using scanned photo
    * Falls back to local parser if Gemini fails
    * Returns the parsed recipe for auto-navigation
    */
-  const processImage = async (uri: string, options: UseOCRImportOptions = {}): Promise<ScrapedRecipe | null> => {
+  const processImage = async (uri: string | string[], options: UseOCRImportOptions = {}): Promise<ScrapedRecipe | null> => {
     const { generateAICover = false } = options;
 
     setIsProcessing(true);
-    setProcessingStep('Analyzing recipe image with AI...');
+    const uris = Array.isArray(uri) ? uri : [uri];
+    setProcessingStep(`Analyzing ${uris.length > 1 ? `${uris.length} recipe images` : 'recipe image'} with AI...`);
 
     try {
-      setImageUri(uri);
+      setImageUri(uris[0]); // Keep first image for backwards compatibility
+      setImageUris(uris);
 
-      // Step 1: Try Gemini multimodal vision (direct image → recipe)
+      // Step 1: Try Gemini multimodal vision (direct image(s) → recipe)
       const parseResult = await parseRecipeFromImage(uri);
 
       if (parseResult.success && parseResult.recipe) {
@@ -116,6 +120,7 @@ export function useOCRImport(): UseOCRImportResult {
    */
   const reset = () => {
     setImageUri(null);
+    setImageUris([]);
     setParsedRecipe(null);
     setIsProcessing(false);
     setProcessingStep('');
@@ -123,6 +128,7 @@ export function useOCRImport(): UseOCRImportResult {
 
   return {
     imageUri,
+    imageUris,
     parsedRecipe,
     isProcessing,
     processingStep,
