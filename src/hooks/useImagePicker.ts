@@ -4,7 +4,9 @@ import * as ImagePicker from 'expo-image-picker';
 
 export interface UseImagePickerOptions {
   onImageSelected?: (uri: string) => void;
+  onImagesSelected?: (uris: string[]) => void;
   allowsEditing?: boolean;
+  allowsMultipleSelection?: boolean;
   aspect?: [number, number];
   quality?: number;
 }
@@ -12,7 +14,9 @@ export interface UseImagePickerOptions {
 export function useImagePicker(options: UseImagePickerOptions = {}) {
   const {
     onImageSelected,
+    onImagesSelected,
     allowsEditing = true,
+    allowsMultipleSelection = false,
     aspect = [4, 3],
     quality = 0.8,
   } = options;
@@ -20,7 +24,7 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   /**
-   * Pick an image from the photo library
+   * Pick an image (or multiple images) from the photo library
    */
   const pickFromLibrary = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -31,15 +35,22 @@ export function useImagePicker(options: UseImagePickerOptions = {}) {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing,
+      allowsEditing: allowsMultipleSelection ? false : allowsEditing, // Disable editing when selecting multiple
+      allowsMultipleSelection,
       aspect,
       quality,
     });
 
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
-      onImageSelected?.(uri);
-      return uri;
+    if (!result.canceled && result.assets.length > 0) {
+      if (allowsMultipleSelection) {
+        const uris = result.assets.map(asset => asset.uri);
+        onImagesSelected?.(uris);
+        return uris;
+      } else {
+        const uri = result.assets[0].uri;
+        onImageSelected?.(uri);
+        return uri;
+      }
     }
 
     return null;

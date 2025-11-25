@@ -362,7 +362,7 @@ export async function enhanceRecipeWithAI(
  * @returns ParsedRecipeResult with structured recipe data
  */
 export async function parseRecipeFromImage(
-  imageUri: string
+  imageUris: string | string[]
 ): Promise<ParsedRecipeResult> {
   try {
     if (!GEMINI_API_KEY) {
@@ -373,7 +373,10 @@ export async function parseRecipeFromImage(
       };
     }
 
-    if (!imageUri || imageUri.trim().length === 0) {
+    // Normalize to array
+    const uris = Array.isArray(imageUris) ? imageUris : [imageUris];
+
+    if (uris.length === 0 || uris.some(uri => !uri || uri.trim().length === 0)) {
       return {
         recipe: null,
         success: false,
@@ -381,21 +384,25 @@ export async function parseRecipeFromImage(
       };
     }
 
-    // Convert image to base64
-    const base64Image = await getBase64FromUri(imageUri);
+    // Convert all images to base64
+    const base64Images = await Promise.all(
+      uris.map(uri => getBase64FromUri(uri))
+    );
 
-    if (!base64Image) {
+    if (base64Images.some(img => !img)) {
       return {
         recipe: null,
         success: false,
-        error: 'Failed to read image file',
+        error: 'Failed to read one or more image files',
       };
     }
 
     // Prepare the prompt for Gemini multimodal
-    const prompt = `You are a recipe extraction expert. Analyze this image and extract the recipe information.
+    const prompt = `You are a recipe extraction expert. Analyze ${uris.length > 1 ? 'these images' : 'this image'} and extract the recipe information.
 
-Extract and structure ALL recipe information you can see in the image into the following JSON format:
+${uris.length > 1 ? 'Multiple images are provided - they may show different parts of the same recipe (e.g., ingredients on one page, instructions on another). Combine all information from all images into a single complete recipe.' : ''}
+
+Extract and structure ALL recipe information you can see in the ${uris.length > 1 ? 'images' : 'image'} into the following JSON format:
 
 {
   "title": "Recipe name",
@@ -417,23 +424,26 @@ IMPORTANT:
 - Return ONLY valid JSON, no additional text or markdown
 `;
 
-    // Call Gemini API with image
+    // Build parts array with prompt and all images
+    const parts = [
+      {
+        text: prompt,
+      },
+      ...base64Images.map((base64Image) => ({
+        inline_data: {
+          mime_type: 'image/jpeg',
+          data: base64Image,
+        },
+      })),
+    ];
+
+    // Call Gemini API with image(s)
     const response = await axios.post(
       `${GEMINI_API_URL}?key=${GEMINI_API_KEY}`,
       {
         contents: [
           {
-            parts: [
-              {
-                text: prompt,
-              },
-              {
-                inline_data: {
-                  mime_type: 'image/jpeg',
-                  data: base64Image,
-                },
-              },
-            ],
+            parts,
           },
         ],
         generationConfig: {
@@ -471,8 +481,8 @@ IMPORTANT:
       };
     }
 
-    // Parse the JSON response from Gemini
-    const recipe = await parseGeminiResponse(generatedText, imageUri);
+    // Parse the JSON response from Gemini (use first image as cover if needed)
+    const recipe = await parseGeminiResponse(generatedText, uris[0]);
 
     if (!recipe) {
       return {
